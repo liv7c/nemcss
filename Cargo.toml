@@ -1,5 +1,5 @@
 [workspace]
-members = []
+members = ["config"]
 resolver = "3"
 
 [workspace.package]
@@ -8,3 +8,4 @@ authors = ["Olivia Coumans"]
 description = "NemCSS generates CSS utility classes and custom properties based on your design tokens."
 
 [workspace.dependencies]
+miette = { version = "7.6.0", features = ["fancy"] }
