@@ -9,3 +9,4 @@ description = "NemCSS generates CSS utility classes and custom properties based 
 
 [workspace.dependencies]
 miette = { version = "7.6.0", features = ["fancy"] }
+thiserror = "2.0.18"
