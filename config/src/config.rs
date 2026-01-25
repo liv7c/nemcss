@@ -6,6 +6,7 @@ use miette::Diagnostic;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
+/// The name of the NemCSS configuration file.
 pub const CONFIG_FILE_NAME: &str = "nemcss.config.json";
 
 /// NemCSSConfig represents the configuration of the NemCSS util.
@@ -28,6 +29,7 @@ pub struct NemCSSConfig {
     pub base_dir: PathBuf,
 }
 
+/// NemCSSConfigError represents the error type when loading the NemCSS configuration.
 #[derive(Debug, Error, Diagnostic)]
 pub enum NemCSSConfigError {
     #[error("failed to read NemCSS config file: {0}")]
@@ -70,6 +72,8 @@ pub struct ThemeConfig {
     tokens: HashMap<String, TokenConfig>,
 }
 
+/// TokenConfig represents the configuration of a single design token.
+/// You can override the default configuration by specifying the source, prefix, and utilities.
 #[derive(Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct TokenConfig {
     /// Path to the tokens file. If not specified, it will be auto-discovered based
