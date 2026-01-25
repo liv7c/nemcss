@@ -6,6 +6,8 @@ use miette::Diagnostic;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
+use crate::tokens::{ResolveTokensError, TokenValue, resolve_all_tokens};
+
 /// The name of the NemCSS configuration file.
 pub const CONFIG_FILE_NAME: &str = "nemcss.config.json";
 
@@ -17,9 +19,9 @@ pub struct NemCSSConfig {
     /// Content files will be used to determine which CSS classes to generate.
     pub content: Vec<String>,
 
-    /// Path to the directory containing the design tokens.
-    #[serde(rename = "tokensDir")]
-    pub tokens_dir: PathBuf,
+    /// Directory name containing the design tokens.
+    #[serde(rename = "tokensDir", default = "get_default_tokens_dir")]
+    pub tokens_dir: String,
 
     /// Theme configuration.
     pub theme: Option<ThemeConfig>,
@@ -27,6 +29,11 @@ pub struct NemCSSConfig {
     /// The base directory of the NemCSS project.
     #[serde(skip)]
     pub base_dir: PathBuf,
+}
+
+/// Returns the default value for the tokensDir field.
+fn get_default_tokens_dir() -> String {
+    String::from("design-tokens")
 }
 
 /// NemCSSConfigError represents the error type when loading the NemCSS configuration.
@@ -58,6 +65,12 @@ impl NemCSSConfig {
         config.base_dir = base_dir;
 
         Ok(config)
+    }
+
+    pub fn resolve_all_tokens(
+        &self,
+    ) -> Result<HashMap<String, HashMap<String, TokenValue>>, ResolveTokensError> {
+        resolve_all_tokens(self)
     }
 }
 

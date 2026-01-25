@@ -58,3 +58,14 @@ fn test_returns_error_on_invalid_json() {
             .contains("failed to parse NemCSS config file")
     );
 }
+
+#[test]
+fn test_resolves_tokens_automatically_detected() {
+    let config_path = get_config_fixture_path("autodetection_tokens");
+    let config = NemCSSConfig::from_path(&config_path).unwrap();
+
+    let tokens = config.resolve_all_tokens().unwrap();
+
+    assert_eq!(tokens.len(), 2);
+    dbg!(tokens);
+}

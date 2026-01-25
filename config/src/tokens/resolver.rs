@@ -5,9 +5,12 @@ use std::path::{Path, PathBuf};
 use miette::{Diagnostic, Result};
 use thiserror::Error;
 
+use crate::NemCSSConfig;
+use crate::tokens::token::{TokenFile, TokenValue};
+
 /// Represents the error type when scanning the tokens directory.
 #[derive(Debug, Diagnostic, Error)]
-enum ScanTokensDirError {
+pub enum ScanTokensDirError {
     #[error("failed to read tokens directory: {0}")]
     #[diagnostic(code(config::tokens::scan_dir::read_error))]
     ReadDirError(std::io::Error),
@@ -49,6 +52,55 @@ fn scan_tokens_dir(path: &Path) -> Result<HashMap<String, PathBuf>, ScanTokensDi
         if let Some(prefix) = prefix_from_filename {
             tokens.insert(prefix.to_string(), path);
         }
+    }
+
+    Ok(tokens)
+}
+
+/// Represents the error type when loading tokens from a file.
+#[derive(Debug, Diagnostic, Error)]
+pub enum LoadTokensFromFileError {
+    /// Represents an error when reading the token file.
+    #[error("failed to read token file: {0}")]
+    #[diagnostic(code(config::tokens::load_tokens_from_file::read_file_error))]
+    ReadFileError(std::io::Error),
+    /// Represents an error when parsing the token file.
+    #[error("failed to parse token file: {0}")]
+    #[diagnostic(code(config::tokens::load_tokens_from_file::parse_error))]
+    ParseError(serde_json::Error),
+}
+
+/// Load tokens from the given token file.
+fn load_tokens_from_file(
+    path: &Path,
+) -> Result<HashMap<String, TokenValue>, LoadTokensFromFileError> {
+    let file = fs::read_to_string(path).map_err(LoadTokensFromFileError::ReadFileError)?;
+    let token_file: TokenFile =
+        serde_json::from_str(&file).map_err(LoadTokensFromFileError::ParseError)?;
+    Ok(token_file.into_tokens())
+}
+
+/// Represents the error type when resolving tokens.
+#[derive(Debug, Diagnostic, Error)]
+pub enum ResolveTokensError {
+    #[error("failed to scan tokens directory: {0}")]
+    ScanTokensDirError(#[from] ScanTokensDirError),
+
+    #[error("failed to load tokens from file: {0}")]
+    LoadTokensFromFileError(#[from] LoadTokensFromFileError),
+}
+
+pub fn resolve_all_tokens(
+    config: &NemCSSConfig,
+) -> Result<HashMap<String, HashMap<String, TokenValue>>, ResolveTokensError> {
+    let mut tokens = HashMap::new();
+
+    let tokens_dir = config.base_dir.join(&config.tokens_dir);
+    let token_files = scan_tokens_dir(&tokens_dir)?;
+
+    for (name, path) in token_files {
+        let token = load_tokens_from_file(&path)?;
+        tokens.insert(name, token);
     }
 
     Ok(tokens)

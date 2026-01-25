@@ -1,0 +1,18 @@
+{
+  "title": "Colors",
+  "description": "Brand color palette",
+  "items": [
+    {
+      "name": "dark",
+      "value": "#171406"
+    },
+    {
+      "name": "light",
+      "value": "#ffffff"
+    },
+    {
+      "name": "primary",
+      "value": "#fccd26"
+    }
+  ]
+}
