@@ -144,4 +144,63 @@ fn test_generates_utilities_for_explicitly_configured_tokens() {
         color_token.tokens.get("dark"),
         Some(&TokenValue::Simple("#171406".to_string()))
     );
+
+    let spacing_utilities = spacing_token.utilities.clone();
+    assert_eq!(spacing_utilities.len(), 2);
+    assert!(spacing_utilities.first().unwrap().prefix == "p");
+    assert!(spacing_utilities.last().unwrap().prefix == "m");
+
+    let color_utilities = color_token.utilities.clone();
+    assert_eq!(color_utilities.len(), 3);
+    assert!(color_utilities.first().unwrap().prefix == "text");
+    assert!(color_utilities.get(1).unwrap().prefix == "bg");
+    assert!(color_utilities.last().unwrap().prefix == "highlight");
+}
+
+#[test]
+fn test_overrides_default_configuration_for_explicitly_configured_tokens() {
+    let config_path = get_config_fixture_path("default_and_overrides_combination");
+    let config = NemCSSConfig::from_path(&config_path).unwrap();
+    let tokens = config.resolve_all_tokens().unwrap();
+
+    let spacing_token = tokens.get("spacings").unwrap();
+    assert_eq!(spacing_token.prefix, "spacing");
+
+    // check tokens for spacing
+    assert!(spacing_token.tokens.contains_key("xxs"));
+    assert_eq!(
+        spacing_token.tokens.get("xxs"),
+        Some(&TokenValue::Simple("0.125rem".to_string()))
+    );
+
+    assert!(spacing_token.tokens.contains_key("xs"));
+    assert_eq!(
+        spacing_token.tokens.get("xs"),
+        Some(&TokenValue::Simple("0.25rem".to_string()))
+    );
+
+    let spacing_utilities = spacing_token.utilities.clone();
+    assert!(spacing_utilities.len() > 2);
+    assert!(spacing_utilities.iter().any(|u| u.prefix == "pb"));
+    assert!(
+        spacing_utilities
+            .iter()
+            .find(|u| u.prefix == "pb")
+            .unwrap()
+            .property
+            == "padding-block"
+    );
+
+    let color_token = tokens.get("colors").unwrap();
+    let color_utilities = color_token.utilities.clone();
+    assert!(color_utilities.len() > 2);
+    assert!(color_utilities.iter().any(|u| u.prefix == "highlight"));
+    assert!(
+        color_utilities
+            .iter()
+            .find(|u| u.prefix == "highlight")
+            .unwrap()
+            .property
+            == "background-color"
+    );
 }

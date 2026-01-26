@@ -6,6 +6,7 @@ use crate::{ThemeConfig, config::TokenUtilityConfig};
 pub fn default_prefix_for_token_type(token_type: &str) -> String {
     match token_type {
         "colors" => "color",
+        "spacings" => "spacing",
         "fonts" => "font",
         "shadows" => "shadow",
         "borders" => "border",
@@ -19,7 +20,7 @@ pub fn default_prefix_for_token_type(token_type: &str) -> String {
 /// Returns the default utilities for a given token type.
 pub fn get_default_utilities_for_token_type(token_type: &str) -> Vec<TokenUtilityConfig> {
     match token_type {
-        "colors" => vec![
+        "color" | "colors" => vec![
             TokenUtilityConfig {
                 prefix: "text".to_string(),
                 property: "color".to_string(),
@@ -29,7 +30,7 @@ pub fn get_default_utilities_for_token_type(token_type: &str) -> Vec<TokenUtilit
                 property: "background-color".to_string(),
             },
         ],
-        "spacing" => vec![
+        "spacing" | "spacings" => vec![
             TokenUtilityConfig {
                 prefix: "p".to_string(),
                 property: "padding".to_string(),
@@ -87,7 +88,7 @@ pub fn get_default_utilities_for_token_type(token_type: &str) -> Vec<TokenUtilit
                 property: "margin-block".to_string(),
             },
         ],
-        "fonts" => vec![TokenUtilityConfig {
+        "font" | "fonts" => vec![TokenUtilityConfig {
             prefix: "font".to_string(),
             property: "font-family".to_string(),
         }],
@@ -99,19 +100,19 @@ pub fn get_default_utilities_for_token_type(token_type: &str) -> Vec<TokenUtilit
             prefix: "font".to_string(),
             property: "font-weight".to_string(),
         }],
-        "shadows" => vec![TokenUtilityConfig {
+        "shadow" | "shadows" => vec![TokenUtilityConfig {
             prefix: "shadow".to_string(),
             property: "box-shadow".to_string(),
         }],
-        "borders" => vec![TokenUtilityConfig {
+        "border" | "borders" => vec![TokenUtilityConfig {
             prefix: "border".to_string(),
             property: "border".to_string(),
         }],
-        "radii" => vec![TokenUtilityConfig {
+        "radius" | "radii" => vec![TokenUtilityConfig {
             prefix: "rounded".to_string(),
             property: "border-radius".to_string(),
         }],
-        "viewports" => vec![],
+        "viewport" | "viewports" => vec![],
         _ => vec![],
     }
 }
