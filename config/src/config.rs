@@ -50,6 +50,17 @@ pub enum NemCSSConfigError {
 
 impl NemCSSConfig {
     /// Creates a new NemCSSConfig instance from a given path.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use config::NemCSSConfig;
+    /// use std::path::Path;
+    ///
+    /// let config = NemCSSConfig::from_path("nemcss.config.json")?;
+    /// println!("Tokens directory: {:?}", config.tokens_dir);
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
     pub fn from_path<T: AsRef<Path>>(path: T) -> Result<Self, NemCSSConfigError> {
         let config_path = path.as_ref();
 
@@ -98,6 +109,32 @@ pub struct ThemeConfig {
 
 /// TokenConfig represents the configuration of a single design token.
 /// You can override the default configuration by specifying the source, prefix, and utilities.
+///
+/// # Examples
+///
+/// In your `nemcss.config.json`:
+///
+/// ```json
+/// {
+///   "theme": {
+///      "colors": {
+///        "source": "design-tokens/colors.json",
+///        "prefix": "color",
+///        "utilities": [
+///           {
+///             "prefix": "highlight",
+///             "property": "background-color"
+///           }
+///        ]
+///      }
+///
+///   }
+/// }
+/// ```
+///
+/// With a token variant "primary" in colors.json, this generates:
+/// - CSS custom property: `--color-primary`
+/// - Utility class: `.highlight-primary { background-color: var(--color-primary); }`
 #[derive(Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct TokenConfig {
     /// Path to the tokens file.

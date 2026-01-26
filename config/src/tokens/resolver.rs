@@ -106,8 +106,27 @@ pub struct ResolvedToken {
 
 /// Resolve all tokens, based on auto-discovered token files in the tokens directory and the theme
 /// configuration.
-/// It uses the source field in the theme configuration to determine the properties to override or
-/// generate for a given token.
+///
+/// # Resolution process
+///
+/// 1. Scans `tokensDir` for all `.json` files
+/// 2. Derives token names from filenames (e.g., `fonts.json` -> `fonts`)
+/// 3. Applies theme configuration overrides:
+///     - Custom `source` paths
+///     - Custom `prefix` value
+///     - Additional `utilities` configurations
+/// 4. Merges default utilities with user-defined utilities
+///
+/// # Examples
+///
+/// ```no_run
+/// use config::NemCSSConfig;
+///
+/// let config = NemCSSConfig::from_path("nemcss.config.json")?;
+/// let resolved = config.resolve_all_tokens()?;
+/// println!("{resolved:?}");
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
 pub fn resolve_all_tokens(
     config: &NemCSSConfig,
 ) -> Result<HashMap<String, ResolvedToken>, ResolveTokensError> {
