@@ -97,8 +97,8 @@ fn test_resolves_tokens_automatically_detected() {
     assert_eq!(
         font_token.tokens.get("base"),
         Some(&TokenValue::List(vec![
-            "\"Satoshi\"".to_string(),
-            "\"Inter\"".to_string(),
+            "Satoshi".to_string(),
+            "Inter".to_string(),
         ]))
     );
 
@@ -106,8 +106,8 @@ fn test_resolves_tokens_automatically_detected() {
     assert_eq!(
         font_token.tokens.get("mono"),
         Some(&TokenValue::List(vec![
-            "\"DM Mono\"".to_string(),
-            "\"monospace\"".to_string()
+            "DM Mono".to_string(),
+            "monospace".to_string()
         ]))
     );
 }

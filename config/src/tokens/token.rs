@@ -24,7 +24,7 @@ impl TokenFile {
     pub fn into_tokens(self) -> HashMap<String, TokenValue> {
         self.items
             .into_iter()
-            .map(|item| (item.name.clone(), item.value))
+            .map(|item| (item.name, item.value))
             .collect()
     }
 }
@@ -63,9 +63,16 @@ impl<'de> Deserialize<'de> for TokenValue {
 
         match value {
             Value::String(s) => Ok(TokenValue::Simple(s)),
-            Value::Array(a) => Ok(TokenValue::List(
-                a.into_iter().map(|v| v.to_string()).collect(),
-            )),
+            Value::Array(a) => {
+                let items = a
+                    .into_iter()
+                    .map(|v| match v {
+                        Value::String(s) => s,
+                        other => other.to_string(),
+                    })
+                    .collect();
+                Ok(TokenValue::List(items))
+            }
             _ => Err(serde::de::Error::custom("invalid token value")),
         }
     }

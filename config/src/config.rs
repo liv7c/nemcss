@@ -19,9 +19,9 @@ pub struct NemCSSConfig {
     /// Content files will be used to determine which CSS classes to generate.
     pub content: Vec<String>,
 
-    /// Directory name containing the design tokens.
+    /// Path to directory containing the design tokens.
     #[serde(rename = "tokensDir", default = "get_default_tokens_dir")]
-    pub tokens_dir: String,
+    pub tokens_dir: PathBuf,
 
     /// Theme configuration.
     pub theme: Option<ThemeConfig>,
@@ -32,8 +32,8 @@ pub struct NemCSSConfig {
 }
 
 /// Returns the default value for the tokensDir field.
-fn get_default_tokens_dir() -> String {
-    String::from("design-tokens")
+fn get_default_tokens_dir() -> PathBuf {
+    PathBuf::from("design-tokens")
 }
 
 /// NemCSSConfigError represents the error type when loading the NemCSS configuration.
@@ -67,6 +67,19 @@ impl NemCSSConfig {
         Ok(config)
     }
 
+    /// Resolves all design tokens based on the configuration.
+    ///
+    /// It scans the tokens directory and loads the design tokens from the files.
+    /// It then generates the utilities for each token based on the configuration.
+    /// Finally, it returns a map of resolved tokens.
+    ///
+    /// # Returns
+    ///
+    /// A map of resolved tokens, where the key is the name of the token and the value is the resolved token (containing the token values, prefix, and utilities).
+    ///
+    /// # Errors
+    /// This function returns an error if the tokens directory is not found or if the design tokens
+    /// cannot be loaded.
     pub fn resolve_all_tokens(&self) -> Result<HashMap<String, ResolvedToken>, ResolveTokensError> {
         resolve_all_tokens(self)
     }
