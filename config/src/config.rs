@@ -6,7 +6,7 @@ use miette::Diagnostic;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::tokens::{ResolveTokensError, TokenValue, resolve_all_tokens};
+use crate::tokens::{ResolveTokensError, ResolvedToken, resolve_all_tokens};
 
 /// The name of the NemCSS configuration file.
 pub const CONFIG_FILE_NAME: &str = "nemcss.config.json";
@@ -67,9 +67,7 @@ impl NemCSSConfig {
         Ok(config)
     }
 
-    pub fn resolve_all_tokens(
-        &self,
-    ) -> Result<HashMap<String, HashMap<String, TokenValue>>, ResolveTokensError> {
+    pub fn resolve_all_tokens(&self) -> Result<HashMap<String, ResolvedToken>, ResolveTokensError> {
         resolve_all_tokens(self)
     }
 }
@@ -82,7 +80,7 @@ pub struct ThemeConfig {
     /// This is a map of the design tokens to their configuration.
     /// The key is the name of the design token. The value is the configuration of the design token.
     #[serde(flatten)]
-    tokens: HashMap<String, TokenConfig>,
+    pub tokens: HashMap<String, TokenConfig>,
 }
 
 /// TokenConfig represents the configuration of a single design token.
@@ -104,7 +102,7 @@ pub struct TokenConfig {
 }
 
 /// TokenUtilityConfig represents the configuration of a utility class for a given token.
-#[derive(Debug, Default, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TokenUtilityConfig {
     /// The prefix that will be used to generate the utility class.
     /// For example, if the prefix is "bg", the utility class will be "bg-[TOKEN VARIANT]".

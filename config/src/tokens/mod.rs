@@ -13,9 +13,8 @@
 //! The token configuration enables the user to specify the source file, prefix, and custom utilities for a given token.
 //! The crate currently supports two token types: simple and list.
 
-mod defaults;
 mod resolver;
 mod token;
+mod utilities;
 
-pub use resolver::{ResolveTokensError, resolve_all_tokens};
-pub use token::{TokenFile, TokenItem, TokenValue};
+pub use resolver::{ResolveTokensError, ResolvedToken, resolve_all_tokens};

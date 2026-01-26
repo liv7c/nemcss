@@ -5,8 +5,9 @@ use std::path::{Path, PathBuf};
 use miette::{Diagnostic, Result};
 use thiserror::Error;
 
-use crate::NemCSSConfig;
 use crate::tokens::token::{TokenFile, TokenValue};
+use crate::tokens::utilities::{default_prefix_for_token_type, get_utilities_for_token_type};
+use crate::{NemCSSConfig, TokenUtilityConfig};
 
 /// Represents the error type when scanning the tokens directory.
 #[derive(Debug, Diagnostic, Error)]
@@ -90,20 +91,45 @@ pub enum ResolveTokensError {
     LoadTokensFromFileError(#[from] LoadTokensFromFileError),
 }
 
+/// Represents a resolved token.
+/// It contains the tokens and their values, as well as the utilities and prefix for the token.
+/// For certain token types, the prefix is automatically generated based on the token type.
+#[derive(Debug, PartialEq)]
+pub struct ResolvedToken {
+    /// The tokens and their values.
+    pub tokens: HashMap<String, TokenValue>,
+    /// The utilities for the token.
+    pub utilities: Vec<TokenUtilityConfig>,
+    /// The prefix for the token.
+    pub prefix: String,
+}
+
+/// Resolve all tokens, based on auto-discovered token files in the tokens directory and the theme
+/// configuration.
 pub fn resolve_all_tokens(
     config: &NemCSSConfig,
-) -> Result<HashMap<String, HashMap<String, TokenValue>>, ResolveTokensError> {
-    let mut tokens = HashMap::new();
+) -> Result<HashMap<String, ResolvedToken>, ResolveTokensError> {
+    let mut resolved_tokens = HashMap::new();
 
     let tokens_dir = config.base_dir.join(&config.tokens_dir);
     let token_files = scan_tokens_dir(&tokens_dir)?;
 
     for (name, path) in token_files {
-        let token = load_tokens_from_file(&path)?;
-        tokens.insert(name, token);
+        let prefix = default_prefix_for_token_type(&name);
+        let tokens = load_tokens_from_file(&path)?;
+        let utilities = get_utilities_for_token_type(&name, config.theme.as_ref());
+
+        resolved_tokens.insert(
+            name,
+            ResolvedToken {
+                tokens,
+                utilities,
+                prefix,
+            },
+        );
     }
 
-    Ok(tokens)
+    Ok(resolved_tokens)
 }
 
 #[cfg(test)]
