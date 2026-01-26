@@ -144,7 +144,7 @@ pub fn get_utilities_for_token_type(
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
+    use std::{collections::HashMap, path::PathBuf};
 
     use crate::TokenConfig;
 
@@ -172,7 +172,7 @@ mod tests {
             tokens: HashMap::from([(
                 "colors".to_string(),
                 TokenConfig {
-                    source: None,
+                    source: PathBuf::from("design-tokens/colors.json"),
                     prefix: None,
                     utilities: Some(vec![
                         TokenUtilityConfig {
@@ -230,7 +230,7 @@ mod tests {
             tokens: HashMap::from([(
                 "weights".to_string(),
                 TokenConfig {
-                    source: None,
+                    source: PathBuf::from("design-tokens/weights.json"),
                     prefix: Some("w".to_string()),
                     utilities: Some(vec![
                         TokenUtilityConfig {

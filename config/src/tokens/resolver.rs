@@ -106,6 +106,8 @@ pub struct ResolvedToken {
 
 /// Resolve all tokens, based on auto-discovered token files in the tokens directory and the theme
 /// configuration.
+/// It uses the source field in the theme configuration to determine the properties to override or
+/// generate for a given token.
 pub fn resolve_all_tokens(
     config: &NemCSSConfig,
 ) -> Result<HashMap<String, ResolvedToken>, ResolveTokensError> {
@@ -114,13 +116,41 @@ pub fn resolve_all_tokens(
     let tokens_dir = config.base_dir.join(&config.tokens_dir);
     let token_files = scan_tokens_dir(&tokens_dir)?;
 
+    // Map the token source to the token name in the theme configuration.
+    let config_by_token_source: HashMap<PathBuf, String> = config
+        .theme
+        .as_ref()
+        .map(|theme| {
+            theme
+                .tokens
+                .iter()
+                .map(|(name, cfg)| (config.base_dir.join(&cfg.source), name.clone()))
+                .collect()
+        })
+        .unwrap_or_default();
+
     for (name, path) in token_files {
-        let prefix = default_prefix_for_token_type(&name);
+        // check if the token name is overridden in the theme configuration
+        // if not, use the token name is derived from the file name.
+        let token_name_in_config = config_by_token_source
+            .get(&path)
+            .cloned()
+            .unwrap_or(name.clone());
+
+        let token_config = config
+            .theme
+            .as_ref()
+            .and_then(|t| t.tokens.get(&token_name_in_config));
+
+        let prefix = token_config
+            .and_then(|cfg| cfg.prefix.clone())
+            .unwrap_or_else(|| default_prefix_for_token_type(&name));
+
         let tokens = load_tokens_from_file(&path)?;
-        let utilities = get_utilities_for_token_type(&name, config.theme.as_ref());
+        let utilities = get_utilities_for_token_type(&token_name_in_config, config.theme.as_ref());
 
         resolved_tokens.insert(
-            name,
+            token_name_in_config,
             ResolvedToken {
                 tokens,
                 utilities,

@@ -7,3 +7,4 @@ mod tokens;
 pub use config::{
     CONFIG_FILE_NAME, NemCSSConfig, NemCSSConfigError, ThemeConfig, TokenConfig, TokenUtilityConfig,
 };
+pub use tokens::{ResolveTokensError, ResolvedToken, TokenValue, resolve_all_tokens};

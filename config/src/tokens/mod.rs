@@ -18,3 +18,4 @@ mod token;
 mod utilities;
 
 pub use resolver::{ResolveTokensError, ResolvedToken, resolve_all_tokens};
+pub use token::TokenValue;

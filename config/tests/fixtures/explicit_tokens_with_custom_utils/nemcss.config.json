@@ -1,0 +1,31 @@
+{
+  "content": [
+    "src/**/*.html",
+    "src/**/*.js",
+    "src/**/*.jsx",
+    "src/**/*.tsx",
+    "src/**/*.svelte",
+    "src/**/*.astro"
+  ],
+  "tokensDir": "design-tokens",
+  "theme": {
+    "allColors": {
+      "prefix": "color",
+      "source": "design-tokens/allcolors.json",
+      "utilities": [
+        { "prefix": "text", "property": "color" },
+        { "prefix": "bg", "property": "background-color" },
+        { "prefix": "highlight", "property": "background-color" }
+      ]
+    },
+    "allSpacings": {
+      "prefix": "spacing",
+      "source": "design-tokens/allspacings.json",
+      "utilities": [
+        { "prefix": "p", "property": "padding" },
+        { "prefix": "m", "property": "margin" }
+      ]
+    }
+  }
+}
+

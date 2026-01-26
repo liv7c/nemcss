@@ -87,9 +87,9 @@ pub struct ThemeConfig {
 /// You can override the default configuration by specifying the source, prefix, and utilities.
 #[derive(Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct TokenConfig {
-    /// Path to the tokens file. If not specified, it will be auto-discovered based
-    /// on the token directory and the token name.
-    pub source: Option<PathBuf>,
+    /// Path to the tokens file.
+    /// It will make it possible to override the default configuration for a given token.
+    pub source: PathBuf,
 
     /// The token prefix is used to generate the custom properties for the given token.
     /// For example, if prefix is "color", the token prefix will be "color-".
