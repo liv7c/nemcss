@@ -1,0 +1,14 @@
+{
+  "title": "Spacing Tokens",
+  "description": "Consistent spacing scale for margins, padding, and gaps with intuitive size names",
+  "items": [
+    {
+      "name": "xxs",
+      "value": "0.125rem"
+    },
+    {
+      "name": "xs",
+      "value": "0.25rem"
+    }
+  ]
+}
