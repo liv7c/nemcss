@@ -1,0 +1,11 @@
+[package]
+name = "engine"
+edition = "2024"
+version.workspace = true
+authors.workspace = true
+description.workspace = true
+
+[dependencies]
+config = { path = "../config" }
+miette = { workspace = true }
+thiserror = { workspace = true }
