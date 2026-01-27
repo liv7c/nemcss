@@ -1,0 +1,38 @@
+{
+  "title": "Spacing Tokens",
+  "description": "Example design token file for spacings",
+  "items": [
+    {
+      "name": "0",
+      "value": "0"
+    },
+    {
+      "name": "xxs",
+      "value": "0.125rem"
+    },
+    {
+      "name": "xs",
+      "value": "0.25rem"
+    },
+    {
+      "name": "sm",
+      "value": "0.5rem"
+    },
+    {
+      "name": "md",
+      "value": "1rem"
+    },
+    {
+      "name": "lg",
+      "value": "1.5rem"
+    },
+    {
+      "name": "xl",
+      "value": "2rem"
+    },
+    {
+      "name": "xxl",
+      "value": "3rem"
+    }
+  ]
+}

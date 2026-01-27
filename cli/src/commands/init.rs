@@ -8,6 +8,9 @@ use thiserror::Error;
 /// The configuration file name.
 const CONFIG_FILE_NAME: &str = "nemcss.config.json";
 
+/// Name of the design tokens directory.
+const DESIGN_TOKENS_DIR_NAME: &str = "design-tokens";
+
 /// Error type for the `init` command.
 #[derive(Debug, Error, Diagnostic)]
 pub enum InitError {
@@ -24,6 +27,14 @@ pub enum InitError {
     #[error("failed to create the configuration file: {0}")]
     #[diagnostic(code(nemcss::init::create_config_file))]
     CreateConfigFile(std::io::Error),
+
+    #[error("failed to create the design tokens directory: {0}")]
+    #[diagnostic(code(nemcss::init::create_design_tokens_dir))]
+    CreateDesignTokensDir(std::io::Error),
+
+    #[error("failed to create the design token file: {0}")]
+    #[diagnostic(code(nemcss::init::create_design_token_file))]
+    CreateDesignTokenFile(std::io::Error),
 }
 
 /// Initialize a new project with the `nemcss.config.json` configuration and example design tokens.
@@ -37,7 +48,10 @@ pub fn init() -> miette::Result<(), InitError> {
     println!();
 
     create_config_file(&current_dir)?;
+    create_design_tokens_and_example_tokens(&current_dir)?;
 
+    println!();
+    println!("{}", "✓ Initialization complete!".green().bold());
     Ok(())
 }
 
@@ -62,6 +76,65 @@ fn create_config_file(current_dir: &Path) -> miette::Result<(), InitError> {
         "  ✓ Created {} at {}",
         CONFIG_FILE_NAME.green(),
         config_file_path.display()
+    );
+
+    Ok(())
+}
+
+/// Create the design tokens directory and example tokens at the root of the current directory.
+/// If the directory already exists, it will be skipped.
+///
+/// # Errors
+///
+/// This function fails if there is an error while creating the directory or the example tokens.
+fn create_design_tokens_and_example_tokens(current_dir: &Path) -> miette::Result<(), InitError> {
+    let design_tokens_dir_path = current_dir.join(DESIGN_TOKENS_DIR_NAME);
+
+    if design_tokens_dir_path.exists() {
+        return Ok(());
+    }
+
+    fs::create_dir(&design_tokens_dir_path).map_err(InitError::CreateDesignTokensDir)?;
+
+    println!(
+        "  ✓ Created directory {} at {}",
+        DESIGN_TOKENS_DIR_NAME.green(),
+        design_tokens_dir_path.display()
+    );
+
+    let design_tokens_dir_path = current_dir.join(DESIGN_TOKENS_DIR_NAME);
+    let colors_content = include_str!("../templates/colors.json");
+    create_design_token_file(&design_tokens_dir_path, "colors", colors_content)?;
+    let spacings_content = include_str!("../templates/spacings.json");
+    create_design_token_file(&design_tokens_dir_path, "spacings", spacings_content)?;
+
+    Ok(())
+}
+
+/// Create a design token file at the design tokens directory.
+/// If the file already exists, it will be skipped.
+///
+/// # Errors
+///
+/// This function fails if there is an error while creating the file.
+fn create_design_token_file(
+    design_tokens_dir_path: &Path,
+    token_type: &str,
+    content: &str,
+) -> miette::Result<(), InitError> {
+    let json_file_name = format!("{token_type}.json");
+    let design_token_file_path = design_tokens_dir_path.join(&json_file_name);
+
+    if design_token_file_path.exists() {
+        return Ok(());
+    }
+
+    fs::write(&design_token_file_path, content).map_err(InitError::CreateDesignTokenFile)?;
+
+    println!(
+        "  ✓ Created {} at {}",
+        json_file_name.green(),
+        design_token_file_path.display()
     );
 
     Ok(())
