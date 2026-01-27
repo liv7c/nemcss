@@ -88,7 +88,13 @@ fn create_config_file(current_dir: &Path) -> miette::Result<(), InitError> {
 fn create_design_tokens_and_example_tokens(current_dir: &Path) -> miette::Result<(), InitError> {
     let design_tokens_dir_path = current_dir.join(DESIGN_TOKENS_DIR_NAME);
 
+    // Skip the design tokens + example tokens creation if user has already a design tokens
+    // directory.
     if design_tokens_dir_path.exists() {
+        println!(
+            "  ℹ Directory {} already exists, skipping directory and example tokens creation",
+            DESIGN_TOKENS_DIR_NAME.yellow()
+        );
         return Ok(());
     }
 
@@ -100,7 +106,6 @@ fn create_design_tokens_and_example_tokens(current_dir: &Path) -> miette::Result
         design_tokens_dir_path.display()
     );
 
-    let design_tokens_dir_path = current_dir.join(DESIGN_TOKENS_DIR_NAME);
     let colors_content = include_str!("../templates/colors.json");
     create_design_token_file(&design_tokens_dir_path, "colors", colors_content)?;
     let spacings_content = include_str!("../templates/spacings.json");
@@ -136,4 +141,28 @@ fn create_design_token_file(
     );
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_config_template_is_valid_json() {
+        let model_config_content = include_str!("../templates/nemcss.config.json");
+        serde_json::from_str::<serde_json::Value>(model_config_content)
+            .expect("Config template should be valid JSON");
+    }
+
+    #[test]
+    fn test_colors_template_is_valid_json() {
+        let colors_content = include_str!("../templates/colors.json");
+        serde_json::from_str::<serde_json::Value>(colors_content)
+            .expect("Colors template should be valid JSON");
+    }
+
+    #[test]
+    fn test_spacings_template_is_valid_json() {
+        let spacings_content = include_str!("../templates/spacings.json");
+        serde_json::from_str::<serde_json::Value>(spacings_content)
+            .expect("Spacings template should be valid JSON");
+    }
 }
