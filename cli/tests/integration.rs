@@ -95,3 +95,27 @@ fn test_init_shows_error_if_config_file_already_exists() {
             "the configuration file already exists",
         ));
 }
+
+#[test]
+fn test_init_skips_existing_design_tokens_dir() {
+    let (mut cmd, temp_dir) = setup_cmd().unwrap();
+
+    temp_dir.child("design-tokens").create_dir_all().unwrap();
+
+    cmd.current_dir(&temp_dir)
+        .arg("init")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("already exists, skipping"));
+
+    // Should not create the example tokens files (colors.json and spacings.json)
+    temp_dir
+        .child("design-tokens")
+        .child("spacings.json")
+        .assert(predicate::path::missing());
+
+    temp_dir
+        .child("design-tokens")
+        .child("colors.json")
+        .assert(predicate::path::missing());
+}
