@@ -41,6 +41,8 @@ pub fn run() -> miette::Result<()> {
     let args = Args::parse();
 
     match args.command {
-        Command::Init => commands::init(),
+        Command::Init => commands::init()?,
     }
+
+    Ok(())
 }
