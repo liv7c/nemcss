@@ -6,7 +6,7 @@
 //!
 //! The `nemcss` CLI provides the following commands:
 //!
-//! - `init`: Initialize a new project with the `nemcss` configuration and example design tokens.
+//! - `init`: Initializes a new project with the `nemcss` configuration and example design tokens.
 //!
 //! # Example
 //!
@@ -16,7 +16,7 @@
 //! nemcss init
 //! ```
 //!
-//! This will create at the current directory a `nemcss.config.json` file with the default configuration as well as a `design-tokens` directory (if it doesn't exist) with an example design token file.
+//! This will create, at the root of your current directory, a `nemcss.config.json` file as well as a `design-tokens` directory (if it doesn't already exist) with two example design token files.
 pub mod commands;
 
 use clap::{Parser, Subcommand};
@@ -32,7 +32,7 @@ struct Args {
 
 #[derive(Subcommand, Debug)]
 enum Command {
-    /// Initialize a new project with the `nemcss` configuration and example design tokens.
+    /// Initializes a new project with the `nemcss` configuration and example design tokens.
     Init,
 }
 

@@ -22,14 +22,17 @@ pub enum InitError {
     #[diagnostic(code(nemcss::init::config_file_exists))]
     ConfigFileExists { path: PathBuf },
 
+    /// Error creating the configuration file
     #[error("failed to create the configuration file: {0}")]
     #[diagnostic(code(nemcss::init::create_config_file))]
     CreateConfigFile(std::io::Error),
 
+    /// Error creating the design tokens directory
     #[error("failed to create the design tokens directory: {0}")]
     #[diagnostic(code(nemcss::init::create_design_tokens_dir))]
     CreateDesignTokensDir(std::io::Error),
 
+    /// Error creating the design token file
     #[error("failed to create the design token file: {0}")]
     #[diagnostic(code(nemcss::init::create_design_token_file))]
     CreateDesignTokenFile(std::io::Error),
