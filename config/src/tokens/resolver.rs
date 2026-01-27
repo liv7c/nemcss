@@ -74,7 +74,7 @@ pub enum LoadTokensFromFileError {
 /// Load tokens from the given token file.
 fn load_tokens_from_file(
     path: &Path,
-) -> Result<HashMap<String, TokenValue>, LoadTokensFromFileError> {
+) -> Result<Vec<(String, TokenValue)>, LoadTokensFromFileError> {
     let file = fs::read_to_string(path).map_err(LoadTokensFromFileError::ReadFileError)?;
     let token_file: TokenFile =
         serde_json::from_str(&file).map_err(LoadTokensFromFileError::ParseError)?;
@@ -97,7 +97,7 @@ pub enum ResolveTokensError {
 #[derive(Debug, PartialEq)]
 pub struct ResolvedToken {
     /// The tokens and their values.
-    pub tokens: HashMap<String, TokenValue>,
+    pub tokens: Vec<(String, TokenValue)>,
     /// The utilities for the token.
     pub utilities: Vec<TokenUtilityConfig>,
     /// The prefix for the token.

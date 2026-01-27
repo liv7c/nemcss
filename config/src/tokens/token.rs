@@ -2,7 +2,6 @@
 //! Each token file has a certain structure (title, description, items).
 //! This module also contains the types of tokens that are supported (Simple, List for now).
 
-use std::collections::HashMap;
 use std::fmt::Display;
 
 use serde::{Deserialize, Serialize};
@@ -21,7 +20,7 @@ pub struct TokenFile {
 
 impl TokenFile {
     /// Converts the TokenFile to a HashMap of TokenValue
-    pub fn into_tokens(self) -> HashMap<String, TokenValue> {
+    pub fn into_tokens(self) -> Vec<(String, TokenValue)> {
         self.items
             .into_iter()
             .map(|item| (item.name, item.value))
