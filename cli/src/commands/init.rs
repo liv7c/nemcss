@@ -1,12 +1,10 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use config::CONFIG_FILE_NAME;
 use miette::Diagnostic;
 use owo_colors::OwoColorize;
 use thiserror::Error;
-
-/// The configuration file name.
-const CONFIG_FILE_NAME: &str = "nemcss.config.json";
 
 /// Name of the design tokens directory.
 const DESIGN_TOKENS_DIR_NAME: &str = "design-tokens";

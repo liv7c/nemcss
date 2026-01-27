@@ -206,6 +206,7 @@ dependencies = [
  "assert_cmd",
  "assert_fs",
  "clap",
+ "config",
  "miette",
  "owo-colors",
  "predicates",
