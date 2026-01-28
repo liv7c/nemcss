@@ -1,7 +1,22 @@
 use std::path::PathBuf;
 
 use config::TokenValue;
-use config::{CONFIG_FILE_NAME, NemCSSConfig};
+use config::{CONFIG_FILE_NAME, NemCssConfig};
+
+trait TokenVecExt {
+    fn get_token(&self, key: &str) -> Option<&TokenValue>;
+    fn contains_token(&self, key: &str) -> bool;
+}
+
+impl TokenVecExt for Vec<(String, TokenValue)> {
+    fn get_token(&self, key: &str) -> Option<&TokenValue> {
+        self.iter().find(|(k, _)| k == key).map(|(_, v)| v)
+    }
+
+    fn contains_token(&self, key: &str) -> bool {
+        self.iter().any(|(k, _)| k == key)
+    }
+}
 
 // Helper function to get the path to a fixture file.
 // All fixtures should be located in the "fixtures" directory.
@@ -17,7 +32,7 @@ fn get_config_fixture_path(fixture_name: &str) -> PathBuf {
 fn test_loads_config_from_path() {
     let config_path = get_config_fixture_path("basic");
 
-    let loaded_config = NemCSSConfig::from_path(&config_path).unwrap();
+    let loaded_config = NemCssConfig::from_path(&config_path).unwrap();
 
     assert_eq!(
         loaded_config.base_dir,
@@ -34,7 +49,7 @@ fn test_loads_config_from_path() {
 fn test_returns_error_on_missing_config_file() {
     let config_path = PathBuf::from("missing_config_file.json");
 
-    let loaded_config = NemCSSConfig::from_path(&config_path);
+    let loaded_config = NemCssConfig::from_path(&config_path);
     assert!(loaded_config.is_err());
 
     let error = loaded_config.unwrap_err();
@@ -49,7 +64,7 @@ fn test_returns_error_on_missing_config_file() {
 fn test_returns_error_on_invalid_json() {
     let config_path = get_config_fixture_path("error_invalid_json");
 
-    let loaded_config = NemCSSConfig::from_path(&config_path);
+    let loaded_config = NemCssConfig::from_path(&config_path);
     assert!(loaded_config.is_err());
 
     let error = loaded_config.unwrap_err();
@@ -63,7 +78,7 @@ fn test_returns_error_on_invalid_json() {
 #[test]
 fn test_resolves_tokens_automatically_detected() {
     let config_path = get_config_fixture_path("autodetection_tokens");
-    let config = NemCSSConfig::from_path(&config_path).unwrap();
+    let config = NemCssConfig::from_path(&config_path).unwrap();
 
     let tokens = config.resolve_all_tokens().unwrap();
     assert_eq!(tokens.len(), 2);
@@ -71,21 +86,21 @@ fn test_resolves_tokens_automatically_detected() {
     let color_token = tokens.get("colors").unwrap();
     assert_eq!(color_token.prefix, "color");
 
-    assert!(color_token.tokens.contains_key("dark"));
+    assert!(color_token.tokens.contains_token("dark"));
     assert_eq!(
-        color_token.tokens.get("dark"),
+        color_token.tokens.get_token("dark"),
         Some(&TokenValue::Simple("#171406".to_string()))
     );
 
-    assert!(color_token.tokens.contains_key("light"));
+    assert!(color_token.tokens.contains_token("light"));
     assert_eq!(
-        color_token.tokens.get("light"),
+        color_token.tokens.get_token("light"),
         Some(&TokenValue::Simple("#ffffff".to_string()))
     );
 
-    assert!(color_token.tokens.contains_key("primary"));
+    assert!(color_token.tokens.contains_token("primary"));
     assert_eq!(
-        color_token.tokens.get("primary"),
+        color_token.tokens.get_token("primary"),
         Some(&TokenValue::Simple("#fccd26".to_string()))
     );
     assert_eq!(color_token.tokens.len(), 3);
@@ -93,18 +108,18 @@ fn test_resolves_tokens_automatically_detected() {
     let font_token = tokens.get("fonts").unwrap();
     assert_eq!(font_token.prefix, "font");
 
-    assert!(font_token.tokens.contains_key("base"));
+    assert!(font_token.tokens.contains_token("base"));
     assert_eq!(
-        font_token.tokens.get("base"),
+        font_token.tokens.get_token("base"),
         Some(&TokenValue::List(vec![
             "Satoshi".to_string(),
             "Inter".to_string(),
         ]))
     );
 
-    assert!(font_token.tokens.contains_key("mono"));
+    assert!(font_token.tokens.contains_token("mono"));
     assert_eq!(
-        font_token.tokens.get("mono"),
+        font_token.tokens.get_token("mono"),
         Some(&TokenValue::List(vec![
             "DM Mono".to_string(),
             "monospace".to_string()
@@ -115,22 +130,22 @@ fn test_resolves_tokens_automatically_detected() {
 #[test]
 fn test_generates_utilities_for_explicitly_configured_tokens() {
     let config_path = get_config_fixture_path("explicit_tokens_with_custom_utils");
-    let config = NemCSSConfig::from_path(&config_path).unwrap();
+    let config = NemCssConfig::from_path(&config_path).unwrap();
     let tokens = config.resolve_all_tokens().unwrap();
     dbg!(&tokens);
 
     let spacing_token = tokens.get("allSpacings").unwrap();
     assert_eq!(spacing_token.prefix, "spacing");
 
-    assert!(spacing_token.tokens.contains_key("xxs"));
+    assert!(spacing_token.tokens.contains_token("xxs"));
     assert_eq!(
-        spacing_token.tokens.get("xxs"),
+        spacing_token.tokens.get_token("xxs"),
         Some(&TokenValue::Simple("0.125rem".to_string()))
     );
 
-    assert!(spacing_token.tokens.contains_key("xs"));
+    assert!(spacing_token.tokens.contains_token("xs"));
     assert_eq!(
-        spacing_token.tokens.get("xs"),
+        spacing_token.tokens.get_token("xs"),
         Some(&TokenValue::Simple("0.25rem".to_string()))
     );
 
@@ -139,9 +154,9 @@ fn test_generates_utilities_for_explicitly_configured_tokens() {
     let color_token = tokens.get("allColors").unwrap();
     assert_eq!(color_token.prefix, "color");
 
-    assert!(color_token.tokens.contains_key("dark"));
+    assert!(color_token.tokens.contains_token("dark"));
     assert_eq!(
-        color_token.tokens.get("dark"),
+        color_token.tokens.get_token("dark"),
         Some(&TokenValue::Simple("#171406".to_string()))
     );
 
@@ -160,22 +175,24 @@ fn test_generates_utilities_for_explicitly_configured_tokens() {
 #[test]
 fn test_overrides_default_configuration_for_explicitly_configured_tokens() {
     let config_path = get_config_fixture_path("default_and_overrides_combination");
-    let config = NemCSSConfig::from_path(&config_path).unwrap();
+    let config = NemCssConfig::from_path(&config_path).unwrap();
     let tokens = config.resolve_all_tokens().unwrap();
+
+    dbg!(&tokens);
 
     let spacing_token = tokens.get("spacings").unwrap();
     assert_eq!(spacing_token.prefix, "spacing");
 
     // check tokens for spacing
-    assert!(spacing_token.tokens.contains_key("xxs"));
+    assert!(spacing_token.tokens.contains_token("xxs"));
     assert_eq!(
-        spacing_token.tokens.get("xxs"),
+        spacing_token.tokens.get_token("xxs"),
         Some(&TokenValue::Simple("0.125rem".to_string()))
     );
 
-    assert!(spacing_token.tokens.contains_key("xs"));
+    assert!(spacing_token.tokens.contains_token("xs"));
     assert_eq!(
-        spacing_token.tokens.get("xs"),
+        spacing_token.tokens.get_token("xs"),
         Some(&TokenValue::Simple("0.25rem".to_string()))
     );
 

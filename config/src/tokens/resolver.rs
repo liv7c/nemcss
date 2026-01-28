@@ -7,7 +7,7 @@ use thiserror::Error;
 
 use crate::tokens::token::{TokenFile, TokenValue};
 use crate::tokens::utilities::{default_prefix_for_token_type, get_utilities_for_token_type};
-use crate::{NemCSSConfig, TokenUtilityConfig};
+use crate::{NemCssConfig, TokenUtilityConfig};
 
 /// Represents the error type when scanning the tokens directory.
 #[derive(Debug, Diagnostic, Error)]
@@ -74,7 +74,7 @@ pub enum LoadTokensFromFileError {
 /// Load tokens from the given token file.
 fn load_tokens_from_file(
     path: &Path,
-) -> Result<HashMap<String, TokenValue>, LoadTokensFromFileError> {
+) -> Result<Vec<(String, TokenValue)>, LoadTokensFromFileError> {
     let file = fs::read_to_string(path).map_err(LoadTokensFromFileError::ReadFileError)?;
     let token_file: TokenFile =
         serde_json::from_str(&file).map_err(LoadTokensFromFileError::ParseError)?;
@@ -97,7 +97,7 @@ pub enum ResolveTokensError {
 #[derive(Debug, PartialEq)]
 pub struct ResolvedToken {
     /// The tokens and their values.
-    pub tokens: HashMap<String, TokenValue>,
+    pub tokens: Vec<(String, TokenValue)>,
     /// The utilities for the token.
     pub utilities: Vec<TokenUtilityConfig>,
     /// The prefix for the token.
@@ -120,15 +120,15 @@ pub struct ResolvedToken {
 /// # Examples
 ///
 /// ```no_run
-/// use config::NemCSSConfig;
+/// use config::NemCssConfig;
 ///
-/// let config = NemCSSConfig::from_path("nemcss.config.json")?;
+/// let config = NemCssConfig::from_path("nemcss.config.json")?;
 /// let resolved = config.resolve_all_tokens()?;
 /// println!("{resolved:?}");
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
 pub fn resolve_all_tokens(
-    config: &NemCSSConfig,
+    config: &NemCssConfig,
 ) -> Result<HashMap<String, ResolvedToken>, ResolveTokensError> {
     let mut resolved_tokens = HashMap::new();
 
