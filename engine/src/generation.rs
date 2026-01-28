@@ -1,6 +1,27 @@
 use config::ResolvedToken;
 
-/// A struct that contains the generated CSS for utilities and custom properties.
+/// A struct that contains generated CSS output for utilities and custom properties.
+///
+/// Use the `to_css` method to get the generated CSS as a string.
+///
+/// # Output format
+///
+/// The generated CSS will be in the following format:
+///
+/// ```css
+/// :root {
+///   --color-primary: yellow;
+///   --color-secondary: #c1c1c1;
+/// }
+///
+/// .text-primary {
+///   color: var(--color-primary);
+/// }
+///
+/// .text-secondary {
+///   color: var(--color-secondary);
+/// }
+/// ```
 pub struct GeneratedCss {
     /// A list of custom properties to generate.
     /// Each custom property is a CSS variable.
@@ -20,18 +41,44 @@ impl GeneratedCss {
 
     /// Combines the custom properties and utilities into a single CSS string.
     pub fn to_css(&self) -> String {
-        let mut css = String::new();
-        css.push_str("\n:root {\n");
-        css.push_str(&self.custom_properties.join("\n"));
-        css.push_str("\n}\n\n");
-        css.push_str(&self.utilities.join("\n"));
-        css.push('\n');
+        // Estimate the capacity of the string to avoid reallocations.
+        let estimated_capacity = self
+            .custom_properties
+            .iter()
+            .map(|s| s.len())
+            .sum::<usize>()
+            + self.utilities.iter().map(|s| s.len()).sum::<usize>()
+            + self.custom_properties.len() * 3
+            + self.utilities.len()
+            + 20;
+        let mut css = String::with_capacity(estimated_capacity);
+        css.push_str(":root {\n");
+
+        for custom_property in &self.custom_properties {
+            css.push_str("  "); // 2-space indentation
+            css.push_str(custom_property);
+            css.push('\n');
+        }
+        css.push_str("}\n\n");
+
+        for utility in &self.utilities {
+            css.push_str(utility);
+            css.push('\n');
+        }
+
         css
     }
 }
 
-/// Returns all the utilities and custom utilities derived from both the
-/// design tokens and utilities defined in resolved tokens.
+/// Generates CSS custom properties and utilities from resolved design tokens.
+///
+/// # Arguments
+///
+/// * `resolved_tokens` - Any collection or iterator that yields `&ResolvedToken`
+///
+/// # Returns
+///
+/// A `GeneratedCss` struct containing custom properties and utility classes.
 pub fn generate_css<'a>(
     resolved_tokens: impl IntoIterator<Item = &'a ResolvedToken>,
 ) -> GeneratedCss {
@@ -232,10 +279,14 @@ mod tests {
 
         let result = css_to_generate.to_css();
         let expected_root_css =
-            ":root {\n--color-primary: yellow;\n--color-secondary: #c1c1c1;\n}\n\n";
+            ":root {\n  --color-primary: yellow;\n  --color-secondary: #c1c1c1;\n}\n\n";
         let expected_utilities_css = ".text-primary {\n  color: var(--color-primary);\n}\n.text-secondary {\n  color: var(--color-secondary);\n}\n";
 
-        assert!(result.contains(expected_root_css));
+        assert!(
+            result.contains(expected_root_css),
+            "expected: {}, got {result}",
+            expected_root_css
+        );
         assert!(result.contains(expected_utilities_css));
     }
 }
