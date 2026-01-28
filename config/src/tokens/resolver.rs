@@ -7,7 +7,7 @@ use thiserror::Error;
 
 use crate::tokens::token::{TokenFile, TokenValue};
 use crate::tokens::utilities::{default_prefix_for_token_type, get_utilities_for_token_type};
-use crate::{NemCSSConfig, TokenUtilityConfig};
+use crate::{NemCssConfig, TokenUtilityConfig};
 
 /// Represents the error type when scanning the tokens directory.
 #[derive(Debug, Diagnostic, Error)]
@@ -120,15 +120,15 @@ pub struct ResolvedToken {
 /// # Examples
 ///
 /// ```no_run
-/// use config::NemCSSConfig;
+/// use config::NemCssConfig;
 ///
-/// let config = NemCSSConfig::from_path("nemcss.config.json")?;
+/// let config = NemCssConfig::from_path("nemcss.config.json")?;
 /// let resolved = config.resolve_all_tokens()?;
 /// println!("{resolved:?}");
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
 pub fn resolve_all_tokens(
-    config: &NemCSSConfig,
+    config: &NemCssConfig,
 ) -> Result<HashMap<String, ResolvedToken>, ResolveTokensError> {
     let mut resolved_tokens = HashMap::new();
 

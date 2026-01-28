@@ -11,10 +11,10 @@ use crate::tokens::{ResolveTokensError, ResolvedToken, resolve_all_tokens};
 /// The name of the NemCSS configuration file.
 pub const CONFIG_FILE_NAME: &str = "nemcss.config.json";
 
-/// NemCSSConfig represents the configuration of the NemCSS util.
+/// NemCssConfig represents the configuration of the NemCSS util.
 /// It contains the paths to the content files and the design tokens, as well as the theme configuration.
 #[derive(Debug, Default, PartialEq, Serialize, Deserialize)]
-pub struct NemCSSConfig {
+pub struct NemCssConfig {
     /// Vector of glob patterns to determine which content files to target.
     /// Content files will be used to determine which CSS classes to generate.
     pub content: Vec<String>,
@@ -36,9 +36,9 @@ fn get_default_tokens_dir() -> PathBuf {
     PathBuf::from("design-tokens")
 }
 
-/// NemCSSConfigError represents the error type when loading the NemCSS configuration.
+/// NemCssConfigError represents the error type when loading the NemCSS configuration.
 #[derive(Debug, Error, Diagnostic)]
-pub enum NemCSSConfigError {
+pub enum NemCssConfigError {
     #[error("failed to read NemCSS config file: {0}")]
     #[diagnostic(code(nemcss::config::read_config_file))]
     ReadConfigFile(std::io::Error),
@@ -48,26 +48,26 @@ pub enum NemCSSConfigError {
     ParseConfigFile(serde_json::Error),
 }
 
-impl NemCSSConfig {
-    /// Creates a new NemCSSConfig instance from a given path.
+impl NemCssConfig {
+    /// Creates a new NemCssConfig instance from a given path.
     ///
     /// # Examples
     ///
     /// ```no_run
-    /// use config::NemCSSConfig;
+    /// use config::NemCssConfig;
     /// use std::path::Path;
     ///
-    /// let config = NemCSSConfig::from_path("nemcss.config.json")?;
+    /// let config = NemCssConfig::from_path("nemcss.config.json")?;
     /// println!("Tokens directory: {:?}", config.tokens_dir);
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
-    pub fn from_path<T: AsRef<Path>>(path: T) -> Result<Self, NemCSSConfigError> {
+    pub fn from_path<T: AsRef<Path>>(path: T) -> Result<Self, NemCssConfigError> {
         let config_path = path.as_ref();
 
-        let content = fs::read_to_string(config_path).map_err(NemCSSConfigError::ReadConfigFile)?;
+        let content = fs::read_to_string(config_path).map_err(NemCssConfigError::ReadConfigFile)?;
 
-        let mut config: NemCSSConfig =
-            serde_json::from_str(&content).map_err(NemCSSConfigError::ParseConfigFile)?;
+        let mut config: NemCssConfig =
+            serde_json::from_str(&content).map_err(NemCssConfigError::ParseConfigFile)?;
 
         let base_dir = config_path
             .parent()

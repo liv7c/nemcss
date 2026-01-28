@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use config::TokenValue;
-use config::{CONFIG_FILE_NAME, NemCSSConfig};
+use config::{CONFIG_FILE_NAME, NemCssConfig};
 
 trait TokenVecExt {
     fn get_token(&self, key: &str) -> Option<&TokenValue>;
@@ -32,7 +32,7 @@ fn get_config_fixture_path(fixture_name: &str) -> PathBuf {
 fn test_loads_config_from_path() {
     let config_path = get_config_fixture_path("basic");
 
-    let loaded_config = NemCSSConfig::from_path(&config_path).unwrap();
+    let loaded_config = NemCssConfig::from_path(&config_path).unwrap();
 
     assert_eq!(
         loaded_config.base_dir,
@@ -49,7 +49,7 @@ fn test_loads_config_from_path() {
 fn test_returns_error_on_missing_config_file() {
     let config_path = PathBuf::from("missing_config_file.json");
 
-    let loaded_config = NemCSSConfig::from_path(&config_path);
+    let loaded_config = NemCssConfig::from_path(&config_path);
     assert!(loaded_config.is_err());
 
     let error = loaded_config.unwrap_err();
@@ -64,7 +64,7 @@ fn test_returns_error_on_missing_config_file() {
 fn test_returns_error_on_invalid_json() {
     let config_path = get_config_fixture_path("error_invalid_json");
 
-    let loaded_config = NemCSSConfig::from_path(&config_path);
+    let loaded_config = NemCssConfig::from_path(&config_path);
     assert!(loaded_config.is_err());
 
     let error = loaded_config.unwrap_err();
@@ -78,7 +78,7 @@ fn test_returns_error_on_invalid_json() {
 #[test]
 fn test_resolves_tokens_automatically_detected() {
     let config_path = get_config_fixture_path("autodetection_tokens");
-    let config = NemCSSConfig::from_path(&config_path).unwrap();
+    let config = NemCssConfig::from_path(&config_path).unwrap();
 
     let tokens = config.resolve_all_tokens().unwrap();
     assert_eq!(tokens.len(), 2);
@@ -130,7 +130,7 @@ fn test_resolves_tokens_automatically_detected() {
 #[test]
 fn test_generates_utilities_for_explicitly_configured_tokens() {
     let config_path = get_config_fixture_path("explicit_tokens_with_custom_utils");
-    let config = NemCSSConfig::from_path(&config_path).unwrap();
+    let config = NemCssConfig::from_path(&config_path).unwrap();
     let tokens = config.resolve_all_tokens().unwrap();
     dbg!(&tokens);
 
@@ -175,7 +175,7 @@ fn test_generates_utilities_for_explicitly_configured_tokens() {
 #[test]
 fn test_overrides_default_configuration_for_explicitly_configured_tokens() {
     let config_path = get_config_fixture_path("default_and_overrides_combination");
-    let config = NemCSSConfig::from_path(&config_path).unwrap();
+    let config = NemCssConfig::from_path(&config_path).unwrap();
     let tokens = config.resolve_all_tokens().unwrap();
 
     dbg!(&tokens);
