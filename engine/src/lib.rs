@@ -7,7 +7,7 @@
 //! ```no_run
 //! use std::collections::HashMap;
 //! use config::TokenValue;
-//! use engine::{CSSToGenerate, get_css_to_generate};
+//! use engine::{generate_css};
 //!
 //! let mut resolved_tokens = HashMap::new();
 //! resolved_tokens.insert(
@@ -33,8 +33,8 @@
 //!     },
 //! );
 //! let resolved_tokens: Vec<_> = resolved_tokens.values().collect();
-//! let css_to_generate = get_css_to_generate(&resolved_tokens);
-//! let css = css_to_generate.to_css();
+//! let generated_css = generate_css(&resolved_tokens);
+//! let css = generated_css.to_css();
 //! # assert!(css.contains("--color-primary: yellow;"));
 //! # assert!(css.contains(".text-primary {\n  color: var(--color-primary);\n}"));
 //! # assert!(css.contains(".bg-primary {\n  background-color: var(--color-primary);\n}"));
@@ -42,4 +42,4 @@
 
 mod generation;
 
-pub use generation::{CSSToGenerate, get_css_to_generate};
+pub use generation::{GeneratedCss, generate_css};

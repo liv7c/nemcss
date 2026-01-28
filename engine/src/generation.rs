@@ -1,8 +1,7 @@
 use config::ResolvedToken;
 
-/// A struct that contains the CSS to generate.
-/// It contains the custom properties and utilities.
-pub struct CSSToGenerate {
+/// A struct that contains the generated CSS for utilities and custom properties.
+pub struct GeneratedCss {
     /// A list of custom properties to generate.
     /// Each custom property is a CSS variable.
     pub custom_properties: Vec<String>,
@@ -11,9 +10,9 @@ pub struct CSSToGenerate {
     pub utilities: Vec<String>,
 }
 
-impl CSSToGenerate {
+impl GeneratedCss {
     pub fn new(custom_properties: Vec<String>, utilities: Vec<String>) -> Self {
-        CSSToGenerate {
+        GeneratedCss {
             custom_properties,
             utilities,
         }
@@ -33,11 +32,11 @@ impl CSSToGenerate {
 
 /// Returns all the utilities and custom utilities derived from both the
 /// design tokens and utilities defined in resolved tokens.
-pub fn get_css_to_generate(resolved_tokens: &[&ResolvedToken]) -> CSSToGenerate {
+pub fn generate_css(resolved_tokens: &[&ResolvedToken]) -> GeneratedCss {
     let custom_properties = generate_custom_properties(resolved_tokens);
     let utilities = generate_utilities(resolved_tokens);
 
-    CSSToGenerate::new(custom_properties, utilities)
+    GeneratedCss::new(custom_properties, utilities)
 }
 
 /// Generate CSS custom properties from resolved tokens.
@@ -227,7 +226,7 @@ mod tests {
             },
         );
         let resolved_tokens: Vec<_> = resolved_tokens.values().collect();
-        let css_to_generate = get_css_to_generate(&resolved_tokens);
+        let css_to_generate = generate_css(&resolved_tokens);
 
         let result = css_to_generate.to_css();
         let expected_root_css =
