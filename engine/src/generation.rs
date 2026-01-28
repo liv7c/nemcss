@@ -1,5 +1,45 @@
 use config::ResolvedToken;
 
+/// A struct that contains the CSS to generate.
+/// It contains the custom properties and utilities.
+pub struct CSSToGenerate {
+    /// A list of custom properties to generate.
+    /// Each custom property is a CSS variable.
+    pub custom_properties: Vec<String>,
+    /// A list of utilities to generate.
+    /// Each utility is a class that contains a property and a value.
+    pub utilities: Vec<String>,
+}
+
+impl CSSToGenerate {
+    pub fn new(custom_properties: Vec<String>, utilities: Vec<String>) -> Self {
+        CSSToGenerate {
+            custom_properties,
+            utilities,
+        }
+    }
+
+    /// Combines the custom properties and utilities into a single CSS string.
+    pub fn to_css(&self) -> String {
+        let mut css = String::new();
+        css.push_str("\n:root {\n");
+        css.push_str(&self.custom_properties.join("\n"));
+        css.push_str("\n}\n\n");
+        css.push_str(&self.utilities.join("\n"));
+        css.push('\n');
+        css
+    }
+}
+
+/// Returns all the utilities and custom utilities derived from both the
+/// design tokens and utilities defined in resolved tokens.
+pub fn get_css_to_generate(resolved_tokens: &[&ResolvedToken]) -> CSSToGenerate {
+    let custom_properties = generate_custom_properties(resolved_tokens);
+    let utilities = generate_utilities(resolved_tokens);
+
+    CSSToGenerate::new(custom_properties, utilities)
+}
+
 /// Generate CSS custom properties from resolved tokens.
 pub fn generate_custom_properties(resolved_tokens: &[&ResolvedToken]) -> Vec<String> {
     let estimated_capacity = resolved_tokens
@@ -39,9 +79,9 @@ pub fn generate_utilities(resolved_tokens: &[&ResolvedToken]) -> Vec<String> {
             for (token_name, _token_value) in resolved_token.tokens.iter() {
                 let custom_property_name =
                     format!("var(--{}-{})", resolved_token.prefix, token_name);
-                let utility_class_name = format!(".{}-{}", utility.prefix, token_name);
+                let utility_class_name = format!("{}-{}", utility.prefix, token_name);
                 utilities.push(format!(
-                    "{} {{\n  {}: {};\n}}",
+                    ".{} {{\n  {}: {};\n}}",
                     utility_class_name, utility.property, custom_property_name
                 ));
             }
@@ -161,5 +201,40 @@ mod tests {
             result[3],
             ".bg-secondary {\n  background-color: var(--color-secondary);\n}"
         );
+    }
+
+    #[test]
+    fn test_to_css() {
+        let mut resolved_tokens = HashMap::new();
+        resolved_tokens.insert(
+            "colors".to_string(),
+            ResolvedToken {
+                tokens: vec![
+                    (
+                        "primary".to_string(),
+                        TokenValue::Simple("yellow".to_string()),
+                    ),
+                    (
+                        "secondary".to_string(),
+                        TokenValue::Simple("#c1c1c1".to_string()),
+                    ),
+                ],
+                utilities: vec![TokenUtilityConfig {
+                    prefix: "text".to_string(),
+                    property: "color".to_string(),
+                }],
+                prefix: "color".to_string(),
+            },
+        );
+        let resolved_tokens: Vec<_> = resolved_tokens.values().collect();
+        let css_to_generate = get_css_to_generate(&resolved_tokens);
+
+        let result = css_to_generate.to_css();
+        let expected_root_css =
+            ":root {\n--color-primary: yellow;\n--color-secondary: #c1c1c1;\n}\n\n";
+        let expected_utilities_css = ".text-primary {\n  color: var(--color-primary);\n}\n.text-secondary {\n  color: var(--color-secondary);\n}\n";
+
+        assert!(result.contains(expected_root_css));
+        assert!(result.contains(expected_utilities_css));
     }
 }
