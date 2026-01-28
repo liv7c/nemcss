@@ -32,8 +32,7 @@
 //!         prefix: "color".to_string(),
 //!     },
 //! );
-//! let resolved_tokens: Vec<_> = resolved_tokens.values().collect();
-//! let generated_css = generate_css(&resolved_tokens);
+//! let generated_css = generate_css(resolved_tokens.values());
 //! let css = generated_css.to_css();
 //! # assert!(css.contains("--color-primary: yellow;"));
 //! # assert!(css.contains(".text-primary {\n  color: var(--color-primary);\n}"));

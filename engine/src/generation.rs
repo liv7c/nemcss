@@ -32,9 +32,12 @@ impl GeneratedCss {
 
 /// Returns all the utilities and custom utilities derived from both the
 /// design tokens and utilities defined in resolved tokens.
-pub fn generate_css(resolved_tokens: &[&ResolvedToken]) -> GeneratedCss {
-    let custom_properties = generate_custom_properties(resolved_tokens);
-    let utilities = generate_utilities(resolved_tokens);
+pub fn generate_css<'a>(
+    resolved_tokens: impl IntoIterator<Item = &'a ResolvedToken>,
+) -> GeneratedCss {
+    let tokens: Vec<_> = resolved_tokens.into_iter().collect();
+    let custom_properties = generate_custom_properties(&tokens);
+    let utilities = generate_utilities(&tokens);
 
     GeneratedCss::new(custom_properties, utilities)
 }
@@ -225,8 +228,7 @@ mod tests {
                 prefix: "color".to_string(),
             },
         );
-        let resolved_tokens: Vec<_> = resolved_tokens.values().collect();
-        let css_to_generate = generate_css(&resolved_tokens);
+        let css_to_generate = generate_css(resolved_tokens.values());
 
         let result = css_to_generate.to_css();
         let expected_root_css =
