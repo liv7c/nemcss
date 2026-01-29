@@ -31,6 +31,9 @@ pub struct GeneratedCss {
     pub utilities: Vec<String>,
 }
 
+const INDENT_AND_NEWLINE_PER_PROPERTY: usize = 3;
+const ROOT_BLOCK_OVERHEAD: usize = 20;
+
 impl GeneratedCss {
     pub fn new(custom_properties: Vec<String>, utilities: Vec<String>) -> Self {
         GeneratedCss {
@@ -48,9 +51,9 @@ impl GeneratedCss {
             .map(|s| s.len())
             .sum::<usize>()
             + self.utilities.iter().map(|s| s.len()).sum::<usize>()
-            + self.custom_properties.len() * 3
+            + self.custom_properties.len() * INDENT_AND_NEWLINE_PER_PROPERTY
             + self.utilities.len()
-            + 20;
+            + ROOT_BLOCK_OVERHEAD;
         let mut css = String::with_capacity(estimated_capacity);
         css.push_str(":root {\n");
 
