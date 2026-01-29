@@ -1,6 +1,10 @@
+use divan::AllocProfiler;
 use std::collections::HashMap;
 
 use config::{ResolvedToken, TokenUtilityConfig, TokenValue};
+
+#[global_allocator]
+static ALLOC: AllocProfiler = AllocProfiler::system();
 
 fn main() {
     divan::main();
