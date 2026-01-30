@@ -9,4 +9,4 @@ ifndef CRATE
 	@echo "Example: make bench CRATE=engine DESC=baseline"
 	@exit 1
 endif
-	@./scripts/run_benchmark.sh $(CRATE) $(DESC)
+	@./scripts/run_benchmark.sh "$(CRATE)" "$(DESC)"
