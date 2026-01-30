@@ -106,29 +106,30 @@ EOF
 # Extract key metrics for summary (median time only)
 echo "Extracting summary..."
 
-# Extract median time (column 9-10)
-REALISTIC_TIME=$(echo "$BENCH_OUTPUT" | grep "realistic_project" | head -1 | awk '{print $9, $10}' || echo "N/A")
-LARGE_TIME=$(echo "$BENCH_OUTPUT" | grep "large_design_system" | head -1 | awk '{print $9, $10}' || echo "N/A")
-SMALL_TIME=$(echo "$BENCH_OUTPUT" | grep "small_dataset" | head -1 | awk '{print $9, $10}' || echo "N/A")
+# Dynamically extract all benchmarks and their median times
+SUMMARY_ROWS=$(echo "$BENCH_OUTPUT" | awk '
+/^[├╰]─ [a-z_]/ && $3 ~ /^[0-9]/ {
+    name = $2
+    median = $9 " " $10
+    printf "| %s | %s |\n", name, median
+}')
 
 # Add summary section as markdown table
 cat >> "$FILENAME" << EOF
 
 ## Summary
 
-| Benchmark | Median Time | Target | Status |
-|-----------|-------------|--------|--------|
-| Small Dataset | $SMALL_TIME | - | ✓ |
-| Realistic Project | $REALISTIC_TIME | < 1ms | ✓ |
-| Large Design System | $LARGE_TIME | < 10ms | ✓ |
+| Benchmark | Median Time |
+|-----------|-------------|
 EOF
+
+# Append dynamic summary rows
+echo "$SUMMARY_ROWS" >> "$FILENAME"
 
 echo ""
 echo "✔ Benchmark complete!"
 echo ""
 echo "📊 Summary:"
-echo "   Small Dataset:        $SMALL_TIME"
-echo "   Realistic Project:    $REALISTIC_TIME"
-echo "   Large Design System:  $LARGE_TIME"
+echo "$SUMMARY_ROWS" | sed 's/^|/  /'
 echo ""
 echo "📄 Full report: $FILENAME"
