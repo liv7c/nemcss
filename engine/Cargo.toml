@@ -9,3 +9,10 @@ description.workspace = true
 config = { path = "../config" }
 miette = { workspace = true }
 thiserror = { workspace = true }
+
+[dev-dependencies]
+divan = "0.1.21"
+
+[[bench]]
+name = "css_generation"
+harness = false
