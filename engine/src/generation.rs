@@ -30,6 +30,10 @@ pub struct GeneratedCss {
     /// Each utility is a tuple containing the full class, the class name, and the class value.
     /// For example: (".text-primary {\n  color: var(--color-primary);\n}", "text-primary", "color: var(--color-primary)")
     pub utilities: Vec<Utility>,
+
+    /// A list of media queries and their corresponding utility classes.
+    /// Each media query is a string containing the media query and the utility classes.
+    pub responsive_utilities: Vec<String>,
 }
 
 /// A struct that represents a utility class.
@@ -41,10 +45,15 @@ const INDENT_AND_NEWLINE_PER_PROPERTY: usize = 3;
 const ROOT_BLOCK_OVERHEAD: usize = 20;
 
 impl GeneratedCss {
-    pub fn new(custom_properties: Vec<String>, utilities: Vec<Utility>) -> Self {
+    pub fn new(
+        custom_properties: Vec<String>,
+        utilities: Vec<Utility>,
+        responsive_utilities: Vec<String>,
+    ) -> Self {
         GeneratedCss {
             custom_properties,
             utilities,
+            responsive_utilities,
         }
     }
 
@@ -75,6 +84,11 @@ impl GeneratedCss {
             css.push('\n');
         }
 
+        for responsive_utility in &self.responsive_utilities {
+            css.push_str(responsive_utility);
+            css.push('\n');
+        }
+
         css
     }
 }
@@ -97,7 +111,7 @@ pub fn generate_css<'a>(
     let utilities = generate_utilities(&tokens);
     let responsive_utilities = generate_responsive_utilities(&utilities, viewports);
 
-    GeneratedCss::new(custom_properties, utilities)
+    GeneratedCss::new(custom_properties, utilities, responsive_utilities)
 }
 
 /// Generate CSS custom properties from resolved tokens.
@@ -367,6 +381,7 @@ mod tests {
                 prefix: "color".to_string(),
             },
         );
+
         let css_to_generate = generate_css(resolved_tokens.values(), None);
 
         let result = css_to_generate.to_css();
@@ -380,6 +395,67 @@ mod tests {
             expected_root_css
         );
         assert!(result.contains(expected_utilities_css));
+    }
+
+    #[test]
+    fn test_to_css_with_responsive_utilities() {
+        let mut resolved_tokens = HashMap::new();
+        resolved_tokens.insert(
+            "colors".to_string(),
+            ResolvedToken {
+                tokens: vec![
+                    (
+                        "primary".to_string(),
+                        TokenValue::Simple("yellow".to_string()),
+                    ),
+                    (
+                        "secondary".to_string(),
+                        TokenValue::Simple("#c1c1c1".to_string()),
+                    ),
+                ],
+                utilities: vec![TokenUtilityConfig {
+                    prefix: "text".to_string(),
+                    property: "color".to_string(),
+                }],
+                prefix: "color".to_string(),
+            },
+        );
+        resolved_tokens.insert(
+            "viewports".to_string(),
+            ResolvedToken {
+                tokens: vec![
+                    ("sm".to_string(), TokenValue::Simple("320px".to_string())),
+                    ("md".to_string(), TokenValue::Simple("768px".to_string())),
+                ],
+                utilities: vec![],
+                prefix: "viewport".to_string(),
+            },
+        );
+
+        let css_to_generate =
+            generate_css(resolved_tokens.values(), resolved_tokens.get("viewports"));
+
+        let result = css_to_generate.to_css();
+
+        // Check for individual custom properties (order is not guaranteed due to HashMap)
+        assert!(result.contains("--color-primary: yellow;"));
+        assert!(result.contains("--color-secondary: #c1c1c1;"));
+        assert!(result.contains("--viewport-sm: 320px;"));
+        assert!(result.contains("--viewport-md: 768px;"));
+
+        let expected_utilities_css = ".text-primary {\n  color: var(--color-primary);\n}\n.text-secondary {\n  color: var(--color-secondary);\n}\n";
+        let expected_responsive_utilities_sm = "@media (min-width: 320px) {\n.sm:text-primary {\n  color: var(--color-primary);\n}\n.sm:text-secondary {\n  color: var(--color-secondary);\n}\n}";
+        let expected_responsive_utilities_md = "@media (min-width: 768px) {\n.md:text-primary {\n  color: var(--color-primary);\n}\n.md:text-secondary {\n  color: var(--color-secondary);\n}\n}";
+
+        assert!(result.contains(expected_utilities_css));
+        assert!(
+            result.contains(expected_responsive_utilities_sm),
+            "expected sm media query, got {result}",
+        );
+        assert!(
+            result.contains(expected_responsive_utilities_md),
+            "expected md media query, got {result}",
+        );
     }
 
     #[test]
