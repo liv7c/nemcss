@@ -61,7 +61,7 @@ pub struct GeneratedCss {
 pub struct Utility {
     /// The complete CSS class definition (e.g., ".text-primary {\n  color: var(--color-primary);\n}")
     full_class: String,
-    /// The class name without the leading dot(e.g., "text-primary")
+    /// The class name without the leading dot (e.g., "text-primary")
     class_name: String,
     /// The class property and value (e.g., "color: var(--color-primary)")
     class_value: String,
@@ -321,7 +321,7 @@ pub fn generate_responsive_utilities(
     let mut utilities_media_blocks = Vec::with_capacity(viewports.tokens.len());
 
     for (viewport_name, viewport_value) in viewports.tokens.iter() {
-        // estimate of rougly 60 characters per utility class
+        // estimate of roughly 60 characters per utility class
         let estimated_capacity = utilities.len() * (viewport_name.len() + 60);
         let mut media_block_content = String::with_capacity(estimated_capacity);
 
