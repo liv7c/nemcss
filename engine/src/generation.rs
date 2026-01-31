@@ -28,7 +28,7 @@ pub struct GeneratedCss {
     /// Each custom property is a CSS variable.
     pub custom_properties: Vec<String>,
     /// A list of utilities to generate.
-    /// Each utility is a tuple containing the full class, the class name, and the class value.
+    /// Each utility contains the full CSS class definition and its constituent parts (class name and value).
     /// For example: (".text-primary {\n  color: var(--color-primary);\n}", "text-primary", "color: var(--color-primary)")
     pub utilities: Vec<Utility>,
 
@@ -38,8 +38,25 @@ pub struct GeneratedCss {
 }
 
 /// A struct that represents a utility class.
+///
 /// It contains the full CSS class definition and its constituent parts (class name and value) for
 /// flexible composition.
+///
+/// # Example
+///
+/// ```no_run
+/// use engine::Utility;
+///
+/// let utility = Utility::new(
+///     ".text-primary {\n  color: var(--color-primary);\n}".to_string(),
+///     "text-primary".to_string(),
+///     "color: var(--color-primary)".to_string(),
+/// );
+///
+/// assert_eq!(utility.full_class(), ".text-primary {\n  color: var(--color-primary);\n}");
+/// assert_eq!(utility.class_name(), "text-primary");
+/// assert_eq!(utility.class_value(), "color: var(--color-primary)");
+/// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Utility {
     /// The complete CSS class definition (e.g., ".text-primary {\n  color: var(--color-primary);\n}")
@@ -51,6 +68,13 @@ pub struct Utility {
 }
 
 impl Utility {
+    /// Creates a new `Utility` instance.
+    ///
+    /// # Arguments
+    ///
+    /// * `full_class` - The complete CSS class definition (e.g., ".text-primary {\n  color: var(--color-primary);\n}")
+    /// * `class_name` - The class name without the leading dot (e.g., "text-primary")
+    /// * `class_value` - The class property and value (e.g., "color: var(--color-primary)")
     pub fn new(full_class: String, class_name: String, class_value: String) -> Self {
         Utility {
             full_class,
@@ -78,6 +102,8 @@ impl Utility {
 /// The prefix for viewport tokens.
 /// This prefix is used to identify viewport tokens in the resolved tokens and generate
 /// responsive utility classes.
+///
+/// **Note**: This is primarily used for internal purposes. External users typically do not need to know about this prefix.
 pub const VIEWPORT_TOKEN_PREFIX: &str = "viewport";
 
 const INDENT_AND_NEWLINE_PER_PROPERTY: usize = 3;
@@ -164,6 +190,24 @@ pub fn generate_css<'a>(
 }
 
 /// Generate CSS custom properties from resolved tokens.
+///
+/// Custom properties are generated for each token and its value.
+/// For example, with a token `colors` with a primary color `primary` and a value `yellow`,
+/// this generates:
+///
+/// ```css
+/// :root {
+///   --color-primary: yellow;
+/// }
+/// ```
+///
+/// # Arguments
+///
+/// * `resolved_tokens` - A slice of `ResolvedToken` instances representing the tokens to generate custom properties for.
+///
+/// # Returns
+///
+/// A vector of CSS custom property definitions.
 pub fn generate_custom_properties(resolved_tokens: &[&ResolvedToken]) -> Vec<String> {
     let estimated_capacity = resolved_tokens
         .iter()
@@ -190,6 +234,25 @@ pub fn generate_custom_properties(resolved_tokens: &[&ResolvedToken]) -> Vec<Str
 
 /// Generate utility classes based on the design tokens and utilities defined
 /// in resolved tokens.
+///
+/// Utility classes are generated for each token and utility combination.
+/// For example, with a token `colors` with a primary color `primary` and a utility `text-primary`,
+/// this generates:
+///
+/// ```css
+/// .text-primary {
+///   color: var(--color-primary);
+/// }
+/// ```
+///
+/// # Arguments
+///
+/// * `resolved_tokens` - A slice of `ResolvedToken` instances representing the tokens and utilities to generate utility classes for.
+///
+/// # Returns
+///
+/// A vector of `Utility` instances representing the generated utility classes.
+/// Each utility contains the full CSS class definition and its constituent parts (class name and value).
 pub fn generate_utilities(resolved_tokens: &[&ResolvedToken]) -> Vec<Utility> {
     let estimated_capacity = resolved_tokens.iter().fold(0, |acc, curr| {
         acc + curr.tokens.len() * curr.utilities.len()
@@ -219,10 +282,34 @@ pub fn generate_utilities(resolved_tokens: &[&ResolvedToken]) -> Vec<Utility> {
     utilities
 }
 
-/// Generate responsive utility classes based on the design tokens and viewports defined
-/// in resolved tokens.
-/// The viewports are optional and can be used to generate responsive utility classes for
-/// different screen sizes.
+/// Generate responsive utility variants wrapped in media queries based on the design tokens and viewports defined.
+///
+/// Creates a responsive variant for each utility class at each viewport breakpoint.
+/// For example, with viewports `sm` (640px) and `md` (768px) and a utility class `text-primary`,
+/// this generates:
+///
+/// ```css
+/// @media (min-width: 640px) {
+///   .sm:text-primary {
+///     color: var(--color-primary);
+///   }
+/// }
+///
+/// @media (min-width: 768px) {
+///   .md:text-primary {
+///     color: var(--color-primary);
+///   }
+/// }
+/// ```
+///
+/// # Arguments
+///
+/// * `utilities` - Base utility classes to generate responsive variants for.
+/// * `viewports` - An optional `ResolvedToken` instance representing the viewports to generate responsive variants for.
+///
+/// # Returns
+///
+/// A vector of media query blocks, one per viewport, each containing the responsive utility variants.
 pub fn generate_responsive_utilities(
     utilities: &[Utility],
     viewports: Option<&ResolvedToken>,
