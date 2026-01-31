@@ -1,4 +1,5 @@
 use divan::AllocProfiler;
+use engine::VIEWPORT_TOKEN_PREFIX;
 use std::collections::HashMap;
 
 use config::{ResolvedToken, TokenUtilityConfig, TokenValue};
@@ -73,7 +74,7 @@ fn create_viewports() -> ResolvedToken {
             ("2xl".to_string(), TokenValue::Simple("1536px".to_string())),
         ],
         utilities: vec![],
-        prefix: "viewport".to_string(),
+        prefix: VIEWPORT_TOKEN_PREFIX.to_string(),
     }
 }
 
@@ -106,7 +107,7 @@ fn realistic_project(bencher: divan::Bencher) {
 fn small_dataset(bencher: divan::Bencher) {
     let mut tokens = HashMap::new();
     let (key, value) = create_token_category("colors", "color", 10, 2);
-    let (_, viewport_value) = create_token_category("viewports", "viewport", 3, 0);
+    let (_, viewport_value) = create_token_category("viewports", VIEWPORT_TOKEN_PREFIX, 3, 0);
     tokens.insert(key, value);
 
     bencher.bench(|| {
@@ -128,7 +129,7 @@ fn small_dataset(bencher: divan::Bencher) {
 #[divan::bench]
 fn large_design_system(bencher: divan::Bencher) {
     let mut tokens = HashMap::new();
-    let (_, viewport_value) = create_token_category("viewports", "viewport", 8, 0);
+    let (_, viewport_value) = create_token_category("viewports", VIEWPORT_TOKEN_PREFIX, 8, 0);
 
     for i in 0..10 {
         let (key, value) =
@@ -159,7 +160,7 @@ fn large_design_system(bencher: divan::Bencher) {
 #[divan::bench(args = [1, 3, 5, 8, 10, 12])]
 fn by_category_count(bencher: divan::Bencher, num_categories: usize) {
     let mut tokens = HashMap::new();
-    let (_, viewport_value) = create_token_category("viewports", "viewport", 5, 0);
+    let (_, viewport_value) = create_token_category("viewports", VIEWPORT_TOKEN_PREFIX, 5, 0);
     for i in 0..num_categories {
         let (key, value) =
             create_token_category(&format!("category-{i}"), &format!("prefix-{i}"), 15, 5);

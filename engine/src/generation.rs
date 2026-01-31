@@ -74,6 +74,11 @@ impl Utility {
     }
 }
 
+/// The prefix for viewport tokens.
+/// This prefix is used to identify viewport tokens in the resolved tokens and generate
+/// responsive utility classes.
+pub const VIEWPORT_TOKEN_PREFIX: &str = "viewport";
+
 const INDENT_AND_NEWLINE_PER_PROPERTY: usize = 3;
 const ROOT_BLOCK_OVERHEAD: usize = 20;
 
@@ -185,7 +190,10 @@ pub fn generate_utilities(resolved_tokens: &[&ResolvedToken]) -> Vec<Utility> {
 
     let mut utilities = Vec::with_capacity(estimated_capacity);
 
-    for resolved_token in resolved_tokens.iter().filter(|r| r.prefix != "viewport") {
+    for resolved_token in resolved_tokens
+        .iter()
+        .filter(|r| r.prefix != VIEWPORT_TOKEN_PREFIX)
+    {
         for utility in resolved_token.utilities.iter() {
             for (token_name, _token_value) in resolved_token.tokens.iter() {
                 let custom_property_name =
@@ -379,7 +387,7 @@ mod tests {
                     ("lg".to_string(), TokenValue::Simple("1024px".to_string())),
                 ],
                 utilities: vec![],
-                prefix: "viewport".to_string(),
+                prefix: VIEWPORT_TOKEN_PREFIX.to_string(),
             },
         );
         let resolved_tokens: Vec<_> = resolved_tokens.values().collect();
@@ -466,7 +474,7 @@ mod tests {
                     ("md".to_string(), TokenValue::Simple("768px".to_string())),
                 ],
                 utilities: vec![],
-                prefix: "viewport".to_string(),
+                prefix: VIEWPORT_TOKEN_PREFIX.to_string(),
             },
         );
 
@@ -533,7 +541,7 @@ mod tests {
                     ("md".to_string(), TokenValue::Simple("768px".to_string())),
                 ],
                 utilities: vec![],
-                prefix: "viewport".to_string(),
+                prefix: VIEWPORT_TOKEN_PREFIX.to_string(),
             },
         );
 

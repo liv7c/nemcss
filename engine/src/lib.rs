@@ -1,4 +1,3 @@
-//! The engine crate is responsible for generating CSS custom properties and
 //! utility classes based on the design tokens. It uses both the auto-detected
 //! design tokens and the user-defined configuration from the `nemcss.config.json` to do so.
 //!
@@ -41,4 +40,4 @@
 
 mod generation;
 
-pub use generation::{GeneratedCss, generate_css};
+pub use generation::{GeneratedCss, VIEWPORT_TOKEN_PREFIX, generate_css};
