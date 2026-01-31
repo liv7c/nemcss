@@ -72,7 +72,7 @@ fn realistic_project(bencher: divan::Bencher) {
     let tokens = create_tokens();
 
     bencher.bench(|| {
-        let css = engine::generate_css(divan::black_box(tokens.values()));
+        let css = engine::generate_css(divan::black_box(tokens.values()), divan::black_box(None));
         divan::black_box(css.to_css());
     });
 }
@@ -88,7 +88,7 @@ fn small_dataset(bencher: divan::Bencher) {
     tokens.insert(key, value);
 
     bencher.bench(|| {
-        let css = engine::generate_css(divan::black_box(tokens.values()));
+        let css = engine::generate_css(divan::black_box(tokens.values()), divan::black_box(None));
         divan::black_box(css.to_css());
     });
 }
@@ -110,7 +110,7 @@ fn large_design_system(bencher: divan::Bencher) {
     }
 
     bencher.bench(|| {
-        let css = engine::generate_css(divan::black_box(tokens.values()));
+        let css = engine::generate_css(divan::black_box(tokens.values()), divan::black_box(None));
         divan::black_box(css.to_css());
     });
 }
@@ -135,7 +135,7 @@ fn by_category_count(bencher: divan::Bencher, num_categories: usize) {
     }
 
     bencher.bench(|| {
-        let css = engine::generate_css(divan::black_box(tokens.values()));
+        let css = engine::generate_css(divan::black_box(tokens.values()), divan::black_box(None));
         divan::black_box(css.to_css());
     });
 }

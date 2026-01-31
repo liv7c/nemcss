@@ -32,7 +32,7 @@
 //!         prefix: "color".to_string(),
 //!     },
 //! );
-//! let generated_css = generate_css(resolved_tokens.values());
+//! let generated_css = generate_css(resolved_tokens.values(), resolved_tokens.get("viewports"));
 //! let css = generated_css.to_css();
 //! # assert!(css.contains("--color-primary: yellow;"));
 //! # assert!(css.contains(".text-primary {\n  color: var(--color-primary);\n}"));

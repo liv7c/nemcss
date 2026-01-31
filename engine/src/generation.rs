@@ -27,15 +27,16 @@ pub struct GeneratedCss {
     /// Each custom property is a CSS variable.
     pub custom_properties: Vec<String>,
     /// A list of utilities to generate.
-    /// Each utility is a class that contains a property and a value.
-    pub utilities: Vec<String>,
+    /// Each utility is a tuple containing the full class, the class name, and the class value.
+    /// For example: (".text-primary {\n  color: var(--color-primary);\n}", "text-primary", "color: var(--color-primary)")
+    pub utilities: Vec<(String, String, String)>,
 }
 
 const INDENT_AND_NEWLINE_PER_PROPERTY: usize = 3;
 const ROOT_BLOCK_OVERHEAD: usize = 20;
 
 impl GeneratedCss {
-    pub fn new(custom_properties: Vec<String>, utilities: Vec<String>) -> Self {
+    pub fn new(custom_properties: Vec<String>, utilities: Vec<(String, String, String)>) -> Self {
         GeneratedCss {
             custom_properties,
             utilities,
@@ -50,7 +51,7 @@ impl GeneratedCss {
             .iter()
             .map(|s| s.len())
             .sum::<usize>()
-            + self.utilities.iter().map(|s| s.len()).sum::<usize>()
+            + self.utilities.iter().map(|s| s.0.len()).sum::<usize>()
             + self.custom_properties.len() * INDENT_AND_NEWLINE_PER_PROPERTY
             + self.utilities.len()
             + ROOT_BLOCK_OVERHEAD;
@@ -65,7 +66,7 @@ impl GeneratedCss {
         css.push_str("}\n\n");
 
         for utility in &self.utilities {
-            css.push_str(utility);
+            css.push_str(&utility.0);
             css.push('\n');
         }
 
@@ -119,7 +120,7 @@ pub fn generate_custom_properties(resolved_tokens: &[&ResolvedToken]) -> Vec<Str
 
 /// Generate utility classes based on the design tokens and utilities defined
 /// in resolved tokens.
-pub fn generate_utilities(resolved_tokens: &[&ResolvedToken]) -> Vec<String> {
+pub fn generate_utilities(resolved_tokens: &[&ResolvedToken]) -> Vec<(String, String, String)> {
     let estimated_capacity = resolved_tokens.iter().fold(0, |acc, curr| {
         acc + curr.tokens.len() * curr.utilities.len()
     });
@@ -131,11 +132,12 @@ pub fn generate_utilities(resolved_tokens: &[&ResolvedToken]) -> Vec<String> {
             for (token_name, _token_value) in resolved_token.tokens.iter() {
                 let custom_property_name =
                     format!("var(--{}-{})", resolved_token.prefix, token_name);
+                let utility_class_value = format!("{}: {}", utility.property, custom_property_name);
                 let utility_class_name = format!("{}-{}", utility.prefix, token_name);
-                utilities.push(format!(
-                    ".{} {{\n  {}: {};\n}}",
-                    utility_class_name, utility.property, custom_property_name
-                ));
+                let utility_full_class =
+                    format!(".{} {{\n  {};\n}}", utility_class_name, utility_class_value);
+                let tuple = (utility_full_class, utility_class_name, custom_property_name);
+                utilities.push(tuple);
             }
         }
     }
@@ -238,19 +240,19 @@ mod tests {
 
         assert_eq!(result.len(), 4);
         assert_eq!(
-            result[0],
+            result[0].0,
             ".text-primary {\n  color: var(--color-primary);\n}"
         );
         assert_eq!(
-            result[1],
+            result[1].0,
             ".text-secondary {\n  color: var(--color-secondary);\n}"
         );
         assert_eq!(
-            result[2],
+            result[2].0,
             ".bg-primary {\n  background-color: var(--color-primary);\n}"
         );
         assert_eq!(
-            result[3],
+            result[3].0,
             ".bg-secondary {\n  background-color: var(--color-secondary);\n}"
         );
     }
@@ -278,7 +280,7 @@ mod tests {
                 prefix: "color".to_string(),
             },
         );
-        let css_to_generate = generate_css(resolved_tokens.values());
+        let css_to_generate = generate_css(resolved_tokens.values(), None);
 
         let result = css_to_generate.to_css();
         let expected_root_css =
