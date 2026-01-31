@@ -37,9 +37,42 @@ pub struct GeneratedCss {
 }
 
 /// A struct that represents a utility class.
-/// It contains the full class, the class name, and the class value.
+/// It contains the full CSS class definition and its constituent parts (class name and value) for
+/// flexible composition.
 #[derive(Debug, Clone, PartialEq)]
-pub struct Utility(String, String, String);
+pub struct Utility {
+    /// The complete CSS class definition (e.g., ".text-primary {\n  color: var(--color-primary);\n}")
+    full_class: String,
+    /// The class name without the leading dot(e.g., "text-primary")
+    class_name: String,
+    /// The class property and value (e.g., "color: var(--color-primary)")
+    class_value: String,
+}
+
+impl Utility {
+    pub fn new(full_class: String, class_name: String, class_value: String) -> Self {
+        Utility {
+            full_class,
+            class_name,
+            class_value,
+        }
+    }
+
+    /// Returns the full CSS class definition.
+    pub fn full_class(&self) -> &str {
+        &self.full_class
+    }
+
+    /// Returns the class name without the leading dot.
+    pub fn class_name(&self) -> &str {
+        &self.class_name
+    }
+
+    /// Returns the class property and value.
+    pub fn class_value(&self) -> &str {
+        &self.class_value
+    }
+}
 
 const INDENT_AND_NEWLINE_PER_PROPERTY: usize = 3;
 const ROOT_BLOCK_OVERHEAD: usize = 20;
@@ -65,7 +98,11 @@ impl GeneratedCss {
             .iter()
             .map(|s| s.len())
             .sum::<usize>()
-            + self.utilities.iter().map(|s| s.0.len()).sum::<usize>()
+            + self
+                .utilities
+                .iter()
+                .map(|s| s.full_class.len())
+                .sum::<usize>()
             + self.custom_properties.len() * INDENT_AND_NEWLINE_PER_PROPERTY
             + self.utilities.len()
             + ROOT_BLOCK_OVERHEAD;
@@ -80,7 +117,7 @@ impl GeneratedCss {
         css.push_str("}\n\n");
 
         for utility in &self.utilities {
-            css.push_str(&utility.0);
+            css.push_str(&utility.full_class);
             css.push('\n');
         }
 
@@ -157,8 +194,9 @@ pub fn generate_utilities(resolved_tokens: &[&ResolvedToken]) -> Vec<Utility> {
                 let utility_class_name = format!("{}-{}", utility.prefix, token_name);
                 let utility_full_class =
                     format!(".{} {{\n  {};\n}}", utility_class_name, utility_class_value);
-                let tuple = Utility(utility_full_class, utility_class_name, utility_class_value);
-                utilities.push(tuple);
+                let utility =
+                    Utility::new(utility_full_class, utility_class_name, utility_class_value);
+                utilities.push(utility);
             }
         }
     }
@@ -181,11 +219,11 @@ pub fn generate_responsive_utilities(
             let mut classes_per_viewport = Vec::new();
 
             for utility in utilities.iter() {
-                let Utility(_, utility_class_name, utility_class_value) = utility;
-                let responsive_class_name = format!("{}:{}", viewport_name, utility_class_name);
+                let responsive_class_name = format!("{}:{}", viewport_name, utility.class_name());
                 let responsive_class = format!(
                     ".{} {{\n  {};\n}}",
-                    responsive_class_name, utility_class_value
+                    responsive_class_name,
+                    utility.class_value()
                 );
 
                 classes_per_viewport.push(responsive_class);
@@ -298,19 +336,19 @@ mod tests {
 
         assert_eq!(result.len(), 4);
         assert_eq!(
-            result[0].0,
+            result[0].full_class(),
             ".text-primary {\n  color: var(--color-primary);\n}"
         );
         assert_eq!(
-            result[1].0,
+            result[1].full_class(),
             ".text-secondary {\n  color: var(--color-secondary);\n}"
         );
         assert_eq!(
-            result[2].0,
+            result[2].full_class(),
             ".bg-primary {\n  background-color: var(--color-primary);\n}"
         );
         assert_eq!(
-            result[3].0,
+            result[3].full_class(),
             ".bg-secondary {\n  background-color: var(--color-secondary);\n}"
         );
     }
@@ -349,11 +387,11 @@ mod tests {
 
         assert_eq!(result.len(), 2);
         assert_eq!(
-            result[0].0,
+            result[0].full_class(),
             ".rounded-xs {\n  border-radius: var(--radius-xs);\n}"
         );
         assert_eq!(
-            result[1].0,
+            result[1].full_class(),
             ".rounded-sm {\n  border-radius: var(--radius-sm);\n}"
         );
     }
