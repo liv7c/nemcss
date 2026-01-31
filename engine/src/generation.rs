@@ -127,7 +127,7 @@ pub fn generate_utilities(resolved_tokens: &[&ResolvedToken]) -> Vec<(String, St
 
     let mut utilities = Vec::with_capacity(estimated_capacity);
 
-    for resolved_token in resolved_tokens {
+    for resolved_token in resolved_tokens.iter().filter(|r| r.prefix != "viewport") {
         for utility in resolved_token.utilities.iter() {
             for (token_name, _token_value) in resolved_token.tokens.iter() {
                 let custom_property_name =
@@ -254,6 +254,49 @@ mod tests {
         assert_eq!(
             result[3].0,
             ".bg-secondary {\n  background-color: var(--color-secondary);\n}"
+        );
+    }
+
+    #[test]
+    fn test_ignore_viewports_when_generating_utilities() {
+        let mut resolved_tokens = HashMap::new();
+        resolved_tokens.insert(
+            "border-radii".to_string(),
+            ResolvedToken {
+                tokens: vec![
+                    ("xs".to_string(), TokenValue::Simple("2px".to_string())),
+                    ("sm".to_string(), TokenValue::Simple("4px".to_string())),
+                ],
+                utilities: vec![TokenUtilityConfig {
+                    prefix: "rounded".to_string(),
+                    property: "border-radius".to_string(),
+                }],
+                prefix: "radius".to_string(),
+            },
+        );
+        resolved_tokens.insert(
+            "viewports".to_string(),
+            ResolvedToken {
+                tokens: vec![
+                    ("xs".to_string(), TokenValue::Simple("320px".to_string())),
+                    ("md".to_string(), TokenValue::Simple("768px".to_string())),
+                    ("lg".to_string(), TokenValue::Simple("1024px".to_string())),
+                ],
+                utilities: vec![],
+                prefix: "viewport".to_string(),
+            },
+        );
+        let resolved_tokens: Vec<_> = resolved_tokens.values().collect();
+        let result = generate_utilities(&resolved_tokens);
+
+        assert_eq!(result.len(), 2);
+        assert_eq!(
+            result[0].0,
+            ".rounded-xs {\n  border-radius: var(--radius-xs);\n}"
+        );
+        assert_eq!(
+            result[1].0,
+            ".rounded-sm {\n  border-radius: var(--radius-sm);\n}"
         );
     }
 
