@@ -110,6 +110,12 @@ impl GeneratedCss {
                 .sum::<usize>()
             + self.custom_properties.len() * INDENT_AND_NEWLINE_PER_PROPERTY
             + self.utilities.len()
+            + self.responsive_utilities.len()
+            + self
+                .responsive_utilities
+                .iter()
+                .map(|s| s.len())
+                .sum::<usize>()
             + ROOT_BLOCK_OVERHEAD;
         let mut css = String::with_capacity(estimated_capacity);
         css.push_str(":root {\n");
