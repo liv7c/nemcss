@@ -1,4 +1,5 @@
 use config::ResolvedToken;
+use std::fmt::Write;
 
 /// A struct that contains generated CSS output for utilities and custom properties.
 ///
@@ -226,30 +227,33 @@ pub fn generate_responsive_utilities(
     utilities: &[Utility],
     viewports: Option<&ResolvedToken>,
 ) -> Vec<String> {
-    let mut utilities_media_blocks = Vec::new();
+    let Some(viewports) = viewports else {
+        return Vec::new();
+    };
 
-    if let Some(viewports) = viewports {
-        for (viewport_name, viewport_value) in viewports.tokens.iter() {
-            let mut classes_per_viewport = Vec::new();
+    let mut utilities_media_blocks = Vec::with_capacity(viewports.tokens.len());
 
-            for utility in utilities.iter() {
-                let responsive_class_name = format!("{}:{}", viewport_name, utility.class_name());
-                let responsive_class = format!(
-                    ".{} {{\n  {};\n}}",
-                    responsive_class_name,
-                    utility.class_value()
-                );
+    for (viewport_name, viewport_value) in viewports.tokens.iter() {
+        // estimate of rougly 60 characters per utility class
+        let estimated_capacity = utilities.len() * (viewport_name.len() + 60);
+        let mut media_block_content = String::with_capacity(estimated_capacity);
 
-                classes_per_viewport.push(responsive_class);
-            }
-
-            let media_block = format!(
-                "@media (min-width: {}) {{\n{}\n}}",
-                viewport_value,
-                classes_per_viewport.join("\n")
+        for utility in utilities.iter() {
+            let _ = writeln!(
+                &mut media_block_content,
+                ".{}:{} {{\n  {};\n}}",
+                viewport_name,
+                utility.class_name(),
+                utility.class_value()
             );
-            utilities_media_blocks.push(media_block);
         }
+
+        let media_block = format!(
+            "@media (min-width: {}) {{\n{}\n}}",
+            viewport_value,
+            media_block_content.trim_end()
+        );
+        utilities_media_blocks.push(media_block);
     }
 
     utilities_media_blocks
