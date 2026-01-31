@@ -1,4 +1,6 @@
-//! The engine crate is responsible for generating CSS custom properties and
+//! # NemCSS Engine
+//!
+//! The NemCSS engine is responsible for generating CSS custom properties and
 //! utility classes based on the design tokens. It uses both the auto-detected
 //! design tokens and the user-defined configuration from the `nemcss.config.json` to do so.
 //!
@@ -32,7 +34,7 @@
 //!         prefix: "color".to_string(),
 //!     },
 //! );
-//! let generated_css = generate_css(resolved_tokens.values());
+//! let generated_css = generate_css(resolved_tokens.values(), resolved_tokens.get("viewports"));
 //! let css = generated_css.to_css();
 //! # assert!(css.contains("--color-primary: yellow;"));
 //! # assert!(css.contains(".text-primary {\n  color: var(--color-primary);\n}"));
@@ -41,4 +43,4 @@
 
 mod generation;
 
-pub use generation::{GeneratedCss, generate_css};
+pub use generation::{GeneratedCss, Utility, VIEWPORT_TOKEN_PREFIX, generate_css};
