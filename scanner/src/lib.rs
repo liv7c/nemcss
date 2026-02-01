@@ -6,3 +6,5 @@
 //! final CSS output.
 
 mod extractor;
+
+pub use extractor::extract_classes;
