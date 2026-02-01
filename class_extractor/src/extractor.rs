@@ -73,7 +73,7 @@ static OBJECT_KEY_REGEX: LazyLock<Regex> = LazyLock::new(|| {
 ///
 /// # Example
 ///
-/// ```no_run
+/// ```
 /// use std::collections::HashSet;
 /// use class_extractor::extract_classes;
 ///
