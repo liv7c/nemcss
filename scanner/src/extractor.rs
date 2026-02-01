@@ -60,6 +60,38 @@ static OBJECT_KEY_REGEX: LazyLock<Regex> = LazyLock::new(|| {
 });
 
 /// Extract CSS classes from a given content string.
+///
+/// This function supports a variety of different syntaxes for declaring CSS classes, including:
+/// - Regular class attributes (class="...")
+/// - Utilities like classnames(...), clsx(...), :class(...) or cn(...) that wrap classes in
+///   arrays, objects, etc.
+/// - Class expressions in JSX/Svelte like class={...} or className={...}
+/// - Conditional class directives like class:list="..." used in Astro
+/// - Svelte class directives like class:active={isActive}
+/// - Ternary expressions like {isActive ? 'active-state' : 'inactive-state'}
+///
+/// # Example
+///
+/// ```no_run
+/// use std::collections::HashSet;
+/// use scanner::extract_classes;
+///
+/// let content = r#"
+///     <main class="container">
+///         <h1 class="text-primary font-bold">Hello, world!</h1>
+///         <div class="text-primary font-bold">
+///             <span class="bg-secondary"></span>
+///         </div>
+///         <div class="text-primary"></div>
+///     </main>
+/// "#;
+///
+/// let classes = extract_classes(content);
+/// assert!(classes.contains("container"));
+/// assert!(classes.contains("text-primary"));
+/// assert!(classes.contains("font-bold"));
+/// assert!(classes.contains("bg-secondary"));
+/// ```
 pub fn extract_classes(content: &str) -> HashSet<String> {
     let mut classes = HashSet::new();
 
@@ -117,6 +149,7 @@ pub fn extract_classes(content: &str) -> HashSet<String> {
     classes
 }
 
+/// Extract classes from a given syntax, such as a string literal, object key, or array.
 fn extract_classes_from_syntax(content: &str, classes: &mut HashSet<String>) {
     for string_cap in STRING_LITERAL_REGEX.captures_iter(content) {
         if let Some(string_literal) = string_cap.name("string_literal") {
