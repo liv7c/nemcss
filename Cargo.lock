@@ -640,6 +640,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "scanner"
+version = "0.1.0"
+dependencies = [
+ "regex",
+]
+
+[[package]]
 name = "serde"
 version = "1.0.228"
 source = "registry+https://github.com/rust-lang/crates.io-index"

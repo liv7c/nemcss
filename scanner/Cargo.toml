@@ -1,0 +1,9 @@
+[package]
+name = "scanner"
+edition = "2024"
+version.workspace = true
+authors.workspace = true
+description.workspace = true
+
+[dependencies]
+regex = "1.12.2"
