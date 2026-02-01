@@ -93,7 +93,7 @@ static OBJECT_KEY_REGEX: LazyLock<Regex> = LazyLock::new(|| {
 /// assert!(classes.contains("bg-secondary"));
 /// ```
 pub fn extract_classes(content: &str) -> HashSet<String> {
-    let mut classes = HashSet::new();
+    let mut classes = HashSet::with_capacity(32);
 
     // Look for class attributes
     for cap in CLASS_ATTRIBUTE_REGEX.captures_iter(content) {
@@ -113,7 +113,7 @@ pub fn extract_classes(content: &str) -> HashSet<String> {
 
     // Look for :class="..." calls
     for cap in VUE_CLASS_BINDING_REGEX.captures_iter(content) {
-        let css_content = cap.name("double").or_else(|| cap.name("single"));
+        let css_content = cap.name("double").or(cap.name("single"));
         if let Some(content) = css_content {
             extract_classes_from_syntax(content.as_str(), &mut classes);
         }
