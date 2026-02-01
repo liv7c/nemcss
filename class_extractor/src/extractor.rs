@@ -19,7 +19,7 @@ static CLASS_ATTRIBUTE_REGEX: LazyLock<Regex> = LazyLock::new(|| {
 /// It uses a greedy match to capture everything that is in between the parentheses (as we could
 /// have arrays, objects, etc.).
 static CLASS_UTILITY_REGEX: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r#"(clsx|classnames|cn)\((?<content>[\s\S]*?)\)"#)
+    Regex::new(r#"(clsx|classnames|cn|cva)\((?<content>[\s\S]*?)\)"#)
         .expect("Failed to compile clsx regex")
 });
 
@@ -220,6 +220,69 @@ mod tests {
         assert_eq!(
             &captures["content"], r#"{foo: true, bar: true}"#,
             "Got {captures:?}"
+        );
+    }
+
+    #[test]
+    fn test_extract_classes_cva() {
+        let raw_code = r#"
+          const button = cva("btn", {
+            variants: {
+              intent: {
+                primary: ["bg-blue-500", "text-white", "border-transparent"],
+                secondary: "bg-gray-100 text-gray-800",
+              },
+              size: {
+                small: ["text-sm", "py-1", "px-2"],
+              },
+            },
+            compoundVariants: [
+              { intent: "primary", class: "hover:bg-blue-600" },
+            ],
+          });
+      "#;
+
+        let result = extract_classes(raw_code);
+
+        // Base class
+        assert!(result.contains("btn"), "Expected 'btn', got {result:?}");
+
+        // Classes from arrays
+        assert!(
+            result.contains("bg-blue-500"),
+            "Expected 'bg-blue-500', got {result:?}"
+        );
+        assert!(
+            result.contains("text-white"),
+            "Expected 'text-white', got {result:?}"
+        );
+        assert!(
+            result.contains("border-transparent"),
+            "Expected 'border-transparent', got {result:?}"
+        );
+
+        // Classes from space-separated string
+        assert!(
+            result.contains("bg-gray-100"),
+            "Expected 'bg-gray-100', got {result:?}"
+        );
+        assert!(
+            result.contains("text-gray-800"),
+            "Expected 'text-gray-800', got {result:?}"
+        );
+
+        // Size variant classes
+        assert!(
+            result.contains("text-sm"),
+            "Expected 'text-sm', got {result:?}"
+        );
+        assert!(result.contains("py-1"), "Expected 'py-1', got {result:?}");
+        assert!(result.contains("px-2"), "Expected 'px-2', got {result:?}");
+
+        // Compound variant class
+        assert!(
+            result.contains("hover:bg-blue-600"),
+            "Expected 'hover:bg-blue-600', got {result:?}"
         );
     }
 
