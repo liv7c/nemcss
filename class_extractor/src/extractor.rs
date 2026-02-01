@@ -23,9 +23,10 @@ static CLASS_UTILITY_REGEX: LazyLock<Regex> = LazyLock::new(|| {
         .expect("Failed to compile clsx regex")
 });
 
-/// A regex for matching JSX/Svelte class expressions: class={...}, or className={...}
+/// A regex for matching JSX/Svelte/Solid.js class expressions: class={...}, className={...}, or
+/// classList={...}
 static JSX_CLASS_EXPRESSION_REGEX: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r#"class(name|Name)?=\{(?<content>[\s\S]*?)\}"#)
+    Regex::new(r#"class(name|Name|List)?=\{(?<content>[\s\S]*?)\}"#)
         .expect("Failed to compile jsx class expression regex")
 });
 
@@ -783,6 +784,38 @@ mod tests {
         assert!(
             result.contains("text-primary"),
             "Expected to find 'text-primary' class, got {result:?}"
+        );
+    }
+
+    #[test]
+    fn test_extract_classes_solidjs_support() {
+        let raw_code = r#"
+          <div classList={{ active: isActive(), disabled: isDisabled() }}>
+              <span classList={{ "text-primary": true, "font-bold": show() }} />
+              <div class={state.active ? 'active' : undefined} />
+          </div>
+      "#;
+
+        let result = extract_classes(raw_code);
+        assert!(
+            result.contains("active"),
+            "Expected 'active', got {result:?}"
+        );
+        assert!(
+            result.contains("disabled"),
+            "Expected 'disabled', got {result:?}"
+        );
+        assert!(
+            result.contains("text-primary"),
+            "Expected 'text-primary', got {result:?}"
+        );
+        assert!(
+            result.contains("font-bold"),
+            "Expected 'font-bold', got {result:?}"
+        );
+        assert!(
+            result.contains("active"),
+            "Expected 'font-bold', got {result:?}"
         );
     }
 }
