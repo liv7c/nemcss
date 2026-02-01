@@ -1,5 +1,5 @@
 [package]
-name = "scanner"
+name = "class_extractor"
 edition = "2024"
 version.workspace = true
 authors.workspace = true
