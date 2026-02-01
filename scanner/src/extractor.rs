@@ -55,7 +55,7 @@ static STRING_LITERAL_REGEX: LazyLock<Regex> = LazyLock::new(|| {
 
 /// A regex for matching object keys
 static OBJECT_KEY_REGEX: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r#"\{*\s*["']?(?<object_key>[^"']+)["']?:"#)
+    Regex::new(r#"\{?\s*["']?(?<object_key>[\w-]+)["']?:"#)
         .expect("Failed to compile object key regex")
 });
 
@@ -242,6 +242,19 @@ mod tests {
             .collect();
 
         assert_eq!(keys, vec!["foo", "text-primary", "text-secondary"]);
+    }
+
+    #[test]
+    fn test_object_key_regex_with_underscore_and_dash() {
+        let re = &OBJECT_KEY_REGEX;
+        let haystack = r#"{foo: true, 'text-primary': true, "card-box__text": false }"#;
+
+        let keys: Vec<_> = re
+            .captures_iter(haystack)
+            .map(|cap| cap.name("object_key").unwrap().as_str())
+            .collect();
+
+        assert_eq!(keys, vec!["foo", "text-primary", "card-box__text"]);
     }
 
     #[test]
