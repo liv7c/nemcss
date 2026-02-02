@@ -23,6 +23,7 @@ use std::fmt::Write;
 ///   color: var(--color-secondary);
 /// }
 /// ```
+#[derive(Debug, PartialEq)]
 pub struct GeneratedCss {
     /// A list of custom properties to generate.
     /// Each custom property is a CSS variable.

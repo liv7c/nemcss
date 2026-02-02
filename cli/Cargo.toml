@@ -19,6 +19,7 @@ miette = { workspace = true }
 owo-colors = "4.2.3"
 thiserror = { workspace = true }
 config = { path = "../config" }
+engine = { path = "../engine" }
 
 [dev-dependencies]
 assert_cmd = "2.1.2"
