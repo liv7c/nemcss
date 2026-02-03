@@ -216,6 +216,8 @@ dependencies = [
  "clap",
  "config",
  "engine",
+ "globset",
+ "ignore",
  "miette",
  "owo-colors",
  "predicates",
