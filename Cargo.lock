@@ -214,6 +214,7 @@ dependencies = [
  "assert_cmd",
  "assert_fs",
  "clap",
+ "class_extractor",
  "config",
  "engine",
  "globset",

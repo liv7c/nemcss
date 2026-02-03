@@ -1,7 +1,11 @@
+use std::collections::HashSet;
+
 use miette::Diagnostic;
 use thiserror::Error;
 
 use config::{CONFIG_FILE_NAME, NemCssConfig};
+
+use crate::commands::build::glob::{GetContentFilesError, get_content_files};
 
 #[derive(Debug, Error, Diagnostic)]
 pub enum BuildError {
@@ -16,6 +20,14 @@ pub enum BuildError {
     #[error("failed to resolve the design tokens: {0}")]
     #[diagnostic(code(nemcss::build::resolve_tokens))]
     ResolveTokens(#[from] config::ResolveTokensError),
+
+    #[error("failed to get the content files: {0}")]
+    #[diagnostic(code(nemcss::build::get_content_files))]
+    GetContentFiles(#[from] GetContentFilesError),
+
+    #[error("failed to read file conntent: {0}")]
+    #[diagnostic(code(nemcss::build::read_file_content))]
+    ReadFileContent(#[from] std::io::Error),
 }
 
 pub fn build(
@@ -29,7 +41,20 @@ pub fn build(
     let resolved_tokens = config.resolve_all_tokens()?;
     let viewports = resolved_tokens.get("viewports");
 
+    let files_to_scan = get_content_files(&config.content, current_dir.as_path())?;
+
+    let mut used_classes = HashSet::new();
+
+    // generate the css via css_extractor
+    for file in files_to_scan {
+        // TODO: see how to optimize to pass an iterator maybe instead of the file content?
+        let content = std::fs::read_to_string(file)?;
+        let css = class_extractor::extract_classes(&content);
+        used_classes.extend(css);
+    }
+
+    // write the css to the output directory
     let generated_css = engine::generate_css(resolved_tokens.values(), viewports);
-    dbg!(&generated_css);
+
     todo!()
 }
