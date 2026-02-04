@@ -1,5 +1,8 @@
 use config::ResolvedToken;
-use std::fmt::Write;
+use std::{
+    collections::{HashMap, HashSet},
+    fmt::Write,
+};
 
 /// A struct that contains generated CSS output for utilities and custom properties.
 ///
@@ -76,11 +79,11 @@ impl Utility {
     /// * `full_class` - The complete CSS class definition (e.g., ".text-primary {\n  color: var(--color-primary);\n}")
     /// * `class_name` - The class name without the leading dot (e.g., "text-primary")
     /// * `class_value` - The class property and value (e.g., "color: var(--color-primary)")
-    pub fn new(full_class: String, class_name: String, class_value: String) -> Self {
+    pub fn new(full_class: &str, class_name: &str, class_value: &str) -> Self {
         Utility {
-            full_class,
-            class_name,
-            class_value,
+            full_class: full_class.to_string(),
+            class_name: class_name.to_string(),
+            class_value: class_value.to_string(),
         }
     }
 
@@ -181,13 +184,152 @@ impl GeneratedCss {
 pub fn generate_css<'a>(
     resolved_tokens: impl IntoIterator<Item = &'a ResolvedToken>,
     viewports: Option<&ResolvedToken>,
+    used_classes: Option<&HashSet<String>>,
 ) -> GeneratedCss {
     let tokens: Vec<_> = resolved_tokens.into_iter().collect();
     let custom_properties = generate_custom_properties(&tokens);
-    let utilities = generate_utilities(&tokens);
-    let responsive_utilities = generate_responsive_utilities(&utilities, viewports);
 
-    GeneratedCss::new(custom_properties, utilities, responsive_utilities)
+    match used_classes {
+        Some(used_classes) => {
+            if used_classes.is_empty() {
+                return GeneratedCss::new(custom_properties, vec![], vec![]);
+            }
+
+            let (used_utility_classes, used_reponsive_utilities) =
+                get_used_utilities_class_names(used_classes);
+            let (utilities, used_responsive_utilities_map) = generate_filtered_utilities(
+                &tokens,
+                &used_utility_classes,
+                &used_reponsive_utilities,
+            );
+            let responsive_utilities =
+                generate_filtered_responsive_utilities(&used_responsive_utilities_map, viewports);
+
+            GeneratedCss::new(custom_properties, utilities, responsive_utilities)
+        }
+        None => {
+            let utilities = generate_utilities(&tokens);
+            let responsive_utilities = generate_responsive_utilities(&utilities, viewports);
+            GeneratedCss::new(custom_properties, utilities, responsive_utilities)
+        }
+    }
+}
+
+/// Generates filtered utilities based on the used classes.
+///
+/// Returns a vec of utilities and a map of used reponsive utility classes.
+fn generate_filtered_utilities(
+    resolved_tokens: &[&ResolvedToken],
+    used_utilities: &[String],
+    used_reponsive_utilities: &HashMap<String, Vec<String>>,
+) -> (Vec<Utility>, HashMap<String, Vec<Utility>>) {
+    let mut utilities = Vec::new();
+    let mut responsive_utilities: HashMap<String, Vec<Utility>> = HashMap::new();
+
+    for resolved_token in resolved_tokens
+        .iter()
+        .filter(|r| r.prefix != VIEWPORT_TOKEN_PREFIX)
+    {
+        for utility in resolved_token.utilities.iter() {
+            for (token_name, _token_value) in resolved_token.tokens.iter() {
+                let utility_class_name = format!("{}-{}", utility.prefix, token_name);
+
+                let is_used = used_utilities.contains(&utility_class_name);
+                let is_used_responsive = used_reponsive_utilities.contains_key(&utility_class_name);
+
+                if !is_used && !is_used_responsive {
+                    continue;
+                }
+
+                let custom_property_name =
+                    format!("var(--{}-{})", resolved_token.prefix, token_name);
+                let utility_class_value = format!("{}: {}", utility.property, custom_property_name);
+                let utility_full_class =
+                    format!(".{} {{\n  {};\n}}", utility_class_name, utility_class_value);
+                let utility = Utility::new(
+                    &utility_full_class,
+                    &utility_class_name,
+                    &utility_class_value,
+                );
+
+                if is_used {
+                    utilities.push(utility.clone());
+                }
+
+                if let Some(viewports) = used_reponsive_utilities.get(&utility_class_name) {
+                    for vw in viewports {
+                        responsive_utilities
+                            .entry(vw.clone())
+                            .or_default()
+                            .push(utility.clone());
+                    }
+                }
+            }
+        }
+    }
+
+    (utilities, responsive_utilities)
+}
+
+/// Generate the filtered responsive utilities
+fn generate_filtered_responsive_utilities(
+    responsive_utilities_map: &HashMap<String, Vec<Utility>>,
+    viewports: Option<&ResolvedToken>,
+) -> Vec<String> {
+    let Some(viewports) = viewports else {
+        return Vec::new();
+    };
+
+    let mut utilities_media_blocks = Vec::with_capacity(responsive_utilities_map.len());
+
+    for (viewport_name, viewport_value) in viewports.tokens.iter() {
+        let Some(utilities) = responsive_utilities_map.get(viewport_name) else {
+            continue;
+        };
+
+        let estimated_capacity = utilities.len() * (viewport_name.len() + 60);
+        let mut media_block_content = String::with_capacity(estimated_capacity);
+
+        for utility in utilities.iter() {
+            let _ = writeln!(
+                &mut media_block_content,
+                ".{}:{} {{\n  {};\n}}",
+                viewport_name,
+                utility.class_name(),
+                utility.class_value()
+            );
+        }
+
+        let media_block = format!(
+            "@media (min-width: {}) {{\n{}\n}}",
+            viewport_value,
+            media_block_content.trim_end()
+        );
+        utilities_media_blocks.push(media_block);
+    }
+
+    utilities_media_blocks
+}
+
+/// Splits the used classes into utility classes and responsive utility classes.
+fn get_used_utilities_class_names(
+    used_classes: &HashSet<String>,
+) -> (Vec<String>, HashMap<String, Vec<String>>) {
+    let mut used_utility_classes = Vec::new();
+    let mut used_reponsive_utilities: HashMap<String, Vec<String>> = HashMap::new();
+
+    for class_name in used_classes {
+        if let Some((vw, utility_name)) = class_name.split_once(':') {
+            used_reponsive_utilities
+                .entry(utility_name.to_string())
+                .or_default()
+                .push(vw.to_string());
+            continue;
+        }
+        used_utility_classes.push(class_name.to_string());
+    }
+
+    (used_utility_classes, used_reponsive_utilities)
 }
 
 /// Generate CSS custom properties from resolved tokens.
@@ -273,8 +415,11 @@ pub fn generate_utilities(resolved_tokens: &[&ResolvedToken]) -> Vec<Utility> {
                 let utility_class_name = format!("{}-{}", utility.prefix, token_name);
                 let utility_full_class =
                     format!(".{} {{\n  {};\n}}", utility_class_name, utility_class_value);
-                let utility =
-                    Utility::new(utility_full_class, utility_class_name, utility_class_value);
+                let utility = Utility::new(
+                    &utility_full_class,
+                    &utility_class_name,
+                    &utility_class_value,
+                );
                 utilities.push(utility);
             }
         }
@@ -526,7 +671,7 @@ mod tests {
             },
         );
 
-        let css_to_generate = generate_css(resolved_tokens.values(), None);
+        let css_to_generate = generate_css(resolved_tokens.values(), None, None);
 
         let result = css_to_generate.to_css();
         let expected_root_css =
@@ -576,8 +721,11 @@ mod tests {
             },
         );
 
-        let css_to_generate =
-            generate_css(resolved_tokens.values(), resolved_tokens.get("viewports"));
+        let css_to_generate = generate_css(
+            resolved_tokens.values(),
+            resolved_tokens.get("viewports"),
+            None,
+        );
 
         let result = css_to_generate.to_css();
 
@@ -693,6 +841,152 @@ mod tests {
                 .contains(".md:bg-secondary {\n  background-color: var(--color-secondary);\n}"),
             "Got {:?}",
             result[1]
+        );
+    }
+
+    #[test]
+    fn test_get_used_utilities_class_names() {
+        let used_classes = HashSet::from([
+            "text-primary".to_string(),
+            "text-secondary".to_string(),
+            "m-2".to_string(),
+            "md:bg-primary".to_string(),
+            "lg:bg-primary".to_string(),
+            "xl:text-secondary".to_string(),
+        ]);
+
+        let result = get_used_utilities_class_names(&used_classes);
+
+        let (used_utility_classes, used_reponsive_utilities) = result;
+
+        assert_eq!(used_utility_classes.len(), 3);
+        assert_eq!(used_reponsive_utilities.len(), 2);
+
+        assert!(used_utility_classes.contains(&"text-primary".to_string()));
+        assert!(used_utility_classes.contains(&"text-secondary".to_string()));
+        assert!(used_utility_classes.contains(&"m-2".to_string()));
+
+        assert_eq!(
+            used_reponsive_utilities.get("bg-primary").unwrap(),
+            &vec!["md".to_string(), "lg".to_string()]
+        );
+        assert_eq!(
+            used_reponsive_utilities.get("text-secondary").unwrap(),
+            &vec!["xl".to_string()]
+        );
+    }
+
+    #[test]
+    fn test_generate_filtered_utilities() {
+        let mut resolved_tokens = HashMap::new();
+        resolved_tokens.insert(
+            "colors".to_string(),
+            ResolvedToken {
+                tokens: vec![
+                    (
+                        "primary".to_string(),
+                        TokenValue::Simple("yellow".to_string()),
+                    ),
+                    (
+                        "secondary".to_string(),
+                        TokenValue::Simple("#c1c1c1".to_string()),
+                    ),
+                ],
+                utilities: vec![
+                    TokenUtilityConfig {
+                        prefix: "text".to_string(),
+                        property: "color".to_string(),
+                    },
+                    TokenUtilityConfig {
+                        prefix: "bg".to_string(),
+                        property: "background-color".to_string(),
+                    },
+                ],
+                prefix: "color".to_string(),
+            },
+        );
+        resolved_tokens.insert(
+            "viewports".to_string(),
+            ResolvedToken {
+                tokens: vec![
+                    ("sm".to_string(), TokenValue::Simple("320px".to_string())),
+                    ("md".to_string(), TokenValue::Simple("768px".to_string())),
+                ],
+                utilities: vec![],
+                prefix: VIEWPORT_TOKEN_PREFIX.to_string(),
+            },
+        );
+
+        let all_tokens: Vec<_> = resolved_tokens.values().collect();
+        let used_utilities = vec!["text-primary".to_string()];
+        let used_reponsive_utilities = HashMap::from([(
+            "bg-primary".to_string(),
+            vec!["sm".to_string(), "md".to_string()],
+        )]);
+        let (utilities, responsive_utilities) =
+            generate_filtered_utilities(&all_tokens, &used_utilities, &used_reponsive_utilities);
+        dbg!(&utilities);
+        dbg!(&responsive_utilities);
+
+        assert_eq!(utilities.len(), 1);
+        assert_eq!(responsive_utilities.len(), 2);
+
+        assert!(utilities.contains(&Utility::new(
+            ".text-primary {\n  color: var(--color-primary);\n}",
+            "text-primary",
+            "color: var(--color-primary)"
+        )));
+    }
+
+    #[test]
+    fn test_generate_filtered_responsive_utilities() {
+        let responsive_utilities_map = HashMap::from([
+            (
+                "md".to_string(),
+                vec![
+                    Utility::new(
+                        ".bg-primary {\n  background-color: var(--color-primary);\n}",
+                        "bg-primary",
+                        "background-color: var(--color-primary)",
+                    ),
+                    Utility::new(
+                        ".bg-secondary {\n  background-color: var(--color-secondary);\n}",
+                        "bg-secondary",
+                        "background-color: var(--color-secondary)",
+                    ),
+                ],
+            ),
+            (
+                "lg".to_string(),
+                vec![Utility::new(
+                    ".bg-primary {\n  background-color: var(--color-primary);\n}",
+                    "bg-primary",
+                    "background-color: var(--color-primary)",
+                )],
+            ),
+        ]);
+        let viewports = ResolvedToken {
+            tokens: vec![
+                ("sm".to_string(), TokenValue::Simple("320px".to_string())),
+                ("md".to_string(), TokenValue::Simple("768px".to_string())),
+                ("lg".to_string(), TokenValue::Simple("1024px".to_string())),
+            ],
+            utilities: vec![],
+            prefix: VIEWPORT_TOKEN_PREFIX.to_string(),
+        };
+
+        let result =
+            generate_filtered_responsive_utilities(&responsive_utilities_map, Some(&viewports));
+
+        assert_eq!(result.len(), 2);
+        assert_eq!(
+            result[0],
+            "@media (min-width: 768px) {\n.md:bg-primary {\n  background-color: var(--color-primary);\n}\n.md:bg-secondary {\n  background-color: var(--color-secondary);\n}\n}"
+        );
+
+        assert_eq!(
+            result[1],
+            "@media (min-width: 1024px) {\n.lg:bg-primary {\n  background-color: var(--color-primary);\n}\n}"
         );
     }
 }
