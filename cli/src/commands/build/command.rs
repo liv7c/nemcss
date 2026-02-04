@@ -1,4 +1,6 @@
+use owo_colors::OwoColorize;
 use std::collections::HashSet;
+use std::fs;
 
 use miette::Diagnostic;
 use thiserror::Error;
@@ -21,13 +23,21 @@ pub enum BuildError {
     #[diagnostic(code(nemcss::build::resolve_tokens))]
     ResolveTokens(#[from] config::ResolveTokensError),
 
+    #[error("missing `@nemcss base;` directive in input css file: {0}")]
+    #[diagnostic(code(nemcss::build::missing_base_directive))]
+    MissingBaseDirective(String),
+
     #[error("failed to get the content files: {0}")]
     #[diagnostic(code(nemcss::build::get_content_files))]
     GetContentFiles(#[from] GetContentFilesError),
 
-    #[error("failed to read file conntent: {0}")]
+    #[error("failed to read file content: {0}")]
     #[diagnostic(code(nemcss::build::read_file_content))]
     ReadFileContent(#[from] std::io::Error),
+
+    #[error("unable to write the generated CSS to the output file: {0}")]
+    #[diagnostic(code(nemcss::build::write_css))]
+    WriteCss(std::io::Error),
 }
 
 pub fn build(
@@ -54,7 +64,23 @@ pub fn build(
     }
 
     // write the css to the output directory
-    let generated_css = engine::generate_css(resolved_tokens.values(), viewports);
+    let generated_css =
+        engine::generate_css(resolved_tokens.values(), viewports, Some(&used_classes));
 
-    todo!()
+    // replace the @nemcss directives
+    let input_content = std::fs::read_to_string(&input)?;
+
+    if !input_content.contains("@nemcss base;") {
+        return Err(BuildError::MissingBaseDirective(
+            input.display().to_string(),
+        ));
+    }
+
+    let output_css = input_content.replace("@nemcss base;", &generated_css.to_css());
+
+    fs::write(&output, output_css).map_err(BuildError::WriteCss)?;
+
+    println!("  {} CSS written to {}", "✔".green(), output.display());
+
+    Ok(())
 }
