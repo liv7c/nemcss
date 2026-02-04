@@ -23,6 +23,10 @@ pub enum GetContentFilesError {
     StripPrefix(#[from] std::path::StripPrefixError),
 }
 
+/// Retrieves all files matching the given glob patterns.
+///
+/// This function uses the `globset` crate to build the globset from the patterns and the `ignore`
+/// crate to optimize the file walking.
 pub fn get_content_files(
     patterns: &[String],
     base_dir: &Path,

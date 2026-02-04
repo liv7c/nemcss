@@ -37,13 +37,25 @@ enum Command {
     /// Initializes a new project with the `nemcss` configuration and example design tokens.
     Init,
 
-    /// Builds the CSS files for the project.
+    /// Generates CSS from design tokens by scanning content files for used utility classes.
+    ///
+    /// This command reads your desing tokens, scans your source files (HTML, JSX, Vue, etc.)
+    /// for used utility classes, and generates only the CSS utilities that are actually used.
+    /// The generated CSS replaces the `@nemcss base;` directive in your input file.
+    ///
+    /// Example usage:
+    /// nemcss build -i src/input.css -o dist/output.css
     Build {
         /// The path to the CSS input file.
+        ///
+        /// This file must contain the `@nemcss base;` directive., which will be
+        /// replaced with the generated CSS custom properties and utility classes.
         #[arg(short, long)]
         input: PathBuf,
 
         /// The path to the CSS output file.
+        ///
+        /// The final CSS with all custom properties and utility classes will be written to this file.
         #[arg(short, long)]
         output: PathBuf,
     },

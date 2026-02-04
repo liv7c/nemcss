@@ -9,6 +9,7 @@ use config::{CONFIG_FILE_NAME, NemCssConfig};
 
 use crate::commands::build::glob::{GetContentFilesError, get_content_files};
 
+/// Errors that can occur while building the CSS
 #[derive(Debug, Error, Diagnostic)]
 pub enum BuildError {
     #[error("failed to retrieve the current directory: {0}")]
@@ -44,6 +45,30 @@ pub enum BuildError {
     WriteCss(std::io::Error),
 }
 
+/// Builds the CSS output file from design tokens and content files.
+///
+/// This command:
+/// - Loads the NemCSS configuration file.
+/// - Resolves the design tokens.
+/// - Scans the content files for used utility classes.
+/// - Generates only the CSS utilities that are actually used
+/// - Replaces the `@nemcss base;` directive with the generated CSS.
+/// - Writes the generated CSS to the output file.
+///
+/// # Arguments
+///
+/// - `input`: The input CSS file containing the `@nemcss base;` directive.
+/// - `output`: The output CSS file to write the generated CSS to.
+///
+/// # Errors
+///
+/// This function returns an error if any of the following occurs:
+/// - Failed to retrieve the current directory.
+/// - Failed to load the NemCSS configuration.
+/// - Failed to resolve the design tokens.
+/// - Failed to get the content files.
+/// - Failed to read a file content.
+/// - Failed to write the generated CSS to the output file.
 pub fn build(
     input: std::path::PathBuf,
     output: std::path::PathBuf,
