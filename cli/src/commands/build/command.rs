@@ -31,9 +31,13 @@ pub enum BuildError {
     #[diagnostic(code(nemcss::build::get_content_files))]
     GetContentFiles(#[from] GetContentFilesError),
 
-    #[error("failed to read file content: {0}")]
+    #[error("failed to read file content {path}: {source}")]
     #[diagnostic(code(nemcss::build::read_file_content))]
-    ReadFileContent(#[from] std::io::Error),
+    ReadFileContent {
+        path: std::path::PathBuf,
+        #[source]
+        source: std::io::Error,
+    },
 
     #[error("unable to write the generated CSS to the output file: {0}")]
     #[diagnostic(code(nemcss::build::write_css))]
@@ -58,7 +62,10 @@ pub fn build(
     // generate the css via css_extractor
     for file in files_to_scan {
         // TODO: see how to optimize to pass an iterator maybe instead of the file content?
-        let content = std::fs::read_to_string(file)?;
+        let content = std::fs::read_to_string(&file).map_err(|e| BuildError::ReadFileContent {
+            path: file.to_path_buf(),
+            source: e,
+        })?;
         let css = class_extractor::extract_classes(&content);
         used_classes.extend(css);
     }
@@ -68,7 +75,11 @@ pub fn build(
         engine::generate_css(resolved_tokens.values(), viewports, Some(&used_classes));
 
     // replace the @nemcss directives
-    let input_content = std::fs::read_to_string(&input)?;
+    let input_content =
+        std::fs::read_to_string(&input).map_err(|e| BuildError::ReadFileContent {
+            path: input.clone(),
+            source: e,
+        })?;
 
     if !input_content.contains("@nemcss base;") {
         return Err(BuildError::MissingBaseDirective(
