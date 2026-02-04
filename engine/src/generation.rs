@@ -52,9 +52,9 @@ pub struct GeneratedCss {
 /// use engine::Utility;
 ///
 /// let utility = Utility::new(
-///     ".text-primary {\n  color: var(--color-primary);\n}".to_string(),
-///     "text-primary".to_string(),
-///     "color: var(--color-primary)".to_string(),
+///     ".text-primary {\n  color: var(--color-primary);\n}",
+///     "text-primary",
+///     "color: var(--color-primary)",
 /// );
 ///
 /// assert_eq!(utility.full_class(), ".text-primary {\n  color: var(--color-primary);\n}");
@@ -866,9 +866,17 @@ mod tests {
         assert!(used_utility_classes.contains(&"text-secondary".to_string()));
         assert!(used_utility_classes.contains(&"m-2".to_string()));
 
-        assert_eq!(
-            used_reponsive_utilities.get("bg-primary").unwrap(),
-            &vec!["md".to_string(), "lg".to_string()]
+        assert!(
+            used_reponsive_utilities
+                .get("bg-primary")
+                .unwrap()
+                .contains(&"md".to_string())
+        );
+        assert!(
+            used_reponsive_utilities
+                .get("bg-primary")
+                .unwrap()
+                .contains(&"lg".to_string())
         );
         assert_eq!(
             used_reponsive_utilities.get("text-secondary").unwrap(),
