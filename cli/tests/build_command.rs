@@ -109,7 +109,10 @@ fn test_build_generates_css_with_only_used_classes() {
     let css_content = std::fs::read_to_string(output_file.path()).unwrap();
 
     // Assert used classes are present
-    assert!(css_content.contains(".text-primary"), "Missing .text-primary");
+    assert!(
+        css_content.contains(".text-primary"),
+        "Missing .text-primary"
+    );
     assert!(
         css_content.contains(".text-secondary"),
         "Missing .text-secondary"
@@ -152,5 +155,139 @@ fn test_build_generates_css_with_only_used_classes() {
     assert!(
         !css_content.contains(".m-xl"),
         "Should not generate unused .m-xl"
+    );
+}
+
+#[test]
+fn test_build_generate_only_used_responsive_utilities() {
+    let (mut cmd, temp_dir) = setup_cmd().unwrap();
+
+    // Set up nemcss config with content field
+    temp_dir
+        .child("nemcss.config.json")
+        .write_str(
+            r#"
+        {
+            "content": ["src/**/*.html"]
+        }
+        "#,
+        )
+        .unwrap();
+
+    // Set up design tokens
+    temp_dir.child("design-tokens").create_dir_all().unwrap();
+
+    temp_dir
+        .child("design-tokens")
+        .child("colors.json")
+        .write_str(
+            r##"{
+    "title": "colors",
+    "items": [
+        {"name": "primary", "value": "#ff0000"},
+        {"name": "secondary", "value": "#00ff00"},
+        {"name": "neutral-100", "value": "#c1c1c1"},
+        {"name": "neutral-200", "value": "#c2c2c2"}
+    ]
+}"##,
+        )
+        .unwrap();
+    temp_dir
+        .child("design-tokens")
+        .child("spacings.json")
+        .write_str(
+            r##"{
+    "title": "spacings",
+    "items": [
+        {"name": "xs", "value": "0.25rem"},
+        {"name": "sm", "value": "0.5rem"},
+        {"name": "md", "value": "1rem"},
+        {"name": "lg", "value": "1.5rem"},
+        {"name": "xl", "value": "2rem"}
+    ]
+}"##,
+        )
+        .unwrap();
+
+    temp_dir
+        .child("design-tokens")
+        .child("viewports.json")
+        .write_str(
+            r#"{
+    "title": "viewports",
+    "items": [
+        {"name": "sm", "value": "640px"},
+        {"name": "md", "value": "768px"},
+        {"name": "lg", "value": "1024px"},
+        {"name": "xl", "value": "1280px"}
+    ]
+}"#,
+        )
+        .unwrap();
+
+    // Create content file with responsive classes
+    temp_dir
+        .child("src")
+        .child("index.html")
+        .write_str(
+            r#"
+
+        <div class="text-primary md:text-secondary">Primary</div>
+        <div class="bg-neutral-100 lg:bg-neutral-200">Primary</div>
+    "#,
+        )
+        .unwrap();
+
+    // Create input CSS with nemcss directive
+    temp_dir
+        .child("input.css")
+        .write_str(
+            r#"@nemcss base;
+
+        "#,
+        )
+        .unwrap();
+
+    // Run build command
+    cmd.current_dir(&temp_dir)
+        .arg("build")
+        .arg("--input")
+        .arg("input.css")
+        .arg("--output")
+        .arg("output.css")
+        .assert()
+        .success();
+
+    let output_file = temp_dir.child("output.css");
+    output_file.assert(predicate::path::is_file());
+
+    let css_content = std::fs::read_to_string(output_file.path()).unwrap();
+
+    assert!(
+        css_content.contains("@media (min-width: 768px)"),
+        "Missing media query for md viewport"
+    );
+    assert!(
+        css_content.contains(".md:text-secondary"),
+        "Missing .md:text-secondary"
+    );
+    assert!(
+        css_content.contains("@media (min-width: 1024px)"),
+        "Missing media query for lg viewport"
+    );
+    assert!(
+        css_content.contains(".lg:bg-neutral-200"),
+        "Missing .lg:bg-neutral-200"
+    );
+
+    // check unused responsive classes are not generated
+    assert!(
+        !css_content.contains("@media (min-width: 640px)"),
+        "Should not generate media query for unused sm viewport"
+    );
+
+    assert!(
+        !css_content.contains("@media (min-width: 1280px)"),
+        "Should not generate media query for unused xl viewport"
     );
 }
