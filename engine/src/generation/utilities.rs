@@ -94,9 +94,10 @@ impl Utility {
 /// A vector of `Utility` instances representing the generated utility classes.
 /// Each utility contains the full CSS class definition and its constituent parts (class name and value).
 pub fn generate_utilities(resolved_tokens: &[&ResolvedToken]) -> Vec<Utility> {
-    let estimated_capacity = resolved_tokens.iter().fold(0, |acc, curr| {
-        acc + curr.tokens.len() * curr.utilities.len()
-    });
+    let estimated_capacity = resolved_tokens
+        .iter()
+        .map(|token| token.tokens.len() * token.utilities.len())
+        .sum();
 
     let mut utilities = Vec::with_capacity(estimated_capacity);
 

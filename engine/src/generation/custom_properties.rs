@@ -22,10 +22,8 @@ use config::ResolvedToken;
 ///
 /// A vector of CSS custom property definitions.
 pub fn generate_custom_properties(resolved_tokens: &[&ResolvedToken]) -> Vec<String> {
-    let estimated_capacity = resolved_tokens
-        .iter()
-        .fold(0, |acc, curr| acc + curr.tokens.len());
-    let mut custom_properties: Vec<_> = Vec::with_capacity(estimated_capacity);
+    let estimated_capacity = resolved_tokens.iter().map(|token| token.tokens.len()).sum();
+    let mut custom_properties = Vec::with_capacity(estimated_capacity);
 
     for resolved_token in resolved_tokens {
         for (token_name, token_value) in resolved_token.tokens.iter() {
