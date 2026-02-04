@@ -13,7 +13,7 @@ pub struct TokenFile {
     /// The title of the token file.
     pub title: String,
     /// The description of the design tokens contained in the token file.
-    pub description: String,
+    pub description: Option<String>,
     /// The list of design tokens contained in the token file.
     pub items: Vec<TokenItem>,
 }

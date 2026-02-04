@@ -93,6 +93,7 @@ fn realistic_project(bencher: divan::Bencher) {
         let css = engine::generate_css(
             divan::black_box(tokens.values()),
             divan::black_box(Some(&viewports)),
+            None,
         );
         divan::black_box(css.to_css());
     });
@@ -114,6 +115,7 @@ fn small_dataset(bencher: divan::Bencher) {
         let css = engine::generate_css(
             divan::black_box(tokens.values()),
             divan::black_box(Some(&viewport_value)),
+            None,
         );
         divan::black_box(css.to_css());
     });
@@ -141,6 +143,7 @@ fn large_design_system(bencher: divan::Bencher) {
         let css = engine::generate_css(
             divan::black_box(tokens.values()),
             divan::black_box(Some(&viewport_value)),
+            None,
         );
         divan::black_box(css.to_css());
     });
@@ -171,6 +174,7 @@ fn by_category_count(bencher: divan::Bencher, num_categories: usize) {
         let css = engine::generate_css(
             divan::black_box(tokens.values()),
             divan::black_box(Some(&viewport_value)),
+            None,
         );
         divan::black_box(css.to_css());
     });
