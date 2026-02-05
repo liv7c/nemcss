@@ -1,4 +1,5 @@
 use owo_colors::OwoColorize;
+use rayon::prelude::*;
 use std::collections::HashSet;
 use std::fs;
 
@@ -72,6 +73,7 @@ pub enum BuildError {
 pub fn build(
     input: std::path::PathBuf,
     output: std::path::PathBuf,
+    quiet: bool,
 ) -> miette::Result<(), BuildError> {
     let current_dir = std::env::current_dir().map_err(BuildError::RetrieveCurrentDir)?;
     let config_path = current_dir.join(CONFIG_FILE_NAME);
@@ -82,18 +84,28 @@ pub fn build(
 
     let files_to_scan = get_content_files(&config.content, current_dir.as_path())?;
 
-    let mut used_classes = HashSet::new();
-
-    // generate the css via css_extractor
-    for file in files_to_scan {
-        // TODO: see how to optimize to pass an iterator maybe instead of the file content?
-        let content = std::fs::read_to_string(&file).map_err(|e| BuildError::ReadFileContent {
-            path: file.to_path_buf(),
-            source: e,
-        })?;
-        let css = class_extractor::extract_classes(&content);
-        used_classes.extend(css);
-    }
+    // Generate the css via css_extractor
+    // With try_fold, each thread maintains its own HashSet (no lock, mutex needed)
+    // Then, each HashSet result gets merged together with try_reduce
+    let used_classes = files_to_scan
+        .par_iter()
+        .try_fold(HashSet::new, |mut acc, file| {
+            let content =
+                std::fs::read_to_string(file).map_err(|e| BuildError::ReadFileContent {
+                    path: file.to_path_buf(),
+                    source: e,
+                })?;
+            let css = class_extractor::extract_classes(&content);
+            acc.extend(css);
+            Ok(acc)
+        })
+        .try_reduce(
+            HashSet::new,
+            |mut set1, set2| -> Result<HashSet<String>, BuildError> {
+                set1.extend(set2);
+                Ok(set1)
+            },
+        )?;
 
     // write the css to the output directory
     let generated_css =
@@ -116,7 +128,9 @@ pub fn build(
 
     fs::write(&output, output_css).map_err(BuildError::WriteCss)?;
 
-    println!("  {} CSS written to {}", "✔".green(), output.display());
+    if !quiet {
+        println!("  {} CSS written to {}", "✔".green(), output.display());
+    }
 
     Ok(())
 }
