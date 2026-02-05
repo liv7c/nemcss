@@ -72,6 +72,7 @@ pub enum BuildError {
 pub fn build(
     input: std::path::PathBuf,
     output: std::path::PathBuf,
+    quiet: bool,
 ) -> miette::Result<(), BuildError> {
     let current_dir = std::env::current_dir().map_err(BuildError::RetrieveCurrentDir)?;
     let config_path = current_dir.join(CONFIG_FILE_NAME);
@@ -116,7 +117,9 @@ pub fn build(
 
     fs::write(&output, output_css).map_err(BuildError::WriteCss)?;
 
-    println!("  {} CSS written to {}", "✔".green(), output.display());
+    if !quiet {
+        println!("  {} CSS written to {}", "✔".green(), output.display());
+    }
 
     Ok(())
 }

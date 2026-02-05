@@ -58,6 +58,10 @@ enum Command {
         /// The final CSS with all custom properties and utility classes will be written to this file.
         #[arg(short, long)]
         output: PathBuf,
+
+        /// Suppress output messages
+        #[arg(short, long, default_value_t = false)]
+        quiet: bool,
     },
 }
 
@@ -67,7 +71,11 @@ pub fn run() -> miette::Result<()> {
 
     match args.command {
         Command::Init => commands::init()?,
-        Command::Build { input, output } => commands::build(input, output)?,
+        Command::Build {
+            input,
+            output,
+            quiet,
+        } => commands::build(input, output, quiet)?,
     }
 
     Ok(())
