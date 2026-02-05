@@ -24,7 +24,7 @@ impl ProjectGenerator {
     /// Create a new temporary project directory
     fn new() -> Self {
         Self {
-            temp_dir: TempDir::new().unwrap(),
+            temp_dir: TempDir::new().expect("Failed to create temp directory"),
         }
     }
 
@@ -49,7 +49,7 @@ impl ProjectGenerator {
         self.temp_dir
             .child(CONFIG_FILE_NAME)
             .write_str(custom_config.unwrap_or(default_config))
-            .unwrap();
+            .expect("Failed to write config file content");
         self
     }
 
@@ -66,7 +66,7 @@ impl ProjectGenerator {
             }
             "#,
             )
-            .unwrap();
+            .expect("Failed to write input.css file with @nemcss directive");
         self
     }
 
@@ -75,7 +75,7 @@ impl ProjectGenerator {
         self.temp_dir
             .child("design-tokens")
             .create_dir_all()
-            .unwrap();
+            .expect("Failed to create design-tokens directory");
 
         self.temp_dir
             .child("design-tokens/viewports.json")
@@ -94,7 +94,7 @@ impl ProjectGenerator {
             }
             "#,
             )
-            .unwrap();
+            .expect("Failed to create viewports.json file with viewports json content");
 
         let token_types = [
             "colors",
@@ -135,7 +135,7 @@ impl ProjectGenerator {
             self.temp_dir
                 .child(format!("design-tokens/{}.json", token_type))
                 .write_str(&content)
-                .unwrap();
+                .expect("Failed to write design token file");
         }
 
         self
@@ -148,7 +148,10 @@ impl ProjectGenerator {
         classes_per_file: usize,
         use_responsive: bool,
     ) -> &Self {
-        self.temp_dir.child("src").create_dir_all().unwrap();
+        self.temp_dir
+            .child("src")
+            .create_dir_all()
+            .expect("Failed to create src directory");
 
         let viewports = if use_responsive {
             vec!["", "sm:", "md:", "lg:", "xl:"]
@@ -167,7 +170,9 @@ impl ProjectGenerator {
         ];
 
         // HTML tags with their nesting preferences
-        let container_tags = ["div", "section", "article", "header", "nav", "main", "aside", "footer"];
+        let container_tags = [
+            "div", "section", "article", "header", "nav", "main", "aside", "footer",
+        ];
         let inline_tags = ["span", "a", "button", "label"];
 
         for file_idx in 0..num_files {
@@ -182,7 +187,9 @@ impl ProjectGenerator {
                 let container_tag = container_tags[rng.random_range(0..container_tags.len())];
 
                 // Container gets 2-5 classes
-                let container_class_count = rng.random_range(2..=5).min(classes_per_file - total_classes);
+                let container_class_count = rng
+                    .random_range(2..=5)
+                    .min(classes_per_file - total_classes);
                 let container_classes = self.generate_classes(
                     &mut rng,
                     container_class_count,
@@ -194,7 +201,9 @@ impl ProjectGenerator {
                 let mut children = Vec::new();
 
                 // Add 2-4 child elements
-                let num_children = rng.random_range(2..=4).min((classes_per_file - total_classes) / 2 + 1);
+                let num_children = rng
+                    .random_range(2..=4)
+                    .min((classes_per_file - total_classes) / 2 + 1);
 
                 for _ in 0..num_children {
                     if total_classes >= classes_per_file {
@@ -209,7 +218,9 @@ impl ProjectGenerator {
                     };
 
                     // Each child gets 1-3 classes
-                    let child_class_count = rng.random_range(1..=3).min(classes_per_file - total_classes);
+                    let child_class_count = rng
+                        .random_range(1..=3)
+                        .min(classes_per_file - total_classes);
                     let child_classes = self.generate_classes(
                         &mut rng,
                         child_class_count,
@@ -219,9 +230,12 @@ impl ProjectGenerator {
                     total_classes += child_class_count;
 
                     // Sometimes add a nested grandchild
-                    if !is_inline && total_classes < classes_per_file && rng.random_range(0..10) < 4 {
+                    if !is_inline && total_classes < classes_per_file && rng.random_range(0..10) < 4
+                    {
                         let grandchild_tag = inline_tags[rng.random_range(0..inline_tags.len())];
-                        let grandchild_class_count = rng.random_range(1..=2).min(classes_per_file - total_classes);
+                        let grandchild_class_count = rng
+                            .random_range(1..=2)
+                            .min(classes_per_file - total_classes);
                         let grandchild_classes = self.generate_classes(
                             &mut rng,
                             grandchild_class_count,
@@ -277,7 +291,7 @@ impl ProjectGenerator {
             self.temp_dir
                 .child(format!("src/file-{}.html", file_idx))
                 .write_str(&content)
-                .unwrap();
+                .expect("Failed to create html file");
         }
 
         self
@@ -291,12 +305,16 @@ impl ProjectGenerator {
         viewports: &[&str],
         utility_patterns: &[(&str, &str)],
     ) -> Vec<String> {
-        let mut classes = Vec::new();
+        let mut classes = Vec::with_capacity(count);
         for _ in 0..count {
             let viewport = viewports[rng.random_range(0..viewports.len())];
-            let (prefix, token_base) = utility_patterns[rng.random_range(0..utility_patterns.len())];
+            let (prefix, token_base) =
+                utility_patterns[rng.random_range(0..utility_patterns.len())];
             let token_num = rng.random_range(0..100);
-            classes.push(format!("{}{}-{}-{}", viewport, prefix, token_base, token_num));
+            classes.push(format!(
+                "{}{}-{}-{}",
+                viewport, prefix, token_base, token_num
+            ));
         }
         classes
     }
@@ -326,8 +344,9 @@ fn small_project(bencher: divan::Bencher) {
             (project_gen, input, output, dir)
         })
         .bench_values(|(project_gen, input, output, dir)| {
-            std::env::set_current_dir(&dir).unwrap();
-            cli::commands::build(input, output, true).unwrap();
+            std::env::set_current_dir(&dir).expect("Failed to set current directory to temp dir");
+            cli::commands::build(input, output, true)
+                .expect("Build command failed during benchmark");
             drop(project_gen);
         });
 }
@@ -356,8 +375,9 @@ fn medium_project(bencher: divan::Bencher) {
             (project_gen, input, output, dir)
         })
         .bench_values(|(project_gen, input, output, dir)| {
-            std::env::set_current_dir(&dir).unwrap();
-            cli::commands::build(input, output, true).unwrap();
+            std::env::set_current_dir(&dir).expect("Failed to set current directory to temp dir");
+            cli::commands::build(input, output, true)
+                .expect("Build command failed during benchmark");
             drop(project_gen);
         });
 }
@@ -386,8 +406,9 @@ fn large_project(bencher: divan::Bencher) {
             (project_gen, input, output, dir)
         })
         .bench_values(|(project_gen, input, output, dir)| {
-            std::env::set_current_dir(&dir).unwrap();
-            cli::commands::build(input, output, true).unwrap();
+            std::env::set_current_dir(&dir).expect("Failed to set current directory to temp dir");
+            cli::commands::build(input, output, true)
+                .expect("Build command failed during benchmark");
             drop(project_gen);
         });
 }
@@ -421,8 +442,9 @@ fn extra_large_project(bencher: divan::Bencher) {
             (project_gen, input, output, dir)
         })
         .bench_values(|(project_gen, input, output, dir)| {
-            std::env::set_current_dir(&dir).unwrap();
-            cli::commands::build(input, output, true).unwrap();
+            std::env::set_current_dir(&dir).expect("Failed to set current directory to temp dir");
+            cli::commands::build(input, output, true)
+                .expect("Build command failed during benchmark");
             drop(project_gen);
         });
 }
