@@ -35,6 +35,9 @@ struct Args {
 #[derive(Subcommand, Debug)]
 enum Command {
     /// Initializes a new project with the `nemcss` configuration and example design tokens.
+    ///
+    /// Example usage:
+    /// nemcss init
     Init,
 
     /// Generates CSS from design tokens by scanning content files for used utility classes.
@@ -63,6 +66,21 @@ enum Command {
         #[arg(short, long, default_value_t = false)]
         quiet: bool,
     },
+    /// Watches for changes in your design tokens and source files, and automatically rebuilds the CSS.
+    ///
+    /// Example usage:
+    /// nemcss watch -i src/input.css -o dist/output.css
+    Watch {
+        /// The path to the CSS input file.
+        #[arg(short, long)]
+        input: PathBuf,
+        /// The path to the CSS output file.
+        #[arg(short, long)]
+        output: PathBuf,
+        /// Suppress output messages
+        #[arg(short, long, default_value_t = false)]
+        quiet: bool,
+    },
 }
 
 /// The main entry point for the `nemcss` CLI.
@@ -76,6 +94,11 @@ pub fn run() -> miette::Result<()> {
             output,
             quiet,
         } => commands::build(input, output, quiet)?,
+        Command::Watch {
+            input,
+            output,
+            quiet,
+        } => commands::watch(input, output, quiet)?,
     }
 
     Ok(())
