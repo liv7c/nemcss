@@ -87,7 +87,14 @@ pub fn watch(input: PathBuf, output: PathBuf) -> Result<(), WatchError> {
     loop {
         match rx.recv() {
             Ok(result) => {
-                let filtered_paths = watcher.filter_events(result, &watch_context)?;
+                let filtered_paths = match watcher.filter_events(result, &watch_context) {
+                    Ok(paths) => paths,
+                    Err(err) => {
+                        eprintln!("{:?}", miette::Report::from(err));
+                        continue;
+                    }
+                };
+
                 if filtered_paths.is_empty() {
                     continue;
                 }
@@ -98,14 +105,22 @@ pub fn watch(input: PathBuf, output: PathBuf) -> Result<(), WatchError> {
                         "{} configuration file changed, reloading...",
                         "Info:".blue().bold()
                     );
-                    watch_context.reload()?;
-                    watcher.reset(tx.clone(), &watch_context)?;
+                    if let Err(err) = watch_context.reload() {
+                        eprintln!("{:?}", miette::Report::from(err));
+                        continue;
+                    }
+                    if let Err(err) = watcher.reset(tx.clone(), &watch_context) {
+                        eprintln!("{:?}", miette::Report::from(err));
+                        continue;
+                    }
                 }
 
                 // trigger rebuild
-                trigger_rebuild(&watch_context)?;
+                if let Err(err) = trigger_rebuild(&watch_context) {
+                    eprintln!("{:?}", miette::Report::from(err));
+                }
             }
-            Err(err) => println!("{err:?}"),
+            Err(err) => eprintln!("{:?}", err),
         }
     }
 }
