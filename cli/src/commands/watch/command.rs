@@ -2,7 +2,15 @@ use config::{CONFIG_FILE_NAME, NemCssConfig};
 use miette::{Diagnostic, Result};
 
 use owo_colors::OwoColorize;
-use std::path::PathBuf;
+use std::{
+    path::PathBuf,
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+        mpsc::RecvTimeoutError,
+    },
+    time::Duration,
+};
 use thiserror::Error;
 
 use crate::commands::{
@@ -75,6 +83,8 @@ pub enum WatchError {
     FilterEvents(#[from] FilterEventsError),
     #[error("error triggering rebuild: {0}")]
     Rebuild(#[from] RebuildError),
+    #[error("error setting ctrl-c handler: {0}")]
+    SetCtrlCHandler(#[from] ctrlc::Error),
 }
 
 pub fn watch(input: PathBuf, output: PathBuf) -> Result<(), WatchError> {
@@ -84,8 +94,21 @@ pub fn watch(input: PathBuf, output: PathBuf) -> Result<(), WatchError> {
 
     let mut watcher = FileWatcher::new(tx.clone(), &watch_context)?;
 
-    loop {
-        match rx.recv() {
+    // Create shutdown flag for graceful shutdown
+    let running = Arc::new(AtomicBool::new(true));
+    let r = running.clone();
+
+    ctrlc::set_handler(move || {
+        r.store(false, std::sync::atomic::Ordering::SeqCst);
+    })?;
+
+    println!(
+        "{} Watching for changes...Press Ctrl+C to stop",
+        "Info:".blue().bold()
+    );
+
+    while running.load(Ordering::SeqCst) {
+        match rx.recv_timeout(Duration::from_millis(100)) {
             Ok(result) => {
                 let filtered_paths = match watcher.filter_events(result, &watch_context) {
                     Ok(paths) => paths,
@@ -120,9 +143,22 @@ pub fn watch(input: PathBuf, output: PathBuf) -> Result<(), WatchError> {
                     eprintln!("{:?}", miette::Report::from(err));
                 }
             }
-            Err(err) => eprintln!("{:?}", err),
+            Err(RecvTimeoutError::Timeout) => {
+                // do nothing
+                continue;
+            }
+            Err(RecvTimeoutError::Disconnected) => {
+                eprintln!(
+                    "{}: Watcher has been disconnected",
+                    "Warning".yellow().bold()
+                );
+                break;
+            }
         }
     }
+
+    println!("{} Shutting down watch mode...", "Info".blue().bold());
+    Ok(())
 }
 
 #[derive(Debug, Diagnostic, Error)]
