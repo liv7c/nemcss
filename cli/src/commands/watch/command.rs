@@ -3,7 +3,7 @@ use miette::{Diagnostic, Result};
 
 use owo_colors::OwoColorize;
 use std::{
-    path::PathBuf,
+    path::{Path, PathBuf},
     sync::{
         Arc,
         atomic::{AtomicBool, Ordering},
@@ -106,7 +106,7 @@ pub enum WatchError {
 /// Watches the file system changes and triggers CSS rebuilds when necessary.
 ///
 /// This function sets up file system watchers on:
-/// - Content files matching blogs in the nemcss configuration (`content` field)
+/// - Content files matching globs in the nemcss configuration (`content` field)
 /// - The configuration file itself (`nemcss.config.json`)
 /// - The tokens directory (`tokens-dir` field)
 /// - The input CSS file
@@ -139,7 +139,9 @@ pub enum WatchError {
 /// # Ok(())
 /// # }
 /// ```
-pub fn watch(input: PathBuf, output: PathBuf) -> Result<(), WatchError> {
+pub fn watch(input: impl AsRef<Path>, output: impl AsRef<Path>) -> Result<(), WatchError> {
+    let input = input.as_ref().to_path_buf();
+    let output = output.as_ref().to_path_buf();
     let mut watch_context = WatchContext::new(input, output)?;
 
     let (tx, rx) = std::sync::mpsc::channel();
