@@ -1,13 +1,13 @@
 use config::{CONFIG_FILE_NAME, NemCssConfig};
 use miette::{Diagnostic, Result};
 
-use notify_debouncer_full::{
-    DebounceEventResult, Debouncer, FileIdMap, RecommendedCache, new_debouncer_opt, notify::*,
-};
-use std::{path::PathBuf, time::Duration};
+use std::path::PathBuf;
 use thiserror::Error;
 
-use crate::commands::watch::paths::extract_watch_dirs;
+use crate::commands::watch::{
+    paths::build_glob_set,
+    watcher::{FileWatcher, SetupWatcherError},
+};
 
 /// WatchContext represents the context for the watch command.
 pub struct WatchContext {
@@ -17,14 +17,18 @@ pub struct WatchContext {
     pub config_path: PathBuf,
     /// Parsed configuration.
     pub config: NemCssConfig,
+    /// Glob set of paths to watch
+    pub glob_set: globset::GlobSet,
 }
 
 #[derive(Debug, Diagnostic, Error)]
 pub enum WatchContextError {
     #[error("error reading current directory: {0}")]
-    ReadCurrentDirError(#[from] std::io::Error),
+    ReadCurrentDir(#[from] std::io::Error),
     #[error("error parsing nemcss configuration: {0}")]
-    ParseConfigError(#[from] config::NemCssConfigError),
+    ParseConfig(#[from] config::NemCssConfigError),
+    #[error("error building glob set: {0}")]
+    BuildGlobSet(#[from] globset::Error),
 }
 
 impl WatchContext {
@@ -34,91 +38,37 @@ impl WatchContext {
         let config_path = current_dir.join(CONFIG_FILE_NAME);
         let config = NemCssConfig::from_path(&config_path)?;
 
+        let glob_set = build_glob_set(&config.content)?;
+
         Ok(Self {
             input,
             config_path,
             config,
+            glob_set,
         })
     }
 }
 
 /// WatchErrors are errors that can occur during the watch command.
 #[derive(Debug, Diagnostic, Error)]
-pub enum WatchErrors {
+pub enum WatchError {
     #[error("error setting up watcher: {0}")]
-    SetupWatcherErrors(#[from] SetupWatcherError),
+    SetupWatcher(#[from] SetupWatcherError),
     #[error("error creating watch context: {0}")]
-    CreateWatchContextError(#[from] WatchContextError),
+    CreateWatchContext(#[from] WatchContextError),
 }
 
-pub fn watch(input: PathBuf, output: PathBuf) -> Result<(), WatchErrors> {
+pub fn watch(input: PathBuf, output: PathBuf) -> Result<(), WatchError> {
     let watch_context = WatchContext::new(input)?;
 
     let (tx, rx) = std::sync::mpsc::channel();
 
-    let _watcher = setup_watcher(tx, watch_context)?;
-    todo!()
-}
+    let mut _watcher = FileWatcher::new(tx, &watch_context)?;
 
-#[derive(Debug, Diagnostic, Error)]
-pub enum SetupWatcherError {
-    #[error("error creating watcher: {0}")]
-    #[diagnostic(code(notify_debouncer_full::notify::Error))]
-    CreateWatcherError(notify::Error),
-    #[error("error watching path: {path:?} - {source:?}")]
-    #[diagnostic(code(notify_debouncer_full::notify::Error))]
-    WatchDirectoryError { path: String, source: notify::Error },
-}
-
-/// Set up the watcher with the given channel.
-/// This function also configures what events and paths to watch.
-fn setup_watcher(
-    tx: std::sync::mpsc::Sender<DebounceEventResult>,
-    watch_context: WatchContext,
-) -> Result<Debouncer<RecommendedWatcher, FileIdMap>, SetupWatcherError> {
-    let mut watcher = new_debouncer_opt::<_, _, FileIdMap>(
-        Duration::from_secs(2),
-        None,
-        tx,
-        RecommendedCache::default(),
-        Config::default(),
-    )
-    .map_err(SetupWatcherError::CreateWatcherError)?;
-
-    let watch_dirs = extract_watch_dirs(&watch_context.config.content);
-
-    for (dir, mode) in watch_dirs {
-        watcher
-            .watch(&dir, mode)
-            .map_err(|e| SetupWatcherError::WatchDirectoryError {
-                path: dir.display().to_string(),
-                source: e,
-            })?;
+    loop {
+        match rx.recv() {
+            Ok(event) => println!("{event:?}"),
+            Err(err) => println!("{err:?}"),
+        }
     }
-
-    // Watch the config file for changes.
-    watcher
-        .watch(&watch_context.config_path, RecursiveMode::NonRecursive)
-        .map_err(|e| SetupWatcherError::WatchDirectoryError {
-            path: watch_context.config_path.display().to_string(),
-            source: e,
-        })?;
-
-    // Watch for input file changes.
-    watcher
-        .watch(&watch_context.input, RecursiveMode::NonRecursive)
-        .map_err(|e| SetupWatcherError::WatchDirectoryError {
-            path: watch_context.input.display().to_string(),
-            source: e,
-        })?;
-
-    // Watch for token directory changes.
-    watcher
-        .watch(&watch_context.config.tokens_dir, RecursiveMode::Recursive)
-        .map_err(|e| SetupWatcherError::WatchDirectoryError {
-            path: watch_context.config.tokens_dir.display().to_string(),
-            source: e,
-        })?;
-
-    Ok(watcher)
 }
