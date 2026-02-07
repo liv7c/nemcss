@@ -1,7 +1,8 @@
 //! This module contains the logic for setting up the watcher.
 
+use config::CONFIG_FILE_NAME;
 use miette::{Diagnostic, Result};
-use std::time::Duration;
+use std::{path::PathBuf, time::Duration};
 use thiserror::Error;
 
 use notify_debouncer_full::{
@@ -28,6 +29,13 @@ pub enum SetupWatcherError {
     WatchDirectoryError { path: String, source: notify::Error },
 }
 
+#[derive(Debug, Diagnostic, Error)]
+pub enum FilterEventsError {
+    #[error("error receiving event: {0:?}")]
+    #[diagnostic(code(notify_debouncer_full::notify::Error))]
+    ReceiveEvent(Vec<notify::Error>),
+}
+
 impl FileWatcher {
     pub fn new(
         tx: std::sync::mpsc::Sender<DebounceEventResult>,
@@ -47,6 +55,44 @@ impl FileWatcher {
     ) -> Result<(), SetupWatcherError> {
         self.watcher = Self::create_debounced_watcher(tx, watch_context)?;
         Ok(())
+    }
+
+    /// Filters out events based on the event kind and the glob set in the watch context.
+    pub fn filter_events(
+        &self,
+        result: DebounceEventResult,
+        watch_context: &WatchContext,
+    ) -> Result<Vec<PathBuf>, FilterEventsError> {
+        match result {
+            Ok(events) => {
+                let files: Vec<_> = events
+                    .iter()
+                    .filter(|event| {
+                        matches!(
+                            event.kind,
+                            EventKind::Create(_) | EventKind::Modify(_) | EventKind::Remove(_)
+                        )
+                    })
+                    .filter(|event| {
+                        event.paths.iter().any(|path| {
+                            let matches_config_content_glob =
+                                path.strip_prefix(&watch_context.config.base_dir).is_ok_and(
+                                    |relative_path| watch_context.glob_set.is_match(relative_path),
+                                );
+                            let is_config_file = path.ends_with(CONFIG_FILE_NAME);
+                            let is_in_tokens_dir =
+                                path.starts_with(watch_context.config.tokens_dir());
+
+                            matches_config_content_glob || is_config_file || is_in_tokens_dir
+                        })
+                    })
+                    .flat_map(|event| event.paths.to_vec())
+                    .collect();
+
+                Ok(files)
+            }
+            Err(error) => Err(FilterEventsError::ReceiveEvent(error)),
+        }
     }
 
     /// Internal function to create the debounced watcher.
