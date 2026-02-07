@@ -110,7 +110,7 @@ pub fn watch(input: PathBuf, output: PathBuf) -> Result<(), WatchError> {
     while running.load(Ordering::SeqCst) {
         match rx.recv_timeout(Duration::from_millis(100)) {
             Ok(result) => {
-                let filtered_paths = match watcher.filter_events(result, &watch_context) {
+                let filtered_paths = match FileWatcher::filter_events(result, &watch_context) {
                     Ok(paths) => paths,
                     Err(err) => {
                         eprintln!("{:?}", miette::Report::from(err));

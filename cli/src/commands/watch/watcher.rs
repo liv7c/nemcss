@@ -2,7 +2,10 @@
 
 use config::CONFIG_FILE_NAME;
 use miette::{Diagnostic, Result};
-use std::{path::PathBuf, time::Duration};
+use std::{
+    path::{Path, PathBuf},
+    time::Duration,
+};
 use thiserror::Error;
 
 use notify_debouncer_full::{
@@ -59,13 +62,14 @@ impl FileWatcher {
 
     /// Filters out events based on the event kind and the glob set in the watch context.
     pub fn filter_events(
-        &self,
         result: DebounceEventResult,
         watch_context: &WatchContext,
     ) -> Result<Vec<PathBuf>, FilterEventsError> {
         match result {
             Ok(events) => {
-                let files: Vec<_> = events
+                use std::collections::HashSet;
+
+                let files: HashSet<PathBuf> = events
                     .iter()
                     .filter(|event| {
                         matches!(
@@ -73,23 +77,12 @@ impl FileWatcher {
                             EventKind::Create(_) | EventKind::Modify(_) | EventKind::Remove(_)
                         )
                     })
-                    .filter(|event| {
-                        event.paths.iter().any(|path| {
-                            let matches_config_content_glob =
-                                path.strip_prefix(&watch_context.config.base_dir).is_ok_and(
-                                    |relative_path| watch_context.glob_set.is_match(relative_path),
-                                );
-                            let is_config_file = path.ends_with(CONFIG_FILE_NAME);
-                            let is_in_tokens_dir =
-                                path.starts_with(watch_context.config.tokens_dir());
-
-                            matches_config_content_glob || is_config_file || is_in_tokens_dir
-                        })
-                    })
-                    .flat_map(|event| event.paths.to_vec())
+                    .flat_map(|event| &event.paths)
+                    .filter(|path| is_relevant_path(path, watch_context))
+                    .cloned()
                     .collect();
 
-                Ok(files)
+                Ok(files.into_iter().collect())
             }
             Err(error) => Err(FilterEventsError::ReceiveEvent(error)),
         }
@@ -146,4 +139,20 @@ impl FileWatcher {
 
         Ok(watcher)
     }
+}
+
+/// Checks if a path is relevant for the watch context.
+///
+/// Relevant paths are:
+/// - The config file
+/// - The tokens directory
+/// - Any path in the config content glob set
+fn is_relevant_path(path: &Path, watch_context: &WatchContext) -> bool {
+    let matches_config_content_glob = path
+        .strip_prefix(&watch_context.config.base_dir)
+        .is_ok_and(|relative_path| watch_context.glob_set.is_match(relative_path));
+    let is_config_file = path.ends_with(CONFIG_FILE_NAME);
+    let is_in_tokens_dir = path.starts_with(watch_context.config.tokens_dir());
+
+    matches_config_content_glob || is_config_file || is_in_tokens_dir
 }
