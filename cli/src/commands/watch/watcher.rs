@@ -150,7 +150,9 @@ impl FileWatcher {
 fn is_relevant_path(path: &Path, watch_context: &WatchContext) -> bool {
     let matches_config_content_glob = path
         .strip_prefix(&watch_context.config.base_dir)
-        .is_ok_and(|relative_path| watch_context.glob_set.is_match(relative_path));
+        .ok()
+        .map(|relative_path| watch_context.glob_set.is_match(relative_path))
+        .unwrap_or(false);
     let is_config_file = path.ends_with(CONFIG_FILE_NAME);
     let is_in_tokens_dir = path.starts_with(watch_context.config.tokens_dir());
 

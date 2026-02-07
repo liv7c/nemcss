@@ -21,7 +21,11 @@ use crate::commands::{
     },
 };
 
-/// WatchContext represents the context for the watch command.
+/// Context for the watch command containing configuration and state.
+///
+/// This struct holds all the necessary information for the watch command to watch files
+/// and trigger rebuilds. It includes the parsed configuration, glob patterns for matching files,
+/// and the paths to the input and output files.
 pub struct WatchContext {
     /// The input file
     pub input: PathBuf,
@@ -63,6 +67,16 @@ impl WatchContext {
         })
     }
 
+    /// Reloads the configuration from disk and updates the glob set.
+    ///
+    /// This is called when the nemcss configuration file changes.
+    /// It reparses the configuration, rebuilds the glob set, and updates the context.
+    ///
+    /// # Errors
+    ///
+    /// Return [`WatchContextError`] if:
+    /// - The configuration file cannot be read.
+    /// - The glob patterns in the config are invalid
     pub fn reload(&mut self) -> Result<(), WatchContextError> {
         let config = NemCssConfig::from_path(&self.config_path)?;
         let glob_set = build_glob_set(&config.content)?;
@@ -89,6 +103,42 @@ pub enum WatchError {
     ResetWatcherAfterReload(SetupWatcherError),
 }
 
+/// Watches the file system changes and triggers CSS rebuilds when necessary.
+///
+/// This function sets up file system watchers on:
+/// - Content files matching blogs in the nemcss configuration (`content` field)
+/// - The configuration file itself (`nemcss.config.json`)
+/// - The tokens directory (`tokens-dir` field)
+/// - The input CSS file
+///
+/// It also sets up a ctrl-c handler to gracefully shutdown the watcher.
+///
+/// # Arguments
+/// - `input`: The input CSS file.
+/// - `output`: The output CSS file.
+///
+/// # Errors
+///
+/// This function returns an error if:
+/// - The input CSS file does not exist.
+/// - The output CSS file cannot be created.
+/// - The configuration file cannot be read.
+/// - The configuration file cannot be parsed.
+/// - The content glob set cannot be built.
+/// - The watcher cannot be set up.
+/// - The watcher cannot be reset after a configuration reload.
+/// - The watcher cannot be disconnected.
+///
+/// # Example
+///
+/// ```ignore
+/// use std::path::PathBuf;
+/// use cli::commands::watch;
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// watch(PathBuf::from("input.css"), PathBuf::from("output.css"))?;
+/// # Ok(())
+/// # }
+/// ```
 pub fn watch(input: PathBuf, output: PathBuf) -> Result<(), WatchError> {
     let mut watch_context = WatchContext::new(input, output)?;
 

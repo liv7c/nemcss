@@ -8,7 +8,28 @@ use std::{
 use notify::RecursiveMode;
 
 /// Extracts the watch directories from the given configuration content field.
-/// It returns a vector of tuples, where the first element is the directory path and the second element is the recursive mode.
+///
+/// This function parses glob patterns (like `src/**/*.html`) and extracts the base directory to
+/// watch (like `src`). It determines whether to watch recursively or not based on the presence of
+/// `**` in the pattern.
+///
+/// # Arguments
+/// - `config_content`: Vector of glob patterns to watch from the `content` field in the configuration.
+///
+/// # Returns
+/// A vector of tuples, where the first element is the directory path and the second element is the recursive mode.
+///
+/// # Examples
+///
+/// ```ignore
+/// use cli::commands::watch::paths::extract_watch_dirs;
+/// use notify::RecursiveMode;
+/// use std::path::PathBuf;
+///
+/// let patterns = vec!["src/**/*.html", "lib/*.tsx"];
+/// let result = extract_watch_dirs(&patterns);
+/// // Returns: [(PathBuf::from("src"), RecursiveMode::Recursive), (PathBuf::from("lib"), RecursiveMode::NonRecursive)]
+/// ```
 pub fn extract_watch_dirs(config_content: &[String]) -> Vec<(PathBuf, RecursiveMode)> {
     let mut watch_dirs = HashSet::new();
 
