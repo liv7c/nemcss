@@ -77,9 +77,6 @@ enum Command {
         /// The path to the CSS output file.
         #[arg(short, long)]
         output: PathBuf,
-        /// Suppress output messages
-        #[arg(short, long, default_value_t = false)]
-        quiet: bool,
     },
 }
 
@@ -94,11 +91,7 @@ pub fn run() -> miette::Result<()> {
             output,
             quiet,
         } => commands::build(input, output, quiet)?,
-        Command::Watch {
-            input,
-            output,
-            quiet,
-        } => commands::watch(input, output, quiet)?,
+        Command::Watch { input, output } => commands::watch(input, output)?,
     }
 
     Ok(())
