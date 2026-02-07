@@ -85,6 +85,8 @@ pub enum WatchError {
     Rebuild(#[from] RebuildError),
     #[error("error setting ctrl-c handler: {0}")]
     SetCtrlCHandler(#[from] ctrlc::Error),
+    #[error("failed to reset watcher after config reload: {0}")]
+    ResetWatcherAfterReload(SetupWatcherError),
 }
 
 pub fn watch(input: PathBuf, output: PathBuf) -> Result<(), WatchError> {
@@ -128,13 +130,37 @@ pub fn watch(input: PathBuf, output: PathBuf) -> Result<(), WatchError> {
                         "{} configuration file changed, reloading...",
                         "Info:".blue().bold()
                     );
-                    if let Err(err) = watch_context.reload() {
-                        eprintln!("{:?}", miette::Report::from(err));
-                        continue;
-                    }
-                    if let Err(err) = watcher.reset(tx.clone(), &watch_context) {
-                        eprintln!("{:?}", miette::Report::from(err));
-                        continue;
+                    match watch_context.reload() {
+                        Ok(_) => {
+                            if let Err(err) = watcher.reset(tx.clone(), &watch_context) {
+                                eprintln!(
+                                    "{} Failed to reset the watcher after updating the configuration file",
+                                    "Error:".red().bold()
+                                );
+                                eprintln!(
+                                    "{}: Exiting to avoid inconsistencies...Please restart.",
+                                    "Info:".yellow().bold()
+                                );
+
+                                return Err(WatchError::ResetWatcherAfterReload(err));
+                            }
+
+                            println!(
+                                "{} Configuration reloaded successfully!",
+                                "Success:".green().bold()
+                            );
+                        }
+                        Err(err) => {
+                            eprintln!(
+                                "Failed to reload configuration file: {:?}",
+                                miette::Report::from(err)
+                            );
+                            eprintln!(
+                                "{} Continuing with previous configuration...",
+                                "Warning:".yellow().bold()
+                            );
+                            continue;
+                        }
                     }
                 }
 
