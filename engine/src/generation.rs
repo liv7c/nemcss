@@ -250,8 +250,8 @@ mod tests {
         assert!(result.contains("--viewport-md: 768px;"));
 
         let expected_utilities_css = ".text-primary {\n  color: var(--color-primary);\n}\n.text-secondary {\n  color: var(--color-secondary);\n}\n";
-        let expected_responsive_utilities_sm = "@media (min-width: 320px) {\n.sm:text-primary {\n  color: var(--color-primary);\n}\n.sm:text-secondary {\n  color: var(--color-secondary);\n}\n}";
-        let expected_responsive_utilities_md = "@media (min-width: 768px) {\n.md:text-primary {\n  color: var(--color-primary);\n}\n.md:text-secondary {\n  color: var(--color-secondary);\n}\n}";
+        let expected_responsive_utilities_sm = "@media (min-width: 320px) {\n.sm\\:text-primary {\n  color: var(--color-primary);\n}\n.sm\\:text-secondary {\n  color: var(--color-secondary);\n}\n}";
+        let expected_responsive_utilities_md = "@media (min-width: 768px) {\n.md\\:text-primary {\n  color: var(--color-primary);\n}\n.md\\:text-secondary {\n  color: var(--color-secondary);\n}\n}";
 
         assert!(result.contains(expected_utilities_css));
         assert!(
