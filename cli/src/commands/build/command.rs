@@ -1,7 +1,7 @@
 use owo_colors::OwoColorize;
 use rayon::prelude::*;
-use std::collections::HashSet;
 use std::fs;
+use std::{collections::HashSet, path::Path};
 
 use miette::Diagnostic;
 use thiserror::Error;
@@ -71,10 +71,13 @@ pub enum BuildError {
 /// - Failed to read a file content.
 /// - Failed to write the generated CSS to the output file.
 pub fn build(
-    input: std::path::PathBuf,
-    output: std::path::PathBuf,
+    input: impl AsRef<Path>,
+    output: impl AsRef<Path>,
     quiet: bool,
 ) -> miette::Result<(), BuildError> {
+    let input = input.as_ref();
+    let output = output.as_ref();
+
     let current_dir = std::env::current_dir().map_err(BuildError::RetrieveCurrentDir)?;
     let config_path = current_dir.join(CONFIG_FILE_NAME);
     let config = NemCssConfig::from_path(&config_path)?;
@@ -113,8 +116,8 @@ pub fn build(
 
     // replace the @nemcss directives
     let input_content =
-        std::fs::read_to_string(&input).map_err(|e| BuildError::ReadFileContent {
-            path: input.clone(),
+        std::fs::read_to_string(input).map_err(|e| BuildError::ReadFileContent {
+            path: input.to_path_buf(),
             source: e,
         })?;
 
@@ -126,7 +129,7 @@ pub fn build(
 
     let output_css = input_content.replace("@nemcss base;", &generated_css.to_css());
 
-    fs::write(&output, output_css).map_err(BuildError::WriteCss)?;
+    fs::write(output, output_css).map_err(BuildError::WriteCss)?;
 
     if !quiet {
         println!("  {} CSS written to {}", "✔".green(), output.display());

@@ -235,7 +235,7 @@ fn test_build_generate_only_used_responsive_utilities() {
         "Missing media query for md viewport"
     );
     assert!(
-        css_content.contains(".md:text-secondary"),
+        css_content.contains(".md\\:text-secondary"),
         "Missing .md:text-secondary"
     );
     assert!(
@@ -243,7 +243,7 @@ fn test_build_generate_only_used_responsive_utilities() {
         "Missing media query for lg viewport"
     );
     assert!(
-        css_content.contains(".lg:bg-neutral-200"),
+        css_content.contains(".lg\\:bg-neutral-200"),
         "Missing .lg:bg-neutral-200"
     );
 

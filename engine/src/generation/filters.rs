@@ -253,12 +253,12 @@ mod tests {
         assert_eq!(result.len(), 2);
         assert_eq!(
             result[0],
-            "@media (min-width: 768px) {\n.md:bg-primary {\n  background-color: var(--color-primary);\n}\n.md:bg-secondary {\n  background-color: var(--color-secondary);\n}\n}"
+            "@media (min-width: 768px) {\n.md\\:bg-primary {\n  background-color: var(--color-primary);\n}\n.md\\:bg-secondary {\n  background-color: var(--color-secondary);\n}\n}"
         );
 
         assert_eq!(
             result[1],
-            "@media (min-width: 1024px) {\n.lg:bg-primary {\n  background-color: var(--color-primary);\n}\n}"
+            "@media (min-width: 1024px) {\n.lg\\:bg-primary {\n  background-color: var(--color-primary);\n}\n}"
         );
     }
 }

@@ -94,6 +94,11 @@ impl NemCssConfig {
     pub fn resolve_all_tokens(&self) -> Result<HashMap<String, ResolvedToken>, ResolveTokensError> {
         resolve_all_tokens(self)
     }
+
+    /// Get absolute path to the tokens directory.
+    pub fn tokens_dir(&self) -> PathBuf {
+        self.base_dir.join(&self.tokens_dir)
+    }
 }
 
 /// ThemeConfig represents the configuration of the theme.

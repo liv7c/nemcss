@@ -15,13 +15,13 @@ use super::utilities::Utility;
 ///
 /// ```css
 /// @media (min-width: 640px) {
-///   .sm:text-primary {
+///   .sm\:text-primary {
 ///     color: var(--color-primary);
 ///   }
 /// }
 ///
 /// @media (min-width: 768px) {
-///   .md:text-primary {
+///   .md\:text-primary {
 ///     color: var(--color-primary);
 ///   }
 /// }
@@ -69,7 +69,7 @@ pub fn create_media_query_block(
     for utility in utilities.iter() {
         let _ = writeln!(
             &mut media_block_content,
-            ".{}:{} {{\n  {};\n}}",
+            ".{}\\:{} {{\n  {};\n}}",
             viewport_name,
             utility.class_name(),
             utility.class_value()
@@ -142,46 +142,46 @@ mod tests {
 
         assert!(result[0].contains("@media (min-width: 320px) {"));
         assert!(
-            result[0].contains(".sm:text-primary {\n  color: var(--color-primary);\n}"),
+            result[0].contains(".sm\\:text-primary {\n  color: var(--color-primary);\n}"),
             "Got {:?}",
             result[0]
         );
         assert!(
-            result[0].contains(".sm:text-secondary {\n  color: var(--color-secondary);\n}"),
+            result[0].contains(".sm\\:text-secondary {\n  color: var(--color-secondary);\n}"),
             "Got {:?}",
             result[0]
         );
         assert!(
-            result[0].contains(".sm:bg-primary {\n  background-color: var(--color-primary);\n}"),
+            result[0].contains(".sm\\:bg-primary {\n  background-color: var(--color-primary);\n}"),
             "Got {:?}",
             result[0]
         );
         assert!(
             result[0]
-                .contains(".sm:bg-secondary {\n  background-color: var(--color-secondary);\n}"),
+                .contains(".sm\\:bg-secondary {\n  background-color: var(--color-secondary);\n}"),
             "Got {:?}",
             result[0]
         );
 
         assert!(result[1].contains("@media (min-width: 768px) {"));
         assert!(
-            result[1].contains(".md:text-primary {\n  color: var(--color-primary);\n}"),
+            result[1].contains(".md\\:text-primary {\n  color: var(--color-primary);\n}"),
             "Got {:?}",
             result[1]
         );
         assert!(
-            result[1].contains(".md:text-secondary {\n  color: var(--color-secondary);\n}"),
+            result[1].contains(".md\\:text-secondary {\n  color: var(--color-secondary);\n}"),
             "Got {:?}",
             result[1]
         );
         assert!(
-            result[1].contains(".md:bg-primary {\n  background-color: var(--color-primary);\n}"),
+            result[1].contains(".md\\:bg-primary {\n  background-color: var(--color-primary);\n}"),
             "Got {:?}",
             result[1]
         );
         assert!(
             result[1]
-                .contains(".md:bg-secondary {\n  background-color: var(--color-secondary);\n}"),
+                .contains(".md\\:bg-secondary {\n  background-color: var(--color-secondary);\n}"),
             "Got {:?}",
             result[1]
         );
