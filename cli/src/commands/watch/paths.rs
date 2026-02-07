@@ -1,6 +1,9 @@
 //! This module contains the logic for extracting and managing paths for watching.
 
-use std::{collections::HashSet, path::PathBuf};
+use std::{
+    collections::HashSet,
+    path::{Path, PathBuf},
+};
 
 use notify::RecursiveMode;
 
@@ -10,21 +13,31 @@ pub fn extract_watch_dirs(config_content: &[String]) -> Vec<(PathBuf, RecursiveM
     let mut watch_dirs = HashSet::new();
 
     for pattern in config_content {
+        if pattern.is_empty() {
+            continue;
+        }
+
         let is_recursive = pattern.contains("**");
 
-        let parts: Vec<_> = pattern.split('/').collect();
+        let path = Path::new(pattern);
 
-        let first_glob_idx = parts
-            .iter()
-            .position(|p| p.contains('*') || p.contains('?') || p.contains('{') || p.contains('['))
-            .unwrap_or(parts.len());
+        let mut dir_components = Vec::new();
+        for component in path.components() {
+            let component_str = component.as_os_str().to_string_lossy();
+            if component_str.contains('*')
+                || component_str.contains('?')
+                || component_str.contains('{')
+                || component_str.contains('[')
+            {
+                break;
+            }
+            dir_components.push(component);
+        }
 
-        let dir_parts = &parts[..first_glob_idx];
-
-        let dir = if dir_parts.is_empty() {
+        let dir = if dir_components.is_empty() {
             PathBuf::from(".")
         } else {
-            dir_parts.iter().collect::<PathBuf>()
+            dir_components.iter().collect()
         };
 
         let mode = if is_recursive {
