@@ -20,7 +20,7 @@ owo-colors = "4.2.3"
 thiserror = { workspace = true }
 config = { path = "../config" }
 engine = { path = "../engine" }
-class_extractor = { path = "../class_extractor" }
+extractor = { path = "../extractor" }
 ignore = "0.4.25"
 globset = { workspace = true }
 rayon = "1.11.0"

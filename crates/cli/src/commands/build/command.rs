@@ -98,7 +98,7 @@ pub fn build(
                     path: file.to_path_buf(),
                     source: e,
                 })?;
-            let css = class_extractor::extract_classes(&content);
+            let css = extractor::extract_classes(&content);
             acc.extend(css);
             Ok(acc)
         })

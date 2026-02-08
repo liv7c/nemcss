@@ -250,24 +250,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c3e64b0cc0439b12df2fa678eae89a1c56a529fd067a9115f7827f1fffd22b32"
 
 [[package]]
-name = "class_extractor"
-version = "0.1.0"
-dependencies = [
- "regex",
-]
-
-[[package]]
 name = "cli"
 version = "0.1.0"
 dependencies = [
  "assert_cmd",
  "assert_fs",
  "clap",
- "class_extractor",
  "config",
  "ctrlc",
  "divan",
  "engine",
+ "extractor",
  "globset",
  "ignore",
  "miette",
@@ -452,6 +445,13 @@ checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
  "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "extractor"
+version = "0.1.0"
+dependencies = [
+ "regex",
 ]
 
 [[package]]
