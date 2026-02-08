@@ -76,3 +76,139 @@ impl NemCache {
         self.content_globs.is_match(relative_path)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use assert_fs::TempDir;
+    use assert_fs::prelude::*;
+
+    fn create_test_project() -> Result<TempDir, Box<dyn std::error::Error>> {
+        let temp_dir = TempDir::new()?;
+        temp_dir.child(CONFIG_FILE_NAME).write_str(
+            r#"{
+                "content": ["src/**/*.html"]
+            }"#,
+        )?;
+
+        temp_dir.child("design-tokens").create_dir_all()?;
+
+        temp_dir.child("design-tokens/colors.json").write_str(
+            r##"{
+                "title": "colors",
+                "items": [
+                    {"name": "primary", "value": "#000000"},
+                    {"name": "secondary", "value": "#ffffff"}
+                ]
+            }"##,
+        )?;
+
+        temp_dir.child("design-tokens/spacings.json").write_str(
+            r##"{
+                "title": "spacings",
+                "items": [
+                    {"name": "sm", "value": "0.5rem"},
+                    {"name": "md", "value": "1rem"}
+                ]
+            }"##,
+        )?;
+
+        Ok(temp_dir)
+    }
+
+    #[test]
+    fn test_build_cache_successfully() {
+        let temp_dir = create_test_project().expect("failed to create test project");
+
+        let cache = NemCache::build(temp_dir.path()).expect("failed to build cache");
+
+        assert!(
+            !cache.utilities.is_empty(),
+            "should have generated utilities"
+        );
+        assert!(
+            !cache.config.content.is_empty(),
+            "should have content globs"
+        );
+        assert!(
+            cache.responsive_utilities.is_empty(),
+            "should not have generated responsive utilities"
+        );
+
+        let utility_names: Vec<_> = cache.utilities.iter().map(|u| u.class_name()).collect();
+
+        assert_eq!(utility_names.len(), 32, "should have 32 utilities");
+        assert!(!utility_names.is_empty(), "should have generated utilities");
+        assert!(utility_names.contains(&"p-sm"));
+        assert!(utility_names.contains(&"ml-md"));
+    }
+
+    #[test]
+    fn test_build_cache_with_viewports() {
+        let temp_dir = create_test_project().expect("failed to create test project");
+        temp_dir
+            .child("design-tokens/viewports.json")
+            .write_str(
+                r##"{
+                "title": "viewports",
+                "items": [
+                    {"name": "sm", "value": "640px"},
+                    {"name": "md", "value": "768px"}
+                ]
+            }"##,
+            )
+            .expect("failed to write viewports.json");
+
+        let cache = NemCache::build(temp_dir.path()).expect("failed to build cache");
+        assert!(
+            !cache.responsive_utilities.is_empty(),
+            "should have responsive utilities"
+        );
+
+        let responsive_class_names: Vec<&str> = cache
+            .responsive_utilities
+            .iter()
+            .map(|u| u.responsive_class_name.as_str())
+            .collect();
+
+        assert!(responsive_class_names.contains(&"sm:bg-primary"));
+        assert!(responsive_class_names.contains(&"md:bg-primary"));
+        assert!(responsive_class_names.contains(&"sm:text-primary"));
+        assert!(responsive_class_names.contains(&"md:text-primary"));
+
+        assert!(responsive_class_names.contains(&"sm:bg-secondary"));
+        assert!(responsive_class_names.contains(&"md:bg-secondary"));
+        assert!(responsive_class_names.contains(&"sm:text-secondary"));
+        assert!(responsive_class_names.contains(&"md:text-secondary"));
+    }
+
+    #[test]
+    fn test_build_cache_missing_config() {
+        let temp_dir = TempDir::new().expect("failed to create temp dir");
+
+        let cache = NemCache::build(temp_dir.path());
+        assert!(
+            cache.is_err(),
+            "should fail to build cache when config is missing"
+        );
+    }
+
+    #[test]
+    fn test_build_cache_fails_missing_design_tokens() {
+        let temp_dir = TempDir::new().expect("failed to create temp dir");
+        temp_dir
+            .child(CONFIG_FILE_NAME)
+            .write_str(
+                r#"{
+                "content": ["src/**/*.html"]
+            }"#,
+            )
+            .expect("failed to write config");
+
+        let cache = NemCache::build(temp_dir.path());
+        assert!(
+            cache.is_err(),
+            "should fail to build cache when design-tokens is missing"
+        );
+    }
+}
