@@ -1,0 +1,24 @@
+[package]
+name = "lsp"
+edition = "2024"
+version.workspace = true
+authors.workspace = true
+description.workspace = true
+
+[lib]
+name = "lsp"
+path = "src/lib.rs"
+
+[dependencies]
+tokio = { version = "1.49.0", features = ["full"] }
+tower-lsp = "0.20.0"
+config = { path = "../config" }
+engine = { path = "../engine" }
+cli = { path = "../cli" }
+dashmap = "6.1.0"
+miette = { workspace = true }
+thiserror = { workspace = true }
+globset = { workspace = true }
+
+[dev-dependencies]
+assert_fs = "1.1.3"

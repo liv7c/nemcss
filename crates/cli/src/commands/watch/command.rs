@@ -15,10 +15,7 @@ use thiserror::Error;
 
 use crate::commands::{
     build::{BuildError, build},
-    watch::{
-        paths::build_glob_set,
-        watcher::{FileWatcher, FilterEventsError, SetupWatcherError},
-    },
+    watch::watcher::{FileWatcher, FilterEventsError, SetupWatcherError},
 };
 
 /// Context for the watch command containing configuration and state.
@@ -56,7 +53,7 @@ impl WatchContext {
         let config_path = current_dir.join(CONFIG_FILE_NAME);
         let config = NemCssConfig::from_path(&config_path)?;
 
-        let glob_set = build_glob_set(&config.content)?;
+        let glob_set = config.content_glob_set()?;
 
         Ok(Self {
             input,
@@ -79,7 +76,7 @@ impl WatchContext {
     /// - The glob patterns in the config are invalid
     pub fn reload(&mut self) -> Result<(), WatchContextError> {
         let config = NemCssConfig::from_path(&self.config_path)?;
-        let glob_set = build_glob_set(&config.content)?;
+        let glob_set = config.content_glob_set()?;
         self.config = config;
         self.glob_set = glob_set;
         Ok(())
