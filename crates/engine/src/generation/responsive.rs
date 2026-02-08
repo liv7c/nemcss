@@ -97,6 +97,8 @@ pub struct ResponsiveUtility {
     pub viewport_name: String,
     /// The viewport value this responsive utility is associated with (e.g. `640px`)
     pub viewport_value: String,
+    /// The full CSS media query and class definition for this responsive utility
+    pub full_css_definition: String,
 }
 
 #[derive(Debug, Error, Diagnostic)]
@@ -121,22 +123,53 @@ pub fn generate_all_responsive_utilities(
     let mut responsive_utilities = Vec::with_capacity(utilities.len() * viewports.tokens.len());
 
     for (viewport_name, viewport_value) in viewports.tokens.iter() {
+        let viewport_value = match viewport_value {
+            TokenValue::Simple(val) => val.to_string(),
+            _ => {
+                return Err(GenerateResponsiveUtilitiesError::InvalidViewportsFormat);
+            }
+        };
+
         for utility in utilities.iter() {
             responsive_utilities.push(ResponsiveUtility {
                 responsive_class_name: format!("{}:{}", viewport_name, utility.class_name()),
                 base_utility: utility.clone(),
                 viewport_name: viewport_name.clone(),
-                viewport_value: match viewport_value {
-                    TokenValue::Simple(val) => val.to_string(),
-                    _ => {
-                        return Err(GenerateResponsiveUtilitiesError::InvalidViewportsFormat);
-                    }
-                },
+                viewport_value: viewport_value.clone(),
+                full_css_definition: create_responsive_utility_full_css_documentation(
+                    viewport_name,
+                    &viewport_value,
+                    utility,
+                ),
             })
         }
     }
 
     Ok(responsive_utilities)
+}
+
+/// Creates a media query block for for a single utility at a specific viewport.
+/// This is used when generating the LSP's completion items documentation
+fn create_responsive_utility_full_css_documentation(
+    viewport_name: &str,
+    viewport_value: &str,
+    base_utility: &Utility,
+) -> String {
+    let mut media_block_content = String::new();
+
+    let _ = writeln!(
+        &mut media_block_content,
+        "  .{}\\:{} {{\n    {};\n  }}",
+        viewport_name,
+        base_utility.class_name(),
+        base_utility.class_value()
+    );
+
+    format!(
+        "@media (min-width: {}) {{\n{}\n}}",
+        viewport_value,
+        media_block_content.trim_end()
+    )
 }
 
 #[cfg(test)]

@@ -72,18 +72,34 @@ impl LanguageServer for Backend {
             }
 
             for utility in cache.utilities.iter() {
+                let documentation_markdown = format!("```css\n{}\n```", utility.full_class());
+
                 completion_items.push(CompletionItem {
                     label: utility.class_name().to_string(),
-                    detail: Some(utility.class_value().to_string()),
                     kind: Some(CompletionItemKind::VALUE),
+                    documentation: Some(tower_lsp::lsp_types::Documentation::MarkupContent(
+                        MarkupContent {
+                            kind: MarkupKind::Markdown,
+                            value: documentation_markdown,
+                        },
+                    )),
                     ..Default::default()
                 });
             }
 
             for responsive_utility in cache.responsive_utilities.iter() {
+                let documentation_markdown =
+                    format!("```css\n{}\n```", responsive_utility.full_css_definition);
+
                 completion_items.push(CompletionItem {
                     label: responsive_utility.responsive_class_name.to_string(),
                     kind: Some(CompletionItemKind::VALUE),
+                    documentation: Some(tower_lsp::lsp_types::Documentation::MarkupContent(
+                        MarkupContent {
+                            kind: MarkupKind::Markdown,
+                            value: documentation_markdown,
+                        },
+                    )),
                     ..Default::default()
                 })
             }
