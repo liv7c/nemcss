@@ -64,17 +64,36 @@ impl LanguageServer for Backend {
         eprintln!("=== COMPLETION ===");
         eprintln!("{:#?}", params);
 
-        if let Some(cache) = self.cache.read().await.as_ref()
-            && !cache.is_content_file(uri)
-        {
-            return Ok(None);
+        let mut completion_items: Vec<CompletionItem> = vec![];
+
+        if let Some(cache) = self.cache.read().await.as_ref() {
+            if !cache.is_content_file(uri) {
+                return Ok(None);
+            }
+
+            for utility in cache.utilities.iter() {
+                completion_items.push(CompletionItem {
+                    label: utility.class_name().to_string(),
+                    detail: Some(utility.class_value().to_string()),
+                    kind: Some(CompletionItemKind::VALUE),
+                    ..Default::default()
+                });
+            }
+
+            for responsive_utility in cache.responsive_utilities.iter() {
+                completion_items.push(CompletionItem {
+                    label: responsive_utility.responsive_class_name.to_string(),
+                    kind: Some(CompletionItemKind::VALUE),
+                    ..Default::default()
+                })
+            }
         }
 
-        eprintln!("==================");
-        Ok(Some(CompletionResponse::Array(vec![
-            CompletionItem::new_simple("Hello".to_string(), "Some detail".to_string()),
-            CompletionItem::new_simple("Bye".to_string(), "More detail".to_string()),
-        ])))
+        eprintln!("=============");
+        eprintln!("{:#?}", completion_items);
+        eprintln!("=============");
+
+        Ok(Some(CompletionResponse::Array(completion_items)))
     }
 
     async fn hover(&self, params: HoverParams) -> Result<Option<Hover>> {
