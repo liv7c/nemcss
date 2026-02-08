@@ -3,7 +3,9 @@
 //! This module contains functions to generate responsive utility classes based on the design tokens and the viewports defined in the configuration.
 
 use config::{ResolvedToken, TokenValue};
+use miette::Diagnostic;
 use std::fmt::Write;
+use thiserror::Error;
 
 use super::utilities::Utility;
 
@@ -81,6 +83,60 @@ pub fn create_media_query_block(
         viewport_value,
         media_block_content.trim_end()
     )
+}
+
+/// A responsive utility variant with its viewport information.
+/// Its main use case is for the LSP in order to keep track of all responsive utilities
+#[derive(Debug, Clone)]
+pub struct ResponsiveUtility {
+    /// The responsive class name (e.g.`sm:text-primary`)
+    pub responsive_class_name: String,
+    /// The base utility this is derived from
+    pub base_utility: Utility,
+    /// The viewport name this responsive utility is associated with (e.g. `sm`)
+    pub viewport_name: String,
+    /// The viewport value this responsive utility is associated with (e.g. `640px`)
+    pub viewport_value: String,
+}
+
+#[derive(Debug, Error, Diagnostic)]
+pub enum GenerateResponsiveUtilitiesError {
+    #[error(
+        "The viewports token is not in the expected format. Expected a simple token with viewport names as keys and viewport values as values."
+    )]
+    #[diagnostic(code(generate_responsive_utilities_error::invalid_viewports_format))]
+    /// Error when the viewports token is not in the expected format
+    InvalidViewportsFormat,
+}
+
+/// Generate responsive utility variants with their viewport information based on the design tokens and viewports defined.
+pub fn generate_all_responsive_utilities(
+    utilities: &[Utility],
+    viewports: Option<&ResolvedToken>,
+) -> miette::Result<Vec<ResponsiveUtility>, GenerateResponsiveUtilitiesError> {
+    let Some(viewports) = viewports else {
+        return Ok(Vec::new());
+    };
+
+    let mut responsive_utilities = Vec::with_capacity(utilities.len() * viewports.tokens.len());
+
+    for (viewport_name, viewport_value) in viewports.tokens.iter() {
+        for utility in utilities.iter() {
+            responsive_utilities.push(ResponsiveUtility {
+                responsive_class_name: format!("{}:{}", viewport_name, utility.class_name()),
+                base_utility: utility.clone(),
+                viewport_name: viewport_name.clone(),
+                viewport_value: match viewport_value {
+                    TokenValue::Simple(val) => val.to_string(),
+                    _ => {
+                        return Err(GenerateResponsiveUtilitiesError::InvalidViewportsFormat);
+                    }
+                },
+            })
+        }
+    }
+
+    Ok(responsive_utilities)
 }
 
 #[cfg(test)]

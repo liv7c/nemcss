@@ -12,3 +12,10 @@ path = "src/lib.rs"
 [dependencies]
 tokio = { version = "1.49.0", features = ["full"] }
 tower-lsp = "0.20.0"
+config = { path = "../config" }
+engine = { path = "../engine" }
+cli = { path = "../cli" }
+dashmap = "6.1.0"
+miette = { workspace = true }
+thiserror = { workspace = true }
+globset = { workspace = true }

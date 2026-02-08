@@ -43,4 +43,7 @@
 
 mod generation;
 
-pub use generation::{GeneratedCss, Utility, VIEWPORT_TOKEN_PREFIX, generate_css};
+pub use generation::{
+    GenerateResponsiveUtilitiesError, GeneratedCss, ResponsiveUtility, Utility,
+    VIEWPORT_TOKEN_PREFIX, generate_all_responsive_utilities, generate_css,
+};

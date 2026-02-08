@@ -4,6 +4,9 @@ mod filters;
 mod responsive;
 mod utilities;
 
+pub use responsive::{
+    GenerateResponsiveUtilitiesError, ResponsiveUtility, generate_all_responsive_utilities,
+};
 pub use utilities::{Utility, VIEWPORT_TOKEN_PREFIX};
 
 use config::ResolvedToken;
