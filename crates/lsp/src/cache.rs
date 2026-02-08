@@ -14,6 +14,9 @@ pub struct NemCache {
     pub utilities: Vec<Utility>,
     pub responsive_utilities: Vec<ResponsiveUtility>,
     pub config: NemCssConfig,
+    /// CSS custom properties
+    /// TODO: use it for custom property auto completion in future PR
+    #[allow(dead_code)]
     pub custom_properties: Vec<String>,
     pub content_globs: GlobSet,
 }

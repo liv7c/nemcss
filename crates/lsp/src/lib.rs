@@ -1,3 +1,7 @@
+//! LSP server implementation for NemCSS.
+//!
+//! Provides language server features including completions for utility classes and responsive
+//! utilities.
 mod cache;
 
 use std::path::PathBuf;
@@ -19,6 +23,8 @@ pub struct Backend {
     /// Cache to store the generated utilities, viewports, custom properties, and content globs.
     cache: RwLock<Option<NemCache>>,
     /// Cache to keep track of open documents and their content.
+    /// TODO: Use it for hover support and document synchronization in next PR
+    #[allow(dead_code)]
     documents: DashMap<String, String>,
     /// Workspace root directory
     workspace_root: RwLock<Option<PathBuf>>,
@@ -62,7 +68,13 @@ impl LanguageServer for Backend {
     async fn initialized(&self, _: InitializedParams) {
         if let Err(e) = self.rebuild_cache().await {
             self.client
-                .log_message(MessageType::ERROR, miette::Report::new(e))
+                .log_message(
+                    MessageType::ERROR,
+                    format!(
+                        "failed to initialize NemCSS cache. Completions will not work: {}",
+                        e
+                    ),
+                )
                 .await;
         }
 
@@ -77,9 +89,6 @@ impl LanguageServer for Backend {
 
     async fn completion(&self, params: CompletionParams) -> Result<Option<CompletionResponse>> {
         let uri = &params.text_document_position.text_document.uri;
-        eprintln!("=== COMPLETION ===");
-        eprintln!("{:#?}", params);
-
         let mut completion_items: Vec<CompletionItem> = vec![];
 
         if let Some(cache) = self.cache.read().await.as_ref() {
@@ -121,17 +130,10 @@ impl LanguageServer for Backend {
             }
         }
 
-        eprintln!("=============");
-        eprintln!("{:#?}", completion_items);
-        eprintln!("=============");
-
         Ok(Some(CompletionResponse::Array(completion_items)))
     }
 
-    async fn hover(&self, params: HoverParams) -> Result<Option<Hover>> {
-        eprintln!("=== HOVER ===");
-        eprintln!("{:#?}", params);
-        eprintln!("=============");
+    async fn hover(&self, _: HoverParams) -> Result<Option<Hover>> {
         Ok(Some(Hover {
             contents: HoverContents::Scalar(MarkedString::String("You're hovering!".to_string())),
             range: None,
