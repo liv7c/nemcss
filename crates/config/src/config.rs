@@ -174,3 +174,40 @@ pub struct TokenUtilityConfig {
     /// The CSS property that will use the design token value.
     pub property: String,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_content_glob_matches_correct_files() {
+        let config = NemCssConfig {
+            content: vec!["content/**/*.md".to_string(), "src/**/*.svelte".to_string()],
+            ..Default::default()
+        };
+
+        let glob_set = config.content_glob_set().unwrap();
+
+        // Matches the correct files in `content`
+        assert!(glob_set.is_match("content/foo.md"));
+        assert!(glob_set.is_match("content/bar/baz.md"));
+        assert!(!glob_set.is_match("content/foo.txt"));
+
+        // Matches the correct files in `src`
+        assert!(glob_set.is_match("src/App.svelte"));
+        assert!(glob_set.is_match("src/components/Button.svelte"));
+        assert!(!glob_set.is_match("src/components/Error.tsx"));
+    }
+
+    #[test]
+    fn test_content_glob_set_invalid_pattern() {
+        let config = NemCssConfig {
+            content: vec!["[invalid/**/*.md".to_string()],
+            ..Default::default()
+        };
+
+        let glob_set = config.content_glob_set();
+
+        assert!(glob_set.is_err());
+    }
+}
