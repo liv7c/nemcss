@@ -1,5 +1,7 @@
 mod cache;
 
+use std::path::PathBuf;
+
 use dashmap::DashMap;
 use miette::Diagnostic;
 use thiserror::Error;
@@ -12,15 +14,29 @@ use crate::cache::NemCache;
 
 #[derive(Debug)]
 pub struct Backend {
-    pub client: Client,
+    /// Client to interact with the LSP client.
+    client: Client,
+    /// Cache to store the generated utilities, viewports, custom properties, and content globs.
     cache: RwLock<Option<NemCache>>,
     /// Cache to keep track of open documents and their content.
     documents: DashMap<String, String>,
+    /// Workspace root directory
+    workspace_root: RwLock<Option<PathBuf>>,
 }
 
 #[tower_lsp::async_trait]
 impl LanguageServer for Backend {
-    async fn initialize(&self, _: InitializeParams) -> Result<InitializeResult> {
+    async fn initialize(&self, params: InitializeParams) -> Result<InitializeResult> {
+        let workspace_root = params
+            .workspace_folders
+            .and_then(|folders| folders.into_iter().next())
+            .and_then(|folder| folder.uri.to_file_path().ok())
+            .or_else(|| params.root_uri.and_then(|uri| uri.to_file_path().ok()));
+
+        if let Some(workspace_root) = workspace_root {
+            self.workspace_root.write().await.replace(workspace_root);
+        }
+
         Ok(InitializeResult {
             capabilities: ServerCapabilities {
                 hover_provider: Some(HoverProviderCapability::Simple(true)),
@@ -139,12 +155,25 @@ impl Backend {
         Self {
             client,
             cache: RwLock::new(None),
+            workspace_root: RwLock::new(None),
             documents: DashMap::new(),
         }
     }
 
     async fn rebuild_cache(&self) -> miette::Result<(), LspError> {
-        let workspace_root = std::env::current_dir().map_err(LspError::WorkspaceRoot)?;
+        let workspace_root = self
+            .workspace_root
+            .read()
+            .await
+            .as_ref()
+            .cloned()
+            .or_else(|| std::env::current_dir().ok())
+            .ok_or_else(|| {
+                LspError::WorkspaceRoot(std::io::Error::new(
+                    std::io::ErrorKind::NotFound,
+                    "workspace root not found",
+                ))
+            })?;
         let cache = NemCache::build(&workspace_root)?;
 
         self.cache.write().await.replace(cache);
