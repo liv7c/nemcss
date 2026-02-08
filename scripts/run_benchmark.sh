@@ -15,13 +15,6 @@ if [ -z "$CRATE_NAME" ]; then
     exit 1
 fi
 
-# Check if crate directory exists
-if [ ! -d "$CRATE_NAME" ]; then
-    echo "Error: Crate '$CRATE_NAME' not found"
-    echo "Available crates:"
-    ls -d */ 2> /dev/null | grep -v target | sed 's/\///'
-    exit 1
-fi
 
 # Create reports directory structure
 REPORTS_DIR="benchmark-reports/${CRATE_NAME}"
