@@ -73,15 +73,6 @@ pub fn extract_watch_dirs(config_content: &[String]) -> Vec<(PathBuf, RecursiveM
     watch_dirs.into_iter().collect()
 }
 
-/// Builds a glob set from the given configuration content field.
-pub fn build_glob_set(content: &[String]) -> Result<globset::GlobSet, globset::Error> {
-    let mut builder = globset::GlobSetBuilder::new();
-    for pattern in content {
-        builder.add(globset::Glob::new(pattern)?);
-    }
-    builder.build()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

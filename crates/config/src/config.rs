@@ -99,6 +99,15 @@ impl NemCssConfig {
     pub fn tokens_dir(&self) -> PathBuf {
         self.base_dir.join(&self.tokens_dir)
     }
+
+    /// Get a glob set of the content paths.
+    pub fn content_glob_set(&self) -> Result<globset::GlobSet, globset::Error> {
+        let mut builder = globset::GlobSetBuilder::new();
+        for pattern in &self.content {
+            builder.add(globset::Glob::new(pattern)?);
+        }
+        builder.build()
+    }
 }
 
 /// ThemeConfig represents the configuration of the theme.
