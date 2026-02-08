@@ -24,7 +24,19 @@ impl LanguageServer for Backend {
         Ok(InitializeResult {
             capabilities: ServerCapabilities {
                 hover_provider: Some(HoverProviderCapability::Simple(true)),
-                completion_provider: Some(CompletionOptions::default()),
+                completion_provider: Some(CompletionOptions {
+                    trigger_characters: Some(vec![
+                        // space between classes
+                        " ".to_string(),
+                        // Opening double quote
+                        "\"".to_string(),
+                        // Opening single quote
+                        "'".to_string(),
+                        // Responsive prefix
+                        ":".to_string(),
+                    ]),
+                    ..CompletionOptions::default()
+                }),
                 ..Default::default()
             },
             ..Default::default()
@@ -48,8 +60,16 @@ impl LanguageServer for Backend {
     }
 
     async fn completion(&self, params: CompletionParams) -> Result<Option<CompletionResponse>> {
+        let uri = &params.text_document_position.text_document.uri;
         eprintln!("=== COMPLETION ===");
         eprintln!("{:#?}", params);
+
+        if let Some(cache) = self.cache.read().await.as_ref()
+            && !cache.is_content_file(uri)
+        {
+            return Ok(None);
+        }
+
         eprintln!("==================");
         Ok(Some(CompletionResponse::Array(vec![
             CompletionItem::new_simple("Hello".to_string(), "Some detail".to_string()),

@@ -5,6 +5,7 @@ use engine::{ResponsiveUtility, Utility};
 use globset::GlobSet;
 use miette::Diagnostic;
 use thiserror::Error;
+use tower_lsp::lsp_types::Url;
 
 /// Cache for the LSP server.
 /// This cache is used to store the generated utilities, viewports, custom properties, and content globs.
@@ -54,5 +55,21 @@ impl NemCache {
             config,
             content_globs,
         })
+    }
+
+    /// Checks if the given URL is a content file by comparing it to the content globs in the config
+    /// We retrieve the url from the CompletionParams textDocumentPosition field.
+    pub fn is_content_file(&self, url: &Url) -> bool {
+        let path = match url.to_file_path() {
+            Ok(path) => path,
+            Err(_) => return false,
+        };
+
+        let relative_path = match path.strip_prefix(&self.config.base_dir) {
+            Ok(path) => path,
+            Err(_) => return false,
+        };
+
+        self.content_globs.is_match(relative_path)
     }
 }
