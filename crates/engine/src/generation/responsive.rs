@@ -87,7 +87,7 @@ pub fn create_media_query_block(
 
 /// A responsive utility variant with its viewport information.
 /// Its main use case is for the LSP in order to keep track of all responsive utilities
-#[derive(Debug, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct ResponsiveUtility {
     /// The responsive class name (e.g.`sm:text-primary`)
     pub responsive_class_name: String,
@@ -273,6 +273,147 @@ mod tests {
                 .contains(".md\\:bg-secondary {\n  background-color: var(--color-secondary);\n}"),
             "Got {:?}",
             result[1]
+        );
+    }
+
+    /// Test helper to assert that a ResponsiveUtility exits with the given values
+    fn assert_contains_responsive_utility(
+        result: &[ResponsiveUtility],
+        responsive_class_name: &str,
+        class_name: &str,
+        class_value: &str,
+        viewport_name: &str,
+        viewport_value: &str,
+    ) {
+        assert!(
+            result.iter().any(|ru| {
+                ru.responsive_class_name == responsive_class_name
+                    && ru.base_utility.class_name == class_name
+                    && ru.base_utility.class_value == class_value
+                    && ru.viewport_name == viewport_name
+                    && ru.viewport_value == viewport_value
+            }),
+            "Expected to find responsive utility '{}' with viewport '{}:{}', but it was not found in the results {:?}",
+            responsive_class_name,
+            viewport_name,
+            viewport_value,
+            result
+        );
+    }
+
+    #[test]
+    fn test_create_all_responsive_utilities() {
+        let mut resolved_tokens = HashMap::new();
+        resolved_tokens.insert(
+            "colors".to_string(),
+            ResolvedToken {
+                tokens: vec![
+                    (
+                        "primary".to_string(),
+                        TokenValue::Simple("yellow".to_string()),
+                    ),
+                    (
+                        "secondary".to_string(),
+                        TokenValue::Simple("#c1c1c1".to_string()),
+                    ),
+                ],
+                utilities: vec![
+                    TokenUtilityConfig {
+                        prefix: "text".to_string(),
+                        property: "color".to_string(),
+                    },
+                    TokenUtilityConfig {
+                        prefix: "bg".to_string(),
+                        property: "background-color".to_string(),
+                    },
+                ],
+                prefix: "color".to_string(),
+            },
+        );
+        resolved_tokens.insert(
+            "viewports".to_string(),
+            ResolvedToken {
+                tokens: vec![
+                    ("sm".to_string(), TokenValue::Simple("320px".to_string())),
+                    ("md".to_string(), TokenValue::Simple("768px".to_string())),
+                ],
+                utilities: vec![],
+                prefix: VIEWPORT_TOKEN_PREFIX.to_string(),
+            },
+        );
+
+        let all_tokens: Vec<_> = resolved_tokens.values().collect();
+        let all_utilities = generate_utilities(&all_tokens);
+        let result =
+            generate_all_responsive_utilities(&all_utilities, resolved_tokens.get("viewports"))
+                .unwrap();
+
+        assert_eq!(result.len(), 8);
+
+        assert_contains_responsive_utility(
+            &result,
+            "sm:text-primary",
+            "text-primary",
+            "color: var(--color-primary)",
+            "sm",
+            "320px",
+        );
+        assert_contains_responsive_utility(
+            &result,
+            "sm:text-secondary",
+            "text-secondary",
+            "color: var(--color-secondary)",
+            "sm",
+            "320px",
+        );
+        assert_contains_responsive_utility(
+            &result,
+            "sm:bg-primary",
+            "bg-primary",
+            "background-color: var(--color-primary)",
+            "sm",
+            "320px",
+        );
+        assert_contains_responsive_utility(
+            &result,
+            "sm:bg-secondary",
+            "bg-secondary",
+            "background-color: var(--color-secondary)",
+            "sm",
+            "320px",
+        );
+
+        assert_contains_responsive_utility(
+            &result,
+            "md:text-primary",
+            "text-primary",
+            "color: var(--color-primary)",
+            "md",
+            "768px",
+        );
+        assert_contains_responsive_utility(
+            &result,
+            "md:text-secondary",
+            "text-secondary",
+            "color: var(--color-secondary)",
+            "md",
+            "768px",
+        );
+        assert_contains_responsive_utility(
+            &result,
+            "md:bg-primary",
+            "bg-primary",
+            "background-color: var(--color-primary)",
+            "md",
+            "768px",
+        );
+        assert_contains_responsive_utility(
+            &result,
+            "md:bg-secondary",
+            "bg-secondary",
+            "background-color: var(--color-secondary)",
+            "md",
+            "768px",
         );
     }
 }
