@@ -853,6 +853,7 @@ dependencies = [
  "engine",
  "globset",
  "miette",
+ "serde_json",
  "thiserror",
  "tokio",
  "tower-lsp",
