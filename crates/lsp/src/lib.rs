@@ -6,6 +6,7 @@ mod cache;
 
 use std::path::PathBuf;
 
+use config::{CONFIG_FILE_NAME, NemCssConfig};
 use dashmap::DashMap;
 use miette::Diagnostic;
 use thiserror::Error;
@@ -78,6 +79,15 @@ impl LanguageServer for Backend {
                 .await;
         }
 
+        if let Err(e) = self.setup_file_watchers().await {
+            self.client
+                .log_message(
+                    MessageType::WARNING,
+                    format!("failed to setup file watchers: {}", e),
+                )
+                .await;
+        }
+
         self.client
             .log_message(MessageType::INFO, "nemcss server initialized with cache")
             .await;
@@ -139,10 +149,25 @@ impl LanguageServer for Backend {
             range: None,
         }))
     }
+
+    async fn did_change_watched_files(&self, _: DidChangeWatchedFilesParams) {
+        if let Err(e) = self.rebuild_cache().await {
+            self.client
+                .log_message(
+                    MessageType::ERROR,
+                    format!(
+                        "failed to rebuild NemCSS cache after file change. Completions may be stale: {}",
+                        e
+                    ),
+                )
+                .await;
+        }
+    }
 }
 
+/// RebuildCacheError represents the error type when rebuilding the cache.
 #[derive(Debug, Error, Diagnostic)]
-enum LspError {
+enum RebuildCacheError {
     #[error("failed to get workspace root: {0}")]
     #[diagnostic(code(lsp_error::workspace_root_error))]
     WorkspaceRoot(std::io::Error),
@@ -150,6 +175,30 @@ enum LspError {
     #[error(transparent)]
     #[diagnostic(code(lsp_error::cache_build_error))]
     CacheBuild(#[from] cache::BuildCacheError),
+}
+
+/// SetupFileWatchersError represents the error type when setting up file watchers.
+#[derive(Debug, Error, Diagnostic)]
+enum SetupFileWatchersError {
+    #[error("failed to get workspace root")]
+    #[diagnostic(code(lsp_error::workspace_root_error))]
+    MissingWorkspaceRoot,
+
+    #[error("tokens directory path contains invalid UTF-8")]
+    #[diagnostic(code(lsp::setup_file_watchers::invalid_tokens_dir_path))]
+    InvalidTokensDirPath,
+
+    #[error("failed to read config: {0}")]
+    #[diagnostic(code(lsp::setup_file_watchers::config_read))]
+    ConfigRead(#[from] config::NemCssConfigError),
+
+    #[error("failed to serialize registration options: {0}")]
+    #[diagnostic(code(lsp_error::setup_file_watchers_error::serialize_registration_options))]
+    SerializeRegistrationOptions(serde_json::Error),
+
+    #[error("failed to register capability: {0}")]
+    #[diagnostic(code(lsp_error::setup_file_watchers_error::register_capability))]
+    RegisterCapability(tower_lsp::jsonrpc::Error),
 }
 
 impl Backend {
@@ -162,7 +211,7 @@ impl Backend {
         }
     }
 
-    async fn rebuild_cache(&self) -> miette::Result<(), LspError> {
+    async fn rebuild_cache(&self) -> miette::Result<(), RebuildCacheError> {
         let workspace_root = self
             .workspace_root
             .read()
@@ -171,7 +220,7 @@ impl Backend {
             .cloned()
             .or_else(|| std::env::current_dir().ok())
             .ok_or_else(|| {
-                LspError::WorkspaceRoot(std::io::Error::new(
+                RebuildCacheError::WorkspaceRoot(std::io::Error::new(
                     std::io::ErrorKind::NotFound,
                     "workspace root not found",
                 ))
@@ -179,6 +228,54 @@ impl Backend {
         let cache = NemCache::build(&workspace_root)?;
 
         self.cache.write().await.replace(cache);
+        Ok(())
+    }
+
+    async fn setup_file_watchers(&self) -> miette::Result<(), SetupFileWatchersError> {
+        let workspace_root = self
+            .workspace_root
+            .read()
+            .await
+            .as_ref()
+            .cloned()
+            .or_else(|| std::env::current_dir().ok())
+            .ok_or(SetupFileWatchersError::MissingWorkspaceRoot)?;
+
+        let config_path = workspace_root.join(CONFIG_FILE_NAME);
+        let config = NemCssConfig::from_path(&config_path)?;
+
+        // register file watchers for config and token file changes
+        let tokens_dir_str = config
+            .tokens_dir
+            .to_str()
+            .ok_or(SetupFileWatchersError::InvalidTokensDirPath)?;
+        let tokens_glob_pattern = format!("**/{}/**/*.json", tokens_dir_str);
+        let config_glob_pattern = format!("**/{}", CONFIG_FILE_NAME);
+
+        let watchers = vec![
+            FileSystemWatcher {
+                glob_pattern: GlobPattern::String(tokens_glob_pattern),
+                kind: Some(WatchKind::all()),
+            },
+            FileSystemWatcher {
+                glob_pattern: GlobPattern::String(config_glob_pattern),
+                kind: Some(WatchKind::all()),
+            },
+        ];
+
+        let registration_options =
+            serde_json::to_value(DidChangeWatchedFilesRegistrationOptions { watchers })
+                .map_err(SetupFileWatchersError::SerializeRegistrationOptions)?;
+
+        self.client
+            .register_capability(vec![Registration {
+                id: "nemcss-config-tokens-file-watchers".to_string(),
+                method: "workspace/didChangeWatchedFiles".to_string(),
+                register_options: Some(registration_options),
+            }])
+            .await
+            .map_err(SetupFileWatchersError::RegisterCapability)?;
+
         Ok(())
     }
 }

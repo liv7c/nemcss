@@ -19,6 +19,7 @@ dashmap = "6.1.0"
 miette = { workspace = true }
 thiserror = { workspace = true }
 globset = { workspace = true }
+serde_json = { workspace = true }
 
 [dev-dependencies]
 assert_fs = "1.1.3"
