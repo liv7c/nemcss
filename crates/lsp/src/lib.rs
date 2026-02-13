@@ -24,11 +24,13 @@ pub struct Backend {
     /// Cache to store the generated utilities, viewports, custom properties, and content globs.
     cache: RwLock<Option<NemCache>>,
     /// Cache to keep track of open documents and their content.
-    /// TODO: Use it for hover support and document synchronization in next PR
     #[allow(dead_code)]
     documents: DashMap<String, String>,
     /// Workspace root directory
     workspace_root: RwLock<Option<PathBuf>>,
+    /// Encoding used to calculate the character positions.
+    /// It could be utf8 or utf16 (both should be supported)
+    position_encoding: RwLock<PositionEncodingKind>,
 }
 
 #[tower_lsp::async_trait]
@@ -44,8 +46,29 @@ impl LanguageServer for Backend {
             self.workspace_root.write().await.replace(workspace_root);
         }
 
+        let position_encoding = params
+            .capabilities
+            .general
+            .and_then(|general| general.position_encodings)
+            .and_then(|encodings| {
+                if encodings.contains(&PositionEncodingKind::UTF8) {
+                    Some(PositionEncodingKind::UTF8)
+                } else if encodings.contains(&PositionEncodingKind::UTF16) {
+                    Some(PositionEncodingKind::UTF16)
+                } else {
+                    encodings.first().cloned()
+                }
+            })
+            .unwrap_or(PositionEncodingKind::UTF16);
+
+        // TODO: remove error print after testing
+        eprintln!("position encoding: {:?}", &position_encoding);
+
+        *self.position_encoding.write().await = position_encoding.clone();
+
         Ok(InitializeResult {
             capabilities: ServerCapabilities {
+                position_encoding: Some(position_encoding),
                 hover_provider: Some(HoverProviderCapability::Simple(true)),
                 completion_provider: Some(CompletionOptions {
                     trigger_characters: Some(vec![
@@ -143,7 +166,9 @@ impl LanguageServer for Backend {
         Ok(Some(CompletionResponse::Array(completion_items)))
     }
 
-    async fn hover(&self, _: HoverParams) -> Result<Option<Hover>> {
+    async fn hover(&self, params: HoverParams) -> Result<Option<Hover>> {
+        eprintln!("{:?}", params);
+
         Ok(Some(Hover {
             contents: HoverContents::Scalar(MarkedString::String("You're hovering!".to_string())),
             range: None,
@@ -202,12 +227,18 @@ enum SetupFileWatchersError {
 }
 
 impl Backend {
+    /// Buids a new `Backend` instance.
+    /// For the position encoding, we follow
+    /// https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocuments
+    /// To stay backwards compatible the only mandatory encoding is UTF-16 represented via the string utf-16.
+    /// The server can pick one of the encodings offered by the client and signals that encoding back to the client via the initialize result’s property capabilities.positionEncoding.
     pub fn new(client: Client) -> Self {
         Self {
             client,
             cache: RwLock::new(None),
             workspace_root: RwLock::new(None),
             documents: DashMap::new(),
+            position_encoding: RwLock::new(PositionEncodingKind::UTF16),
         }
     }
 
