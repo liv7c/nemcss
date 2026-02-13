@@ -9,6 +9,7 @@ use std::path::PathBuf;
 use config::{CONFIG_FILE_NAME, NemCssConfig};
 use dashmap::DashMap;
 use miette::Diagnostic;
+use ropey::Rope;
 use thiserror::Error;
 use tokio::sync::RwLock;
 use tower_lsp::jsonrpc::Result;
@@ -24,8 +25,8 @@ pub struct Backend {
     /// Cache to store the generated utilities, viewports, custom properties, and content globs.
     cache: RwLock<Option<NemCache>>,
     /// Cache to keep track of open documents and their content.
-    #[allow(dead_code)]
-    documents: DashMap<String, String>,
+    /// Rope is a wrapper around a String that provides helpers for working with text.
+    documents: DashMap<String, Rope>,
     /// Workspace root directory
     workspace_root: RwLock<Option<PathBuf>>,
     /// Encoding used to calculate the character positions.
@@ -61,9 +62,6 @@ impl LanguageServer for Backend {
             })
             .unwrap_or(PositionEncodingKind::UTF16);
 
-        // TODO: remove error print after testing
-        eprintln!("position encoding: {:?}", &position_encoding);
-
         *self.position_encoding.write().await = position_encoding.clone();
 
         Ok(InitializeResult {
@@ -83,6 +81,9 @@ impl LanguageServer for Backend {
                     ]),
                     ..CompletionOptions::default()
                 }),
+                text_document_sync: Some(TextDocumentSyncCapability::Kind(
+                    TextDocumentSyncKind::FULL,
+                )),
                 ..Default::default()
             },
             ..Default::default()
@@ -114,6 +115,26 @@ impl LanguageServer for Backend {
         self.client
             .log_message(MessageType::INFO, "nemcss server initialized with cache")
             .await;
+    }
+
+    async fn did_open(&self, params: DidOpenTextDocumentParams) {
+        let uri = params.text_document.uri;
+        let text = params.text_document.text;
+
+        self.documents.insert(uri.to_string(), Rope::from(text));
+    }
+
+    async fn did_change(&self, params: DidChangeTextDocumentParams) {
+        let uri = params.text_document.uri;
+
+        if let Some(content) = params.content_changes.into_iter().last() {
+            self.documents
+                .insert(uri.to_string(), Rope::from(content.text));
+        }
+    }
+
+    async fn did_close(&self, params: DidCloseTextDocumentParams) {
+        self.documents.remove(&params.text_document.uri.to_string());
     }
 
     async fn shutdown(&self) -> Result<()> {

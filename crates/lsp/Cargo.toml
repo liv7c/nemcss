@@ -20,6 +20,7 @@ miette = { workspace = true }
 thiserror = { workspace = true }
 globset = { workspace = true }
 serde_json = { workspace = true }
+ropey = "1.6.1"
 
 [dev-dependencies]
 assert_fs = "1.1.3"
