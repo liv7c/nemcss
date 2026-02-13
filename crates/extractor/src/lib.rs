@@ -5,4 +5,7 @@
 //! project.
 mod extractor;
 
-pub use extractor::extract_classes;
+pub use extractor::{
+    ASTRO_CLASS_LIST_REGEX, CLASS_ATTRIBUTE_REGEX, CLASS_UTILITY_REGEX, JSX_CLASS_EXPRESSION_REGEX,
+    SVELTE_CLASS_BINDING_REGEX, VUE_CLASS_BINDING_REGEX, extract_classes,
+};
