@@ -3,12 +3,15 @@
 //! Provides language server features including completions for utility classes and responsive
 //! utilities.
 mod cache;
+mod context;
+mod position;
 
 use std::path::PathBuf;
 
 use config::{CONFIG_FILE_NAME, NemCssConfig};
 use dashmap::DashMap;
 use miette::Diagnostic;
+use ropey::Rope;
 use thiserror::Error;
 use tokio::sync::RwLock;
 use tower_lsp::jsonrpc::Result;
@@ -16,6 +19,7 @@ use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer};
 
 use crate::cache::NemCache;
+use crate::position::lsp_col_to_byte;
 
 #[derive(Debug)]
 pub struct Backend {
@@ -24,11 +28,13 @@ pub struct Backend {
     /// Cache to store the generated utilities, viewports, custom properties, and content globs.
     cache: RwLock<Option<NemCache>>,
     /// Cache to keep track of open documents and their content.
-    /// TODO: Use it for hover support and document synchronization in next PR
-    #[allow(dead_code)]
-    documents: DashMap<String, String>,
+    /// Rope is a wrapper around a String that provides helpers for working with text.
+    documents: DashMap<String, Rope>,
     /// Workspace root directory
     workspace_root: RwLock<Option<PathBuf>>,
+    /// Encoding used to calculate the character positions.
+    /// It could be utf8 or utf16 (both should be supported)
+    position_encoding: RwLock<PositionEncodingKind>,
 }
 
 #[tower_lsp::async_trait]
@@ -44,8 +50,26 @@ impl LanguageServer for Backend {
             self.workspace_root.write().await.replace(workspace_root);
         }
 
+        let position_encoding = params
+            .capabilities
+            .general
+            .and_then(|general| general.position_encodings)
+            .and_then(|encodings| {
+                if encodings.contains(&PositionEncodingKind::UTF8) {
+                    Some(PositionEncodingKind::UTF8)
+                } else if encodings.contains(&PositionEncodingKind::UTF16) {
+                    Some(PositionEncodingKind::UTF16)
+                } else {
+                    encodings.first().cloned()
+                }
+            })
+            .unwrap_or(PositionEncodingKind::UTF16);
+
+        *self.position_encoding.write().await = position_encoding.clone();
+
         Ok(InitializeResult {
             capabilities: ServerCapabilities {
+                position_encoding: Some(position_encoding),
                 hover_provider: Some(HoverProviderCapability::Simple(true)),
                 completion_provider: Some(CompletionOptions {
                     trigger_characters: Some(vec![
@@ -60,6 +84,9 @@ impl LanguageServer for Backend {
                     ]),
                     ..CompletionOptions::default()
                 }),
+                text_document_sync: Some(TextDocumentSyncCapability::Kind(
+                    TextDocumentSyncKind::FULL,
+                )),
                 ..Default::default()
             },
             ..Default::default()
@@ -93,59 +120,162 @@ impl LanguageServer for Backend {
             .await;
     }
 
+    async fn did_open(&self, params: DidOpenTextDocumentParams) {
+        let uri = params.text_document.uri;
+        let text = params.text_document.text;
+
+        self.documents.insert(uri.to_string(), Rope::from(text));
+    }
+
+    async fn did_change(&self, params: DidChangeTextDocumentParams) {
+        let uri = params.text_document.uri;
+
+        if let Some(content) = params.content_changes.into_iter().last() {
+            self.documents
+                .insert(uri.to_string(), Rope::from(content.text));
+        }
+    }
+
+    async fn did_close(&self, params: DidCloseTextDocumentParams) {
+        self.documents.remove(&params.text_document.uri.to_string());
+    }
+
     async fn shutdown(&self) -> Result<()> {
         Ok(())
     }
 
     async fn completion(&self, params: CompletionParams) -> Result<Option<CompletionResponse>> {
+        let position = &params.text_document_position.position;
         let uri = &params.text_document_position.text_document.uri;
-        let mut completion_items: Vec<CompletionItem> = vec![];
 
-        if let Some(cache) = self.cache.read().await.as_ref() {
-            if !cache.is_content_file(uri) {
-                return Ok(None);
+        let rope_ref = match self.documents.get(&uri.to_string()) {
+            Some(rope) => rope,
+            None => return Ok(None),
+        };
+
+        let encoding = self.position_encoding.read().await;
+        let line_idx = position.line as usize;
+        let col = lsp_col_to_byte(&rope_ref, position, &encoding);
+
+        let class_context = match context::detect_multiline_class_context(&rope_ref, line_idx, col)
+        {
+            Some(context) => context,
+            None => return Ok(None),
+        };
+
+        let cache_guard = self.cache.read().await;
+        let cache = match cache_guard.as_ref() {
+            Some(cache) if cache.is_content_file(uri) => cache,
+            _ => return Ok(None),
+        };
+
+        let partial = &class_context.partial_token;
+        let mut completion_items: Vec<CompletionItem> = Vec::new();
+
+        if class_context.responsive_prefix.is_some() {
+            for responsive_utility in &cache.responsive_utilities {
+                if partial.is_empty() || responsive_utility.responsive_class_name.contains(partial)
+                {
+                    let documentation_markdown =
+                        format!("```css\n{}\n```", responsive_utility.full_css_definition);
+
+                    completion_items.push(CompletionItem {
+                        label: responsive_utility.responsive_class_name.to_string(),
+                        kind: Some(CompletionItemKind::VALUE),
+                        documentation: Some(tower_lsp::lsp_types::Documentation::MarkupContent(
+                            MarkupContent {
+                                kind: MarkupKind::Markdown,
+                                value: documentation_markdown,
+                            },
+                        )),
+                        ..Default::default()
+                    })
+                }
             }
+        } else {
+            for utility in &cache.utilities {
+                if partial.is_empty() || utility.class_name().starts_with(partial) {
+                    let documentation_markdown = format!("```css\n{}\n```", utility.full_class());
 
-            for utility in cache.utilities.iter() {
-                let documentation_markdown = format!("```css\n{}\n```", utility.full_class());
-
-                completion_items.push(CompletionItem {
-                    label: utility.class_name().to_string(),
-                    kind: Some(CompletionItemKind::VALUE),
-                    documentation: Some(tower_lsp::lsp_types::Documentation::MarkupContent(
-                        MarkupContent {
-                            kind: MarkupKind::Markdown,
-                            value: documentation_markdown,
-                        },
-                    )),
-                    ..Default::default()
-                });
-            }
-
-            for responsive_utility in cache.responsive_utilities.iter() {
-                let documentation_markdown =
-                    format!("```css\n{}\n```", responsive_utility.full_css_definition);
-
-                completion_items.push(CompletionItem {
-                    label: responsive_utility.responsive_class_name.to_string(),
-                    kind: Some(CompletionItemKind::VALUE),
-                    documentation: Some(tower_lsp::lsp_types::Documentation::MarkupContent(
-                        MarkupContent {
-                            kind: MarkupKind::Markdown,
-                            value: documentation_markdown,
-                        },
-                    )),
-                    ..Default::default()
-                })
+                    completion_items.push(CompletionItem {
+                        label: utility.class_name().to_string(),
+                        kind: Some(CompletionItemKind::VALUE),
+                        documentation: Some(tower_lsp::lsp_types::Documentation::MarkupContent(
+                            MarkupContent {
+                                kind: MarkupKind::Markdown,
+                                value: documentation_markdown,
+                            },
+                        )),
+                        ..Default::default()
+                    });
+                }
             }
         }
 
         Ok(Some(CompletionResponse::Array(completion_items)))
     }
 
-    async fn hover(&self, _: HoverParams) -> Result<Option<Hover>> {
-        Ok(Some(Hover {
-            contents: HoverContents::Scalar(MarkedString::String("You're hovering!".to_string())),
+    async fn hover(&self, params: HoverParams) -> Result<Option<Hover>> {
+        let uri = &params.text_document_position_params.text_document.uri;
+        let position = &params.text_document_position_params.position;
+
+        let rope_ref = match self.documents.get(&uri.to_string()) {
+            Some(rope) => rope,
+            None => return Ok(None),
+        };
+
+        let encoding = self.position_encoding.read().await;
+        let line_idx = position.line as usize;
+        let col = lsp_col_to_byte(&rope_ref, position, &encoding);
+
+        let line_str = rope_ref.line(line_idx).to_string();
+        let (content, col, span) = match context::find_class_span(&line_str, col) {
+            Some(span) => (line_str, col, span),
+            None => {
+                let (combined, combined_col) = context::build_multiline_window(
+                    &rope_ref,
+                    line_idx,
+                    col,
+                    context::MAX_SCAN_LINES,
+                );
+                match context::find_class_span(&combined, combined_col) {
+                    Some(span) => (combined, combined_col, span),
+                    None => return Ok(None),
+                }
+            }
+        };
+
+        let (span_start, span_end) = span;
+
+        let token = match context::extract_token_at_cursor(&content, span_start, col, span_end) {
+            Some(token) => token,
+            None => return Ok(None),
+        };
+
+        let cache_guard = self.cache.read().await;
+        let cache = match cache_guard.as_ref() {
+            Some(cache) if cache.is_content_file(uri) => cache,
+            _ => return Ok(None),
+        };
+
+        let css = cache
+            .utilities
+            .iter()
+            .find(|u| u.class_name() == token)
+            .map(|u| u.full_class().to_string())
+            .or_else(|| {
+                cache
+                    .responsive_utilities
+                    .iter()
+                    .find(|u| u.responsive_class_name == token)
+                    .map(|u| u.full_css_definition.to_string())
+            });
+
+        Ok(css.map(|definition| Hover {
+            contents: HoverContents::Markup(MarkupContent {
+                kind: MarkupKind::Markdown,
+                value: format!("```css\n{}\n```", definition),
+            }),
             range: None,
         }))
     }
@@ -202,12 +332,18 @@ enum SetupFileWatchersError {
 }
 
 impl Backend {
+    /// Buids a new `Backend` instance.
+    /// For the position encoding, we follow
+    /// https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocuments
+    /// To stay backwards compatible the only mandatory encoding is UTF-16 represented via the string utf-16.
+    /// The server can pick one of the encodings offered by the client and signals that encoding back to the client via the initialize result’s property capabilities.positionEncoding.
     pub fn new(client: Client) -> Self {
         Self {
             client,
             cache: RwLock::new(None),
             workspace_root: RwLock::new(None),
             documents: DashMap::new(),
+            position_encoding: RwLock::new(PositionEncodingKind::UTF16),
         }
     }
 

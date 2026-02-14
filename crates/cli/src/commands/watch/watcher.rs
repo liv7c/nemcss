@@ -131,9 +131,9 @@ impl FileWatcher {
 
         // Watch for token directory changes.
         watcher
-            .watch(&watch_context.config.tokens_dir, RecursiveMode::Recursive)
+            .watch(watch_context.config.tokens_dir(), RecursiveMode::Recursive)
             .map_err(|e| SetupWatcherError::WatchDirectoryError {
-                path: watch_context.config.tokens_dir.display().to_string(),
+                path: watch_context.config.tokens_dir().display().to_string(),
                 source: e,
             })?;
 

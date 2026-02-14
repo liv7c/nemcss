@@ -10,40 +10,40 @@ use regex::Regex;
 /// A lazy-loaded regex for matching CSS classes using the `class` attribute (or classname /
 /// className).
 /// Matches: class="foo bar", className="foo bar", classname="foo bar"
-static CLASS_ATTRIBUTE_REGEX: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r#"class(name|Name)?=["'](?<className>[^"']+)["']"#)
+pub static CLASS_ATTRIBUTE_REGEX: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r#"class(name|Name)?=["'](?<className>[^"']*)["']"#)
         .expect("Failed to compile class attribute regex")
 });
 
 /// A regex for matching CSS classes using utilities like classnames(...), clsx(...), :class(...) or cn(...)
 /// It uses a greedy match to capture everything that is in between the parentheses (as we could
 /// have arrays, objects, etc.).
-static CLASS_UTILITY_REGEX: LazyLock<Regex> = LazyLock::new(|| {
+pub static CLASS_UTILITY_REGEX: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r#"(clsx|classnames|cn|cva)\((?<content>[\s\S]*?)\)"#)
         .expect("Failed to compile clsx regex")
 });
 
 /// A regex for matching JSX/Svelte/Solid.js class expressions: class={...}, className={...}, or
 /// classList={...}
-static JSX_CLASS_EXPRESSION_REGEX: LazyLock<Regex> = LazyLock::new(|| {
+pub static JSX_CLASS_EXPRESSION_REGEX: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r#"class(name|Name|List)?=\{(?<content>[\s\S]*?)\}"#)
         .expect("Failed to compile jsx class expression regex")
 });
 
 /// A regex to support Vue class binding syntax
-static VUE_CLASS_BINDING_REGEX: LazyLock<Regex> = LazyLock::new(|| {
+pub static VUE_CLASS_BINDING_REGEX: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r#":class=(?:"(?<double>[\s\S]*?)"|'(?<single>[\s\S]*?)')"#)
         .expect("Failed to compile vue class binding regex")
 });
 
 /// A regex to support Astro class:list syntax
-static ASTRO_CLASS_LIST_REGEX: LazyLock<Regex> = LazyLock::new(|| {
+pub static ASTRO_CLASS_LIST_REGEX: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r#"class:list=(?:["'](?<quoted>[^"']+)["']|\{(?<braced>[\s\S]+?)\})"#)
         .expect("Failed to compile astro class:list regex")
 });
 
 /// A regex to support Svelte class binding syntax
-static SVELTE_CLASS_BINDING_REGEX: LazyLock<Regex> = LazyLock::new(|| {
+pub static SVELTE_CLASS_BINDING_REGEX: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r#"class:(?<className>[\w-]+)=\{[^}]*\}"#)
         .expect("Failed to compile svelte class binding regex")
 });
