@@ -132,7 +132,6 @@ fn test_generates_utilities_for_explicitly_configured_tokens() {
     let config_path = get_config_fixture_path("explicit_tokens_with_custom_utils");
     let config = NemCssConfig::from_path(&config_path).unwrap();
     let tokens = config.resolve_all_tokens().unwrap();
-    dbg!(&tokens);
 
     let spacing_token = tokens.get("allSpacings").unwrap();
     assert_eq!(spacing_token.prefix, "spacing");
@@ -177,8 +176,6 @@ fn test_overrides_default_configuration_for_explicitly_configured_tokens() {
     let config_path = get_config_fixture_path("default_and_overrides_combination");
     let config = NemCssConfig::from_path(&config_path).unwrap();
     let tokens = config.resolve_all_tokens().unwrap();
-
-    dbg!(&tokens);
 
     let spacing_token = tokens.get("spacings").unwrap();
     assert_eq!(spacing_token.prefix, "spacing");

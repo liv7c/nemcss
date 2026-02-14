@@ -197,8 +197,6 @@ mod tests {
         )]);
         let (utilities, responsive_utilities) =
             generate_filtered_utilities(&all_tokens, &used_utilities, &used_responsive_utilities);
-        dbg!(&utilities);
-        dbg!(&responsive_utilities);
 
         assert_eq!(utilities.len(), 1);
         assert_eq!(responsive_utilities.len(), 2);
