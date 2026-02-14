@@ -228,19 +228,24 @@ impl LanguageServer for Backend {
         let line_idx = position.line as usize;
         let col = lsp_col_to_byte(&rope_ref, position, &encoding);
 
-        let (content, col) = {
-            let line_str = rope_ref.line(line_idx).to_string();
-            if context::find_class_span(&line_str, col).is_some() {
-                (line_str, col)
-            } else {
-                context::build_multiline_window(&rope_ref, line_idx, col, context::MAX_SCAN_LINES)
+        let line_str = rope_ref.line(line_idx).to_string();
+        let (content, col, span) = match context::find_class_span(&line_str, col) {
+            Some(span) => (line_str, col, span),
+            None => {
+                let (combined, combined_col) = context::build_multiline_window(
+                    &rope_ref,
+                    line_idx,
+                    col,
+                    context::MAX_SCAN_LINES,
+                );
+                match context::find_class_span(&combined, combined_col) {
+                    Some(span) => (combined, combined_col, span),
+                    None => return Ok(None),
+                }
             }
         };
 
-        let (span_start, span_end) = match context::find_class_span(&content, col) {
-            Some(span) => span,
-            None => return Ok(None),
-        };
+        let (span_start, span_end) = span;
 
         let token = match context::extract_token_at_cursor(&content, span_start, col, span_end) {
             Some(token) => token,
