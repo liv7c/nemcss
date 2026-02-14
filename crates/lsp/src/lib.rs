@@ -3,6 +3,8 @@
 //! Provides language server features including completions for utility classes and responsive
 //! utilities.
 mod cache;
+mod context;
+mod position;
 
 use std::path::PathBuf;
 

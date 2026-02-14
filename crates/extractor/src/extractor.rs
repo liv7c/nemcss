@@ -11,7 +11,7 @@ use regex::Regex;
 /// className).
 /// Matches: class="foo bar", className="foo bar", classname="foo bar"
 pub static CLASS_ATTRIBUTE_REGEX: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r#"class(name|Name)?=["'](?<className>[^"']+)["']"#)
+    Regex::new(r#"class(name|Name)?=["'](?<className>[^"']*)["']"#)
         .expect("Failed to compile class attribute regex")
 });
 
