@@ -216,10 +216,61 @@ impl LanguageServer for Backend {
     }
 
     async fn hover(&self, params: HoverParams) -> Result<Option<Hover>> {
-        eprintln!("{:?}", params);
+        let uri = &params.text_document_position_params.text_document.uri;
+        let position = &params.text_document_position_params.position;
 
-        Ok(Some(Hover {
-            contents: HoverContents::Scalar(MarkedString::String("You're hovering!".to_string())),
+        let rope_ref = match self.documents.get(&uri.to_string()) {
+            Some(rope) => rope,
+            None => return Ok(None),
+        };
+
+        let encoding = self.position_encoding.read().await;
+        let line_idx = position.line as usize;
+        let col = lsp_col_to_byte(&rope_ref, position, &encoding);
+
+        let (content, col) = {
+            let line_str = rope_ref.line(line_idx).to_string();
+            if context::find_class_span(&line_str, col).is_some() {
+                (line_str, col)
+            } else {
+                context::build_multiline_window(&rope_ref, line_idx, col, 15)
+            }
+        };
+
+        let (span_start, span_end) = match context::find_class_span(&content, col) {
+            Some(span) => span,
+            None => return Ok(None),
+        };
+
+        let token = match context::extract_token_at_cursor(&content, span_start, col, span_end) {
+            Some(token) => token,
+            None => return Ok(None),
+        };
+
+        let cache_guard = self.cache.read().await;
+        let cache = match cache_guard.as_ref() {
+            Some(cache) => cache,
+            None => return Ok(None),
+        };
+
+        let css = cache
+            .utilities
+            .iter()
+            .find(|u| u.class_name() == token)
+            .map(|u| u.full_class().to_string())
+            .or_else(|| {
+                cache
+                    .responsive_utilities
+                    .iter()
+                    .find(|u| u.responsive_class_name == token)
+                    .map(|u| u.full_css_definition.to_string())
+            });
+
+        Ok(css.map(|definition| Hover {
+            contents: HoverContents::Markup(MarkupContent {
+                kind: MarkupKind::Markdown,
+                value: format!("```css\n{}\n```", definition),
+            }),
             range: None,
         }))
     }

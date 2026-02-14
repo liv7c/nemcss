@@ -92,6 +92,33 @@ pub fn detect_class_context(line: &str, col: usize) -> Option<ClassContext> {
     })
 }
 
+/// Builds a combined string from a window of lines around the current line.
+/// The window is defined by `max_scan_lines` and the current line.
+///
+/// It is especially useful to support multiline class context detection.
+pub fn build_multiline_window(
+    rope: &Rope,
+    line_idx: usize,
+    col: usize,
+    max_scan_lines: usize,
+) -> (String, usize) {
+    let start_line = line_idx.saturating_sub(max_scan_lines);
+    let end_line = (line_idx + max_scan_lines).min(rope.len_lines().saturating_sub(1));
+
+    let mut combined = String::new();
+    let mut combined_col: usize = 0;
+    for i in start_line..=end_line {
+        if i == line_idx {
+            combined_col = combined.len() + col;
+        }
+        for chunk in rope.line(i).chunks() {
+            combined.push_str(chunk);
+        }
+    }
+
+    (combined, combined_col)
+}
+
 /// Detects the context of a class inside a multiline string.
 /// Handles cases where the class content is spread across multiple lines.
 ///
@@ -116,19 +143,7 @@ pub fn detect_multiline_class_context(
 
     // Go up to 15 lines above and below the current line to search for class context
     const MAX_SCAN_LINES: usize = 15;
-    let start_line = line_idx.saturating_sub(MAX_SCAN_LINES);
-    let end_line = (line_idx + MAX_SCAN_LINES).min(rope.len_lines().saturating_sub(1));
-
-    let mut combined = String::new();
-    let mut combined_col: usize = 0;
-    for i in start_line..=end_line {
-        if i == line_idx {
-            combined_col = combined.len() + col;
-        }
-        for chunk in rope.line(i).chunks() {
-            combined.push_str(chunk);
-        }
-    }
+    let (combined, combined_col) = build_multiline_window(rope, line_idx, col, MAX_SCAN_LINES);
 
     detect_class_context(&combined, combined_col)
 }
