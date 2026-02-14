@@ -7,11 +7,16 @@ use extractor::{
     SVELTE_CLASS_BINDING_REGEX, VUE_CLASS_BINDING_REGEX,
 };
 use regex::Regex;
+
 use ropey::Rope;
+
+/// The maximum number of lines to scan up to for detecting a class context.
+pub(crate) const MAX_SCAN_LINES: usize = 15;
 
 /// Represents information about the cursor's position within a class context.
 /// The "class context" is being used instead of "class name" because
 /// the class can take multiple forms, based on the framework being used.
+#[derive(Debug, PartialEq)]
 pub struct ClassContext {
     /// The partial class name typed so far.
     ///
@@ -67,7 +72,7 @@ pub fn find_class_span(line: &str, col: usize) -> Option<(usize, usize)> {
 pub fn detect_class_context(line: &str, col: usize) -> Option<ClassContext> {
     let (span_start, _span_end) = find_class_span(line, col)?;
 
-    let before_cursor = &line[span_start..col];
+    let before_cursor = &line.get(span_start..col)?;
 
     let is_delimiter = |c: char| c.is_whitespace() || c == '"' || c == '\'' || c == '(' || c == ',';
 
@@ -128,7 +133,7 @@ pub fn build_multiline_window(
 /// responsive prefix, or `None` if the cursor is not in a class context.
 ///
 /// # Limitations
-/// The limitation of this function is that it only scans up to 15 lines above
+/// The limitation of this function is that it only scans up to [MAX_SCAN_LINES] lines above
 /// and below the current line to find the class context.
 pub fn detect_multiline_class_context(
     rope: &Rope,
@@ -141,8 +146,7 @@ pub fn detect_multiline_class_context(
         return Some(ctx);
     }
 
-    // Go up to 15 lines above and below the current line to search for class context
-    const MAX_SCAN_LINES: usize = 15;
+    // Go up to MAX_SCAN_LINES lines above and below the current line to search for class context
     let (combined, combined_col) = build_multiline_window(rope, line_idx, col, MAX_SCAN_LINES);
 
     detect_class_context(&combined, combined_col)
@@ -166,30 +170,32 @@ pub fn extract_token_at_cursor(
     col: usize,
     span_end: usize,
 ) -> Option<String> {
-    let content = &line[span_start..span_end];
+    let content = &line.get(span_start..span_end)?;
     // column relative to the start of the class content span
-    let rel_col = col - span_start;
+    let rel_col = col.checked_sub(span_start)?;
 
     let is_boundary =
         |c: char| c.is_whitespace() || c == '"' || c == '\'' || c == '(' || c == ',' || c == ')';
 
     // Check if the cursor is on a boundary char - in this case, we don't want to extract anything
-    let cursor_char = content[rel_col..].chars().next();
+    let cursor_char = content.get(rel_col..)?.chars().next();
     if cursor_char.is_none_or(is_boundary) {
         return None;
     }
 
-    let start = content[..rel_col]
+    let start = content
+        .get(..rel_col)?
         .rfind(is_boundary)
         .map(|i| i + 1)
         .unwrap_or(0);
 
-    let end = content[rel_col..]
+    let end = content
+        .get(rel_col..)?
         .find(is_boundary)
         .map(|i| i + rel_col)
         .unwrap_or(content.len());
 
-    let token = content[start..end].trim();
+    let token = content.get(start..end)?.trim();
 
     if token.is_empty() {
         None

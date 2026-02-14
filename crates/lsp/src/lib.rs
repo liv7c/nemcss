@@ -233,7 +233,7 @@ impl LanguageServer for Backend {
             if context::find_class_span(&line_str, col).is_some() {
                 (line_str, col)
             } else {
-                context::build_multiline_window(&rope_ref, line_idx, col, 15)
+                context::build_multiline_window(&rope_ref, line_idx, col, context::MAX_SCAN_LINES)
             }
         };
 
@@ -249,8 +249,8 @@ impl LanguageServer for Backend {
 
         let cache_guard = self.cache.read().await;
         let cache = match cache_guard.as_ref() {
-            Some(cache) => cache,
-            None => return Ok(None),
+            Some(cache) if cache.is_content_file(uri) => cache,
+            _ => return Ok(None),
         };
 
         let css = cache
