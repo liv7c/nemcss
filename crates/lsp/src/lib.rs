@@ -19,6 +19,7 @@ use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer};
 
 use crate::cache::NemCache;
+use crate::position::lsp_col_to_byte;
 
 #[derive(Debug)]
 pub struct Backend {
@@ -144,45 +145,70 @@ impl LanguageServer for Backend {
     }
 
     async fn completion(&self, params: CompletionParams) -> Result<Option<CompletionResponse>> {
+        let position = &params.text_document_position.position;
         let uri = &params.text_document_position.text_document.uri;
-        let mut completion_items: Vec<CompletionItem> = vec![];
 
-        if let Some(cache) = self.cache.read().await.as_ref() {
-            if !cache.is_content_file(uri) {
-                return Ok(None);
+        let rope_ref = match self.documents.get(&uri.to_string()) {
+            Some(rope) => rope,
+            None => return Ok(None),
+        };
+
+        let encoding = self.position_encoding.read().await;
+        let line_idx = position.line as usize;
+        let col = lsp_col_to_byte(&rope_ref, position, &encoding);
+
+        let class_context = match context::detect_multiline_class_context(&rope_ref, line_idx, col)
+        {
+            Some(context) => context,
+            None => return Ok(None),
+        };
+
+        let cache_guard = self.cache.read().await;
+        let cache = match cache_guard.as_ref() {
+            Some(cache) if cache.is_content_file(uri) => cache,
+            _ => return Ok(None),
+        };
+
+        let partial = &class_context.partial_token;
+        let mut completion_items: Vec<CompletionItem> = Vec::new();
+
+        if class_context.responsive_prefix.is_some() {
+            for responsive_utility in &cache.responsive_utilities {
+                if partial.is_empty() || responsive_utility.responsive_class_name.contains(partial)
+                {
+                    let documentation_markdown =
+                        format!("```css\n{}\n```", responsive_utility.full_css_definition);
+
+                    completion_items.push(CompletionItem {
+                        label: responsive_utility.responsive_class_name.to_string(),
+                        kind: Some(CompletionItemKind::VALUE),
+                        documentation: Some(tower_lsp::lsp_types::Documentation::MarkupContent(
+                            MarkupContent {
+                                kind: MarkupKind::Markdown,
+                                value: documentation_markdown,
+                            },
+                        )),
+                        ..Default::default()
+                    })
+                }
             }
+        } else {
+            for utility in &cache.utilities {
+                if partial.is_empty() || utility.class_name().starts_with(partial) {
+                    let documentation_markdown = format!("```css\n{}\n```", utility.full_class());
 
-            for utility in cache.utilities.iter() {
-                let documentation_markdown = format!("```css\n{}\n```", utility.full_class());
-
-                completion_items.push(CompletionItem {
-                    label: utility.class_name().to_string(),
-                    kind: Some(CompletionItemKind::VALUE),
-                    documentation: Some(tower_lsp::lsp_types::Documentation::MarkupContent(
-                        MarkupContent {
-                            kind: MarkupKind::Markdown,
-                            value: documentation_markdown,
-                        },
-                    )),
-                    ..Default::default()
-                });
-            }
-
-            for responsive_utility in cache.responsive_utilities.iter() {
-                let documentation_markdown =
-                    format!("```css\n{}\n```", responsive_utility.full_css_definition);
-
-                completion_items.push(CompletionItem {
-                    label: responsive_utility.responsive_class_name.to_string(),
-                    kind: Some(CompletionItemKind::VALUE),
-                    documentation: Some(tower_lsp::lsp_types::Documentation::MarkupContent(
-                        MarkupContent {
-                            kind: MarkupKind::Markdown,
-                            value: documentation_markdown,
-                        },
-                    )),
-                    ..Default::default()
-                })
+                    completion_items.push(CompletionItem {
+                        label: utility.class_name().to_string(),
+                        kind: Some(CompletionItemKind::VALUE),
+                        documentation: Some(tower_lsp::lsp_types::Documentation::MarkupContent(
+                            MarkupContent {
+                                kind: MarkupKind::Markdown,
+                                value: documentation_markdown,
+                            },
+                        )),
+                        ..Default::default()
+                    });
+                }
             }
         }
 
