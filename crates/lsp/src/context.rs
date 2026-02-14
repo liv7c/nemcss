@@ -133,6 +133,56 @@ pub fn detect_multiline_class_context(
     detect_class_context(&combined, combined_col)
 }
 
+/// Extracts the token at the cursor position.
+///
+/// It scans in **both** directions to extract the full token.
+///
+/// # Arguments
+/// * `line` - The full line content.
+/// * `span_start` - The start index of the class content span
+/// * `col` - The cursor byte offset
+/// * `span_end` - The end index of the class content span
+///
+/// # Returns
+/// Returns `Some(String)` with the extracted token, or `None` if the cursor is not inside a token.
+pub fn extract_token_at_cursor(
+    line: &str,
+    span_start: usize,
+    col: usize,
+    span_end: usize,
+) -> Option<String> {
+    let content = &line[span_start..span_end];
+    // column relative to the start of the class content span
+    let rel_col = col - span_start;
+
+    let is_boundary =
+        |c: char| c.is_whitespace() || c == '"' || c == '\'' || c == '(' || c == ',' || c == ')';
+
+    // Check if the cursor is on a boundary char - in this case, we don't want to extract anything
+    let cursor_char = content[rel_col..].chars().next();
+    if cursor_char.is_none_or(is_boundary) {
+        return None;
+    }
+
+    let start = content[..rel_col]
+        .rfind(is_boundary)
+        .map(|i| i + 1)
+        .unwrap_or(0);
+
+    let end = content[rel_col..]
+        .find(is_boundary)
+        .map(|i| i + rel_col)
+        .unwrap_or(content.len());
+
+    let token = content[start..end].trim();
+
+    if token.is_empty() {
+        None
+    } else {
+        Some(token.to_string())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -382,6 +432,43 @@ mod tests {
             "#;
 
             let result = detect_multiline_class_context(&Rope::from(raw_content), 24, 24);
+            assert!(result.is_none());
+        }
+    }
+
+    mod extract_token_at_cursor {
+        use super::*;
+
+        #[test]
+        fn test_extract_full_token_when_cursor_at_start_of_token() {
+            let class_content = "bg-primary text-white";
+            let result = extract_token_at_cursor(class_content, 0, 0, class_content.len());
+            assert_eq!(result, Some("bg-primary".to_string()));
+        }
+
+        #[test]
+        fn test_extract_full_token_when_cursor_at_end_of_token() {
+            let class_content = "bg-primary text-white";
+            let result = extract_token_at_cursor(class_content, 0, 9, class_content.len());
+            assert_eq!(result, Some("bg-primary".to_string()));
+        }
+
+        #[test]
+        fn test_extract_token_at_cursor_inside_class() {
+            let class_content = r#"class="bg-secondary text-white""#;
+
+            let result = extract_token_at_cursor(class_content, 7, 9, 31);
+            assert_eq!(result, Some("bg-secondary".to_string()));
+
+            let result = extract_token_at_cursor(class_content, 7, 29, 31);
+            assert_eq!(result, Some("text-white".to_string()));
+        }
+
+        #[test]
+        fn test_extract_token_at_cursor_outside_class() {
+            let class_content = r#"class="bg-secondary text-white""#;
+
+            let result = extract_token_at_cursor(class_content, 7, 19, 31);
             assert!(result.is_none());
         }
     }
