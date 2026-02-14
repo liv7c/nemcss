@@ -7,6 +7,7 @@ use extractor::{
     SVELTE_CLASS_BINDING_REGEX, VUE_CLASS_BINDING_REGEX,
 };
 use regex::Regex;
+use ropey::Rope;
 
 /// Represents information about the cursor's position within a class context.
 /// The "class context" is being used instead of "class name" because
@@ -89,6 +90,47 @@ pub fn detect_class_context(line: &str, col: usize) -> Option<ClassContext> {
         partial_token: final_token,
         responsive_prefix,
     })
+}
+
+/// Detects the context of a class inside a multiline string.
+/// Handles cases where the class content is spread across multiple lines.
+///
+///
+/// # Returns
+/// Returns `Some(ClassContext)` with the partial token and optional
+/// responsive prefix, or `None` if the cursor is not in a class context.
+///
+/// # Limitations
+/// The limitation of this function is that it only scans up to 15 lines above
+/// and below the current line to find the class context.
+pub fn detect_multiline_class_context(
+    rope: &Rope,
+    line_idx: usize,
+    col: usize,
+) -> Option<ClassContext> {
+    let current_line = rope.line(line_idx).to_string();
+
+    if let Some(ctx) = detect_class_context(&current_line, col) {
+        return Some(ctx);
+    }
+
+    // Go up to 15 lines above and below the current line to search for class context
+    const MAX_SCAN_LINES: usize = 15;
+    let start_line = line_idx.saturating_sub(MAX_SCAN_LINES);
+    let end_line = (line_idx + MAX_SCAN_LINES).min(rope.len_lines().saturating_sub(1));
+
+    let mut combined = String::new();
+    let mut combined_col: usize = 0;
+    for i in start_line..=end_line {
+        if i == line_idx {
+            combined_col = combined.len() + col;
+        }
+        for chunk in rope.line(i).chunks() {
+            combined.push_str(chunk);
+        }
+    }
+
+    detect_class_context(&combined, combined_col)
 }
 
 #[cfg(test)]
@@ -254,6 +296,93 @@ mod tests {
         fn test_plain_javascript() {
             let (line, col) = parse_cursor(r#"let x = 42;|"#);
             assert!(find_class_span(&line, col).is_none());
+        }
+    }
+
+    mod detect_multiline_class_context {
+        use super::*;
+
+        #[test]
+        fn test_works_with_multiline_class_with_clsx() {
+            let raw_content = r#"
+                <div className={clsx(
+                    "text-primary",
+                    "bg-|"
+                )}>
+                    Foo bar
+                </div>
+            "#;
+
+            let result = detect_multiline_class_context(&Rope::from(raw_content), 3, 24)
+                .expect("expect to detect class context");
+            assert_eq!(result.partial_token, "bg-");
+            assert!(result.responsive_prefix.is_none());
+        }
+
+        #[test]
+        fn test_works_with_multiline_responsive_class_with_cn() {
+            let raw_content = r#"
+                <div className={cn(
+                    "text-primary",
+                    "sm:bg-|"
+                )}>
+                    Foo bar
+                </div>
+            "#;
+
+            let result = detect_multiline_class_context(&Rope::from(raw_content), 3, 27)
+                .expect("expect to detect class context");
+            assert_eq!(result.partial_token, "bg-");
+            assert_eq!(result.responsive_prefix, Some("sm".to_string()));
+        }
+
+        #[test]
+        fn test_returns_early_if_class_content_on_same_line() {
+            let raw_content = r#"
+                <div className={clsx('bg-|')}>
+                    Foo bar
+                </div>
+            "#;
+
+            let result = detect_multiline_class_context(&Rope::from(raw_content), 1, 41)
+                .expect("expect to detect class context");
+            assert_eq!(result.partial_token, "bg-");
+            assert!(result.responsive_prefix.is_none());
+        }
+
+        #[test]
+        fn test_returns_none_if_class_content_beyond_max_lines() {
+            let raw_content = r#"
+                <div className={clsx(
+                    "text-primary",
+                    "text-primary",
+                    "text-primary",
+                    "text-primary",
+                    "text-primary",
+                    "text-primary",
+                    "text-primary",
+                    "text-primary",
+                    "text-primary",
+                    "text-primary",
+                    "text-primary",
+                    "text-primary",
+                    "text-primary",
+                    "text-primary",
+                    "text-primary",
+                    "text-primary",
+                    "text-primary",
+                    "text-primary",
+                    "text-primary",
+                    "text-primary",
+                    "text-primary",
+                    "bg-|"
+                )}>
+                    Foo bar
+                </div>
+            "#;
+
+            let result = detect_multiline_class_context(&Rope::from(raw_content), 24, 24);
+            assert!(result.is_none());
         }
     }
 }
