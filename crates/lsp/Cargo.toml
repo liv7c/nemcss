@@ -15,7 +15,6 @@ tower-lsp = "0.20.0"
 config = { path = "../config" }
 engine = { path = "../engine" }
 extractor = { path = "../extractor" }
-cli = { path = "../cli" }
 dashmap = "6.1.0"
 miette = { workspace = true }
 thiserror = { workspace = true }

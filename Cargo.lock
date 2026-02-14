@@ -847,7 +847,6 @@ name = "lsp"
 version = "0.1.0"
 dependencies = [
  "assert_fs",
- "cli",
  "config",
  "dashmap 6.1.0",
  "engine",
