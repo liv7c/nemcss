@@ -32,6 +32,19 @@ pub struct ClassContext {
     pub responsive_prefix: Option<String>,
 }
 
+/// Context when the cursor is inside of a `var(--...)` expression
+/// It is going to capture whatever is inside the `var(...)` expression.
+#[derive(Debug, PartialEq)]
+pub struct VarContext {
+    /// The partial custom property typed so far
+    ///
+    /// # Examples
+    /// - 'var(--|)' -> partial = "--"
+    /// - 'var(--color-|)' -> partial = "--color-"
+    /// - 'var(--bg-primary|)' -> partial = "--bg-primary"
+    pub partial_property: String,
+}
+
 /// Check whether the `col` (a byte offset) falls inside the value span of
 /// a class-related regex match on `line`.
 /// The column `col` is the character number. You can think of it as the cursor position.
@@ -150,6 +163,32 @@ pub fn detect_multiline_class_context(
     let (combined, combined_col) = build_multiline_window(rope, line_idx, col, MAX_SCAN_LINES);
 
     detect_class_context(&combined, combined_col)
+}
+
+/// Detects whether the cursor is inside a `var(--...)` expression.
+///
+/// Scans backwards to find the start of the `var(...)` expression.
+///
+/// # Returns
+/// It returns `Some(VarContext)` with the partial property name typed so far, or `None` if the cursor is not inside a `var(...)` expression.
+pub fn detect_var_context(line: &str, col: usize) -> Option<VarContext> {
+    let before_cursor = &line.get(..col)?;
+
+    const VAR_OPEN: &str = "var(";
+
+    let var_open = before_cursor.rfind(VAR_OPEN)?;
+    let content_start = var_open + VAR_OPEN.len();
+
+    let partial_property = &before_cursor.get(content_start..)?;
+
+    // If the cursor is past the closing parenthesis, we assume it's not inside a var expression
+    if partial_property.contains(')') {
+        return None;
+    }
+
+    Some(VarContext {
+        partial_property: partial_property.to_string(),
+    })
 }
 
 /// Extracts the token at the cursor position.
@@ -491,6 +530,77 @@ mod tests {
 
             let result = extract_token_at_cursor(class_content, 7, 19, 31);
             assert!(result.is_none());
+        }
+    }
+
+    mod detect_var_context {
+        use super::*;
+
+        #[test]
+        fn test_cursor_after_var_paren() {
+            let (line, col) = parse_cursor(r#"var(|");"#);
+            let ctx = detect_var_context(&line, col).expect("should detect context");
+            assert_eq!(ctx.partial_property, "");
+        }
+
+        #[test]
+        fn test_cursor_after_double_dashes() {
+            let (line, col) = parse_cursor(r#"var(--|");"#);
+            let ctx = detect_var_context(&line, col).expect("should detect context");
+            assert_eq!(ctx.partial_property, "--");
+        }
+
+        #[test]
+        fn test_cursor_mid_property_name() {
+            let (line, col) = parse_cursor(r#"var(--bg-|);"#);
+            let ctx = detect_var_context(&line, col).expect("should detect context");
+            assert_eq!(ctx.partial_property, "--bg-");
+        }
+
+        #[test]
+        fn test_cursor_after_property_name() {
+            let (line, col) = parse_cursor(r#"var(--bg-primary|);"#);
+            let ctx = detect_var_context(&line, col).expect("should detect context");
+            assert_eq!(ctx.partial_property, "--bg-primary");
+        }
+
+        #[test]
+        fn test_var_in_jsx_inline_style() {
+            let (line, col) = parse_cursor(r#"<div style={{color: "var(--|)"}}/>"#);
+            let ctx = detect_var_context(&line, col).expect("should detect context");
+            assert_eq!(ctx.partial_property, "--");
+        }
+
+        #[test]
+        fn test_var_in_template_literal() {
+            let (line, col) = parse_cursor("const css = `color: var(--spacing-|);");
+            let ctx = detect_var_context(&line, col).expect("should detect context");
+            assert_eq!(ctx.partial_property, "--spacing-");
+        }
+
+        #[test]
+        fn test_not_inside_var() {
+            let (line, col) = parse_cursor(r#"const name = "hello|";"#);
+            assert!(detect_var_context(&line, col).is_none());
+        }
+
+        #[test]
+        fn test_cursor_outside_var() {
+            let (line, col) = parse_cursor("color: var(--bg-primary)|;");
+            assert!(detect_var_context(&line, col).is_none());
+        }
+
+        #[test]
+        fn test_cursor_past_closing_paren() {
+            let (line, col) = parse_cursor(r#"var(--bg-primary)|;"#);
+            assert!(detect_var_context(&line, col).is_none());
+        }
+
+        #[test]
+        fn test_var_with_fallback_cursor_before_comma() {
+            let (line, col) = parse_cursor(r#"var(--bg-primary|, black);"#);
+            let ctx = detect_var_context(&line, col).expect("should detect context");
+            assert_eq!(ctx.partial_property, "--bg-primary");
         }
     }
 }
