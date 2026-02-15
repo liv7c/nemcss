@@ -145,6 +145,40 @@ impl NemCache {
             })
             .collect()
     }
+
+    /// Returns completions for utility classes matching the given partial name
+    pub fn class_completions(&self, partial_name: &str) -> Vec<CompletionItem> {
+        self.utilities
+            .iter()
+            .filter(|u| u.class_name().starts_with(partial_name))
+            .map(|u| CompletionItem {
+                label: u.class_name().to_string(),
+                kind: Some(CompletionItemKind::VALUE),
+                documentation: Some(Documentation::MarkupContent(MarkupContent {
+                    kind: MarkupKind::Markdown,
+                    value: format!("```css\n{}\n```", u.full_class()),
+                })),
+                ..Default::default()
+            })
+            .collect()
+    }
+
+    /// Returns completions for responsive utility classes matching the given partial name
+    pub fn responsive_class_completions(&self, partial_name: &str) -> Vec<CompletionItem> {
+        self.responsive_utilities
+            .iter()
+            .filter(|u| partial_name.is_empty() || u.responsive_class_name.contains(partial_name))
+            .map(|u| CompletionItem {
+                label: u.responsive_class_name.to_string(),
+                kind: Some(CompletionItemKind::VALUE),
+                documentation: Some(Documentation::MarkupContent(MarkupContent {
+                    kind: MarkupKind::Markdown,
+                    value: format!("```css\n{}\n```", u.full_css_definition),
+                })),
+                ..Default::default()
+            })
+            .collect()
+    }
 }
 
 #[cfg(test)]
@@ -355,6 +389,68 @@ mod tests {
 
             assert_eq!(completions[0].label, "--color-primary");
             assert_eq!(completions[1].label, "--color-secondary");
+        }
+
+        #[test]
+        fn test_class_completions_returns_all_when_partial_name_is_empty() {
+            let temp_dir = create_test_project().expect("failed to create test project");
+            let cache = NemCache::build(temp_dir.path()).expect("failed to build cache");
+
+            let completions = cache.class_completions("");
+            assert_eq!(completions.len(), cache.utilities.len());
+        }
+
+        #[test]
+        fn test_class_completions_returns_matching_classes() {
+            let temp_dir = create_test_project().expect("failed to create test project");
+            let cache = NemCache::build(temp_dir.path()).expect("failed to build cache");
+
+            let completions = cache.class_completions("bg-");
+            assert!(!completions.is_empty());
+            assert!(completions.iter().all(|c| c.label.starts_with("bg-")));
+        }
+
+        #[test]
+        fn test_responsive_class_completions_returns_all_when_partial_name_is_empty() {
+            let temp_dir = create_test_project().expect("failed to create test project");
+            temp_dir
+                .child("design-tokens/viewports.json")
+                .write_str(
+                    r##"{
+                  "title": "viewports",
+                  "items": [
+                      {"name": "sm", "value": "640px"},
+                      {"name": "md", "value": "768px"}
+                  ]
+              }"##,
+                )
+                .expect("failed to write viewports.json");
+            let cache = NemCache::build(temp_dir.path()).expect("failed to build cache");
+
+            let completions = cache.responsive_class_completions("");
+            assert_eq!(completions.len(), cache.responsive_utilities.len());
+        }
+
+        #[test]
+        fn test_responsive_class_completions_returns_matching_classes() {
+            let temp_dir = create_test_project().expect("failed to create test project");
+            temp_dir
+                .child("design-tokens/viewports.json")
+                .write_str(
+                    r##"{
+                  "title": "viewports",
+                  "items": [
+                      {"name": "sm", "value": "640px"},
+                      {"name": "md", "value": "768px"}
+                  ]
+              }"##,
+                )
+                .expect("failed to write viewports.json");
+            let cache = NemCache::build(temp_dir.path()).expect("failed to build cache");
+
+            let completions = cache.responsive_class_completions("sm:");
+            assert!(!completions.is_empty());
+            assert!(completions.iter().all(|c| c.label.starts_with("sm:")));
         }
     }
 }

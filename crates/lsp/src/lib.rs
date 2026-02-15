@@ -190,43 +190,9 @@ impl LanguageServer for Backend {
         let mut completion_items: Vec<CompletionItem> = Vec::new();
 
         if class_context.responsive_prefix.is_some() {
-            for responsive_utility in &cache.responsive_utilities {
-                if partial.is_empty() || responsive_utility.responsive_class_name.contains(partial)
-                {
-                    let documentation_markdown =
-                        format!("```css\n{}\n```", responsive_utility.full_css_definition);
-
-                    completion_items.push(CompletionItem {
-                        label: responsive_utility.responsive_class_name.to_string(),
-                        kind: Some(CompletionItemKind::VALUE),
-                        documentation: Some(tower_lsp::lsp_types::Documentation::MarkupContent(
-                            MarkupContent {
-                                kind: MarkupKind::Markdown,
-                                value: documentation_markdown,
-                            },
-                        )),
-                        ..Default::default()
-                    })
-                }
-            }
+            completion_items.extend(cache.responsive_class_completions(partial));
         } else {
-            for utility in &cache.utilities {
-                if partial.is_empty() || utility.class_name().starts_with(partial) {
-                    let documentation_markdown = format!("```css\n{}\n```", utility.full_class());
-
-                    completion_items.push(CompletionItem {
-                        label: utility.class_name().to_string(),
-                        kind: Some(CompletionItemKind::VALUE),
-                        documentation: Some(tower_lsp::lsp_types::Documentation::MarkupContent(
-                            MarkupContent {
-                                kind: MarkupKind::Markdown,
-                                value: documentation_markdown,
-                            },
-                        )),
-                        ..Default::default()
-                    });
-                }
-            }
+            completion_items.extend(cache.class_completions(partial));
         }
 
         Ok(Some(CompletionResponse::Array(completion_items)))
