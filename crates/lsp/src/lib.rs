@@ -220,17 +220,7 @@ impl LanguageServer for Backend {
                 _ => return Ok(None),
             };
 
-            let prop = cache
-                .custom_properties
-                .iter()
-                .find(|prop| prop.name == prop_name);
-            return Ok(prop.map(|prop| Hover {
-                contents: HoverContents::Markup(MarkupContent {
-                    kind: MarkupKind::Markdown,
-                    value: format!("```css\n{}: {};\n```", prop.name, prop.value),
-                }),
-                range: None,
-            }));
+            return Ok(cache.hover_for_custom_property(&prop_name));
         }
 
         let (content, col, span) = match context::find_class_span(&line_str, col) {
@@ -262,26 +252,7 @@ impl LanguageServer for Backend {
             _ => return Ok(None),
         };
 
-        let css = cache
-            .utilities
-            .iter()
-            .find(|u| u.class_name() == token)
-            .map(|u| u.full_class().to_string())
-            .or_else(|| {
-                cache
-                    .responsive_utilities
-                    .iter()
-                    .find(|u| u.responsive_class_name == token)
-                    .map(|u| u.full_css_definition.to_string())
-            });
-
-        Ok(css.map(|definition| Hover {
-            contents: HoverContents::Markup(MarkupContent {
-                kind: MarkupKind::Markdown,
-                value: format!("```css\n{}\n```", definition),
-            }),
-            range: None,
-        }))
+        Ok(cache.hover_for_class(&token))
     }
 
     async fn did_change_watched_files(&self, _: DidChangeWatchedFilesParams) {

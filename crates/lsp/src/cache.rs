@@ -6,7 +6,8 @@ use globset::GlobSet;
 use miette::Diagnostic;
 use thiserror::Error;
 use tower_lsp::lsp_types::{
-    CompletionItem, CompletionItemKind, Documentation, MarkupContent, MarkupKind, Url,
+    CompletionItem, CompletionItemKind, Documentation, Hover, HoverContents, MarkupContent,
+    MarkupKind, Url,
 };
 
 /// Cache for the LSP server.
@@ -178,6 +179,46 @@ impl NemCache {
                 ..Default::default()
             })
             .collect()
+    }
+
+    /// Returns a hover response for the custom property with the given name
+    pub fn hover_for_custom_property(&self, prop_name: &str) -> Option<Hover> {
+        let prop = self
+            .custom_properties
+            .iter()
+            .find(|p| p.name == prop_name)?;
+
+        Some(Hover {
+            contents: HoverContents::Markup(MarkupContent {
+                kind: MarkupKind::Markdown,
+                value: format!("```css\n{}: {};\n```", prop.name, prop.value),
+            }),
+            range: None,
+        })
+    }
+
+    /// Returns a hover response for the utility class or responsive utility class matching the
+    /// given token
+    pub fn hover_for_class(&self, token: &str) -> Option<Hover> {
+        let css = self
+            .utilities
+            .iter()
+            .find(|u| u.class_name() == token)
+            .map(|u| u.full_class().to_string())
+            .or_else(|| {
+                self.responsive_utilities
+                    .iter()
+                    .find(|u| u.responsive_class_name == token)
+                    .map(|u| u.full_css_definition.to_string())
+            })?;
+
+        Some(Hover {
+            contents: HoverContents::Markup(MarkupContent {
+                kind: MarkupKind::Markdown,
+                value: format!("```css\n{}\n```", css),
+            }),
+            range: None,
+        })
     }
 }
 
@@ -451,6 +492,93 @@ mod tests {
             let completions = cache.responsive_class_completions("sm:");
             assert!(!completions.is_empty());
             assert!(completions.iter().all(|c| c.label.starts_with("sm:")));
+        }
+    }
+
+    mod hover {
+        use super::*;
+
+        #[test]
+        fn test_hover_for_custom_property_returns_none_when_property_not_found() {
+            let temp_dir = create_test_project().expect("failed to create test project");
+            let cache = NemCache::build(temp_dir.path()).expect("failed to build cache");
+
+            let hover = cache.hover_for_custom_property("foo");
+            assert!(hover.is_none());
+        }
+
+        #[test]
+        fn test_hover_for_custom_property_returns_hover() {
+            let temp_dir = create_test_project().expect("failed to create test project");
+            let cache = NemCache::build(temp_dir.path()).expect("failed to build cache");
+
+            let hover = cache.hover_for_custom_property("--color-primary");
+            assert!(hover.is_some());
+            match hover.unwrap().contents {
+                HoverContents::Markup(MarkupContent { kind, value }) => {
+                    assert_eq!(kind, MarkupKind::Markdown);
+                    assert!(value.starts_with("```css\n--color-primary"));
+                }
+                _ => panic!("invalid hover contents"),
+            }
+        }
+
+        #[test]
+        fn test_hover_for_class_returns_none_when_class_not_found() {
+            let temp_dir = create_test_project().expect("failed to create test project");
+            let cache = NemCache::build(temp_dir.path()).expect("failed to build cache");
+
+            let hover = cache.hover_for_class("foo");
+            assert!(hover.is_none());
+        }
+
+        #[test]
+        fn test_hover_for_class_returns_hover() {
+            let temp_dir = create_test_project().expect("failed to create test project");
+            let cache = NemCache::build(temp_dir.path()).expect("failed to build cache");
+
+            let hover = cache.hover_for_class("bg-primary");
+            assert!(hover.is_some());
+            match hover.unwrap().contents {
+                HoverContents::Markup(MarkupContent { kind, value }) => {
+                    assert_eq!(kind, MarkupKind::Markdown);
+                    assert!(
+                        value.starts_with("```css\n.bg-primary"),
+                        "got {} instead",
+                        value
+                    );
+                }
+                _ => panic!("invalid hover contents"),
+            }
+        }
+
+        #[test]
+        fn test_hover_for_class_returns_hover_for_responsive_class() {
+            let temp_dir = create_test_project().expect("failed to create test project");
+            temp_dir
+                .child("design-tokens/viewports.json")
+                .write_str(
+                    r##"{
+                  "title": "viewports",
+                  "items": [
+                      {"name": "sm", "value": "640px"},
+                      {"name": "md", "value": "768px"}
+                  ]
+              }"##,
+                )
+                .expect("failed to write viewports.json");
+            let cache = NemCache::build(temp_dir.path()).expect("failed to build cache");
+
+            let hover = cache.hover_for_class("sm:bg-primary");
+            assert!(hover.is_some());
+            match hover.unwrap().contents {
+                HoverContents::Markup(MarkupContent { kind, value }) => {
+                    assert_eq!(kind, MarkupKind::Markdown);
+                    let expected_content = "@media (min-width: 640px) {\n  .sm\\:bg-primary";
+                    assert!(value.contains(expected_content), "got {} instead", value);
+                }
+                _ => panic!("invalid hover contents"),
+            }
         }
     }
 }
