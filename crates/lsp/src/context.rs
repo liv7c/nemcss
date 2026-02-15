@@ -244,6 +244,13 @@ pub fn extract_token_at_cursor(
     }
 }
 
+/// Extracts the full custom property name under the cursor inside a `var(...)` expression.
+///
+/// Unlike [`detect_var_context`], which returns the partial property name typed so far,
+/// this function returns the full property name.
+///
+/// # Returns
+/// Returns `Some(String)` with the extracted property name, or `None` if the cursor is not inside a `var(...)` expression.
 pub fn extract_var_property(line: &str, col: usize) -> Option<String> {
     // If the cursor is not inside a `var(...)` expression, we don't want to extract anything
     detect_var_context(line, col)?;

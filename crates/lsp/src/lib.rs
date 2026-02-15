@@ -182,7 +182,6 @@ impl LanguageServer for Backend {
                         kind: MarkupKind::Markdown,
                         value: format!("```css\n{}: {};\n```", prop.name, prop.value),
                     })),
-                    insert_text: Some(prop.name.to_string()),
                     ..Default::default()
                 })
                 .collect();
@@ -351,9 +350,9 @@ impl LanguageServer for Backend {
 /// RebuildCacheError represents the error type when rebuilding the cache.
 #[derive(Debug, Error, Diagnostic)]
 enum RebuildCacheError {
-    #[error("failed to get workspace root: {0}")]
+    #[error("workspace root is not set and current directory is unavailable")]
     #[diagnostic(code(lsp_error::workspace_root_error))]
-    WorkspaceRoot(std::io::Error),
+    WorkspaceRoot,
 
     #[error(transparent)]
     #[diagnostic(code(lsp_error::cache_build_error))]
@@ -385,7 +384,7 @@ enum SetupFileWatchersError {
 }
 
 impl Backend {
-    /// Buids a new `Backend` instance.
+    /// Builds a new `Backend` instance.
     /// For the position encoding, we follow
     /// https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocuments
     /// To stay backwards compatible the only mandatory encoding is UTF-16 represented via the string utf-16.
@@ -408,12 +407,7 @@ impl Backend {
             .as_ref()
             .cloned()
             .or_else(|| std::env::current_dir().ok())
-            .ok_or_else(|| {
-                RebuildCacheError::WorkspaceRoot(std::io::Error::new(
-                    std::io::ErrorKind::NotFound,
-                    "workspace root not found",
-                ))
-            })?;
+            .ok_or(RebuildCacheError::WorkspaceRoot)?;
         let cache = NemCache::build(&workspace_root)?;
 
         self.cache.write().await.replace(cache);
