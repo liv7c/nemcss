@@ -151,7 +151,7 @@ impl LanguageServer for Backend {
         let uri = &params.text_document_position.text_document.uri;
 
         let ResolvedCursorPosition {
-            rope: rope_ref,
+            rope,
             col,
             line_idx,
         } = match self.resolve_cursor_position(uri, position).await {
@@ -160,7 +160,7 @@ impl LanguageServer for Backend {
         };
 
         // Check for var(--...) context
-        let current_line = rope_ref.line(line_idx).to_string();
+        let current_line = rope.line(line_idx).to_string();
         if let Some(var_ctx) = context::detect_var_context(&current_line, col) {
             let cache_guard = self.cache.read().await;
             let cache = match cache_guard.as_ref() {
@@ -174,8 +174,7 @@ impl LanguageServer for Backend {
             return Ok(Some(CompletionResponse::Array(items)));
         }
 
-        let class_context = match context::detect_multiline_class_context(&rope_ref, line_idx, col)
-        {
+        let class_context = match context::detect_multiline_class_context(&rope, line_idx, col) {
             Some(context) => context,
             None => return Ok(None),
         };
@@ -187,13 +186,12 @@ impl LanguageServer for Backend {
         };
 
         let partial = &class_context.partial_token;
-        let mut completion_items: Vec<CompletionItem> = Vec::new();
 
-        if class_context.responsive_prefix.is_some() {
-            completion_items.extend(cache.responsive_class_completions(partial));
+        let completion_items = if class_context.responsive_prefix.is_some() {
+            cache.responsive_class_completions(partial)
         } else {
-            completion_items.extend(cache.class_completions(partial));
-        }
+            cache.class_completions(partial)
+        };
 
         Ok(Some(CompletionResponse::Array(completion_items)))
     }
@@ -203,7 +201,7 @@ impl LanguageServer for Backend {
         let position = &params.text_document_position_params.position;
 
         let ResolvedCursorPosition {
-            rope: rope_ref,
+            rope,
             col,
             line_idx,
         } = match self.resolve_cursor_position(uri, position).await {
@@ -211,7 +209,7 @@ impl LanguageServer for Backend {
             None => return Ok(None),
         };
 
-        let line_str = rope_ref.line(line_idx).to_string();
+        let line_str = rope.line(line_idx).to_string();
 
         if let Some(prop_name) = context::extract_var_property(&line_str, col) {
             let cache_guard = self.cache.read().await;
@@ -226,12 +224,8 @@ impl LanguageServer for Backend {
         let (content, col, span) = match context::find_class_span(&line_str, col) {
             Some(span) => (line_str, col, span),
             None => {
-                let (combined, combined_col) = context::build_multiline_window(
-                    &rope_ref,
-                    line_idx,
-                    col,
-                    context::MAX_SCAN_LINES,
-                );
+                let (combined, combined_col) =
+                    context::build_multiline_window(&rope, line_idx, col, context::MAX_SCAN_LINES);
                 match context::find_class_span(&combined, combined_col) {
                     Some(span) => (combined, combined_col, span),
                     None => return Ok(None),
@@ -315,7 +309,7 @@ struct ResolvedCursorPosition {
     rope: Rope,
     /// The byte offset of the cursor
     col: usize,
-    // The line index of the cursor
+    /// The line index of the cursor
     line_idx: usize,
 }
 
@@ -342,14 +336,14 @@ impl Backend {
         uri: &Url,
         position: &Position,
     ) -> Option<ResolvedCursorPosition> {
-        let rope_ref = self.documents.get(&uri.to_string())?.value().clone();
+        let rope = self.documents.get(&uri.to_string())?.value().clone();
 
         let encoding = self.position_encoding.read().await;
         let line_idx = position.line as usize;
-        let col = lsp_col_to_byte(&rope_ref, position, &encoding);
+        let col = lsp_col_to_byte(&rope, position, &encoding);
 
         Some(ResolvedCursorPosition {
-            rope: rope_ref.clone(),
+            rope,
             col,
             line_idx,
         })
