@@ -108,14 +108,22 @@ impl LanguageServer for Backend {
                 .await;
         }
 
-        if let Err(e) = self.setup_file_watchers().await {
-            self.client
-                .log_message(
-                    MessageType::WARNING,
-                    format!("failed to setup file watchers: {}", e),
-                )
-                .await;
-        }
+        // Spawn file watcher setup in the background so the `initialized` handler
+        // returns immediately. `register_capability` sends a server→client request
+        // and awaits a response, which would deadlock in test environments where
+        // nobody drives the `ClientSocket`.
+        let client = self.client.clone();
+        let workspace_root = self.workspace_root.read().await.clone();
+        tokio::spawn(async move {
+            if let Err(e) = Backend::do_setup_file_watchers(client.clone(), workspace_root).await {
+                client
+                    .log_message(
+                        MessageType::WARNING,
+                        format!("failed to setup file watchers: {}", e),
+                    )
+                    .await;
+            }
+        });
 
         self.client
             .log_message(MessageType::INFO, "nemcss server initialized with cache")
@@ -364,13 +372,11 @@ impl Backend {
         Ok(())
     }
 
-    async fn setup_file_watchers(&self) -> miette::Result<(), SetupFileWatchersError> {
-        let workspace_root = self
-            .workspace_root
-            .read()
-            .await
-            .as_ref()
-            .cloned()
+    async fn do_setup_file_watchers(
+        client: Client,
+        workspace_root: Option<PathBuf>,
+    ) -> miette::Result<(), SetupFileWatchersError> {
+        let workspace_root = workspace_root
             .or_else(|| std::env::current_dir().ok())
             .ok_or(SetupFileWatchersError::MissingWorkspaceRoot)?;
 
@@ -400,7 +406,7 @@ impl Backend {
             serde_json::to_value(DidChangeWatchedFilesRegistrationOptions { watchers })
                 .map_err(SetupFileWatchersError::SerializeRegistrationOptions)?;
 
-        self.client
+        client
             .register_capability(vec![Registration {
                 id: "nemcss-config-tokens-file-watchers".to_string(),
                 method: "workspace/didChangeWatchedFiles".to_string(),
