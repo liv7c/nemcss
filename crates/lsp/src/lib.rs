@@ -150,14 +150,14 @@ impl LanguageServer for Backend {
         let position = &params.text_document_position.position;
         let uri = &params.text_document_position.text_document.uri;
 
-        let rope_ref = match self.documents.get(&uri.to_string()) {
-            Some(rope) => rope,
+        let ResolvedCursorPosition {
+            rope: rope_ref,
+            col,
+            line_idx,
+        } = match self.resolve_cursor_position(uri, position).await {
+            Some(resolved_cursor_position) => resolved_cursor_position,
             None => return Ok(None),
         };
-
-        let encoding = self.position_encoding.read().await;
-        let line_idx = position.line as usize;
-        let col = lsp_col_to_byte(&rope_ref, position, &encoding);
 
         // Check for var(--...) context
         let current_line = rope_ref.line(line_idx).to_string();
@@ -251,14 +251,15 @@ impl LanguageServer for Backend {
         let uri = &params.text_document_position_params.text_document.uri;
         let position = &params.text_document_position_params.position;
 
-        let rope_ref = match self.documents.get(&uri.to_string()) {
-            Some(rope) => rope,
+        let ResolvedCursorPosition {
+            rope: rope_ref,
+            col,
+            line_idx,
+        } = match self.resolve_cursor_position(uri, position).await {
+            Some(resolved_cursor_position) => resolved_cursor_position,
             None => return Ok(None),
         };
 
-        let encoding = self.position_encoding.read().await;
-        let line_idx = position.line as usize;
-        let col = lsp_col_to_byte(&rope_ref, position, &encoding);
         let line_str = rope_ref.line(line_idx).to_string();
 
         if let Some(prop_name) = context::extract_var_property(&line_str, col) {
@@ -383,6 +384,19 @@ enum SetupFileWatchersError {
     RegisterCapability(tower_lsp::jsonrpc::Error),
 }
 
+/// ResolvedCursorPosition represents the resolved cursor position
+/// from a given URI and LSP position.
+/// It handles the conversion from LSP position to byte offset (for documents that are UTF-16).
+#[derive(Debug, PartialEq)]
+struct ResolvedCursorPosition {
+    /// The document rope
+    rope: Rope,
+    /// The byte offset of the cursor
+    col: usize,
+    // The line index of the cursor
+    line_idx: usize,
+}
+
 impl Backend {
     /// Builds a new `Backend` instance.
     /// For the position encoding, we follow
@@ -397,6 +411,26 @@ impl Backend {
             documents: DashMap::new(),
             position_encoding: RwLock::new(PositionEncodingKind::UTF16),
         }
+    }
+
+    /// Resolves the document rope and cursor byte offset from a given URI and LSP position.
+    /// Returns `None` if the document is not currently open.
+    async fn resolve_cursor_position(
+        &self,
+        uri: &Url,
+        position: &Position,
+    ) -> Option<ResolvedCursorPosition> {
+        let rope_ref = self.documents.get(&uri.to_string())?.value().clone();
+
+        let encoding = self.position_encoding.read().await;
+        let line_idx = position.line as usize;
+        let col = lsp_col_to_byte(&rope_ref, position, &encoding);
+
+        Some(ResolvedCursorPosition {
+            rope: rope_ref.clone(),
+            col,
+            line_idx,
+        })
     }
 
     async fn rebuild_cache(&self) -> miette::Result<(), RebuildCacheError> {
