@@ -109,13 +109,11 @@ impl LanguageServer for Backend {
         }
 
         // Spawn file watcher setup in the background so the `initialized` handler
-        // returns immediately. `register_capability` sends a server→client request
-        // and awaits a response, which would deadlock in test environments where
-        // nobody drives the `ClientSocket`.
+        // returns immediately.
         let client = self.client.clone();
         let workspace_root = self.workspace_root.read().await.clone();
         tokio::spawn(async move {
-            if let Err(e) = Backend::do_setup_file_watchers(client.clone(), workspace_root).await {
+            if let Err(e) = Backend::do_setup_file_watchers(&client, workspace_root).await {
                 client
                     .log_message(
                         MessageType::WARNING,
@@ -373,7 +371,7 @@ impl Backend {
     }
 
     async fn do_setup_file_watchers(
-        client: Client,
+        client: &Client,
         workspace_root: Option<PathBuf>,
     ) -> miette::Result<(), SetupFileWatchersError> {
         let workspace_root = workspace_root
