@@ -81,6 +81,8 @@ impl LanguageServer for Backend {
                         "'".to_string(),
                         // Responsive prefix
                         ":".to_string(),
+                        // Var prefix
+                        "-".to_string(),
                     ]),
                     ..CompletionOptions::default()
                 }),
@@ -157,6 +159,37 @@ impl LanguageServer for Backend {
         let line_idx = position.line as usize;
         let col = lsp_col_to_byte(&rope_ref, position, &encoding);
 
+        // Check for var(--...) context
+        let current_line = rope_ref.line(line_idx).to_string();
+        if let Some(var_ctx) = context::detect_var_context(&current_line, col) {
+            let cache_guard = self.cache.read().await;
+            let cache = match cache_guard.as_ref() {
+                Some(cache) if cache.is_relevant_file(uri) => cache,
+                _ => return Ok(None),
+            };
+
+            let partial_property = &var_ctx.partial_property;
+            let items: Vec<CompletionItem> = cache
+                .custom_properties
+                .iter()
+                .filter(|prop| {
+                    partial_property.is_empty() || prop.name.starts_with(partial_property)
+                })
+                .map(|prop| CompletionItem {
+                    label: prop.name.to_string(),
+                    kind: Some(CompletionItemKind::PROPERTY),
+                    documentation: Some(Documentation::MarkupContent(MarkupContent {
+                        kind: MarkupKind::Markdown,
+                        value: format!("```css\n{}: {};\n```", prop.name, prop.value),
+                    })),
+                    insert_text: Some(prop.name.to_string()),
+                    ..Default::default()
+                })
+                .collect();
+
+            return Ok(Some(CompletionResponse::Array(items)));
+        }
+
         let class_context = match context::detect_multiline_class_context(&rope_ref, line_idx, col)
         {
             Some(context) => context,
@@ -227,8 +260,28 @@ impl LanguageServer for Backend {
         let encoding = self.position_encoding.read().await;
         let line_idx = position.line as usize;
         let col = lsp_col_to_byte(&rope_ref, position, &encoding);
-
         let line_str = rope_ref.line(line_idx).to_string();
+
+        if let Some(prop_name) = context::extract_var_property(&line_str, col) {
+            let cache_guard = self.cache.read().await;
+            let cache = match cache_guard.as_ref() {
+                Some(cache) if cache.is_relevant_file(uri) => cache,
+                _ => return Ok(None),
+            };
+
+            let prop = cache
+                .custom_properties
+                .iter()
+                .find(|prop| prop.name == prop_name);
+            return Ok(prop.map(|prop| Hover {
+                contents: HoverContents::Markup(MarkupContent {
+                    kind: MarkupKind::Markdown,
+                    value: format!("```css\n{}: {};\n```", prop.name, prop.value),
+                }),
+                range: None,
+            }));
+        }
+
         let (content, col, span) = match context::find_class_span(&line_str, col) {
             Some(span) => (line_str, col, span),
             None => {

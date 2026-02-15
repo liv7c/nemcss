@@ -62,6 +62,10 @@ pub enum BuildCacheError {
     GenerateResponsiveUtilities(#[from] engine::GenerateResponsiveUtilitiesError),
 }
 
+/// File extensions that always get custom property completions
+/// regardless of the content globs in the config
+const CSS_EXTENSIONS: &[&str] = &["css", "scss", "sass", "less"];
+
 impl NemCache {
     pub fn build(workspace_root: &Path) -> miette::Result<Self, BuildCacheError> {
         let config_path = workspace_root.join(CONFIG_FILE_NAME);
@@ -103,6 +107,24 @@ impl NemCache {
         };
 
         self.content_globs.is_match(relative_path)
+    }
+
+    /// Checks if a given URL is relevant for any LSP feature.
+    /// We mainly use to determine when to trigger some features such as completions and hovers in
+    /// files that are not content files (e.g. CSS files)
+    pub fn is_relevant_file(&self, url: &Url) -> bool {
+        if self.is_content_file(url) {
+            return true;
+        }
+
+        url.to_file_path()
+            .ok()
+            .and_then(|p| {
+                p.extension()
+                    .and_then(|e| e.to_str())
+                    .map(|ext| CSS_EXTENSIONS.contains(&ext))
+            })
+            .unwrap_or(false)
     }
 }
 
