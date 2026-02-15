@@ -169,22 +169,7 @@ impl LanguageServer for Backend {
             };
 
             let partial_property = &var_ctx.partial_property;
-            let items: Vec<CompletionItem> = cache
-                .custom_properties
-                .iter()
-                .filter(|prop| {
-                    partial_property.is_empty() || prop.name.starts_with(partial_property)
-                })
-                .map(|prop| CompletionItem {
-                    label: prop.name.to_string(),
-                    kind: Some(CompletionItemKind::PROPERTY),
-                    documentation: Some(Documentation::MarkupContent(MarkupContent {
-                        kind: MarkupKind::Markdown,
-                        value: format!("```css\n{}: {};\n```", prop.name, prop.value),
-                    })),
-                    ..Default::default()
-                })
-                .collect();
+            let items: Vec<CompletionItem> = cache.var_completions(partial_property);
 
             return Ok(Some(CompletionResponse::Array(items)));
         }

@@ -5,7 +5,9 @@ use engine::{ResponsiveUtility, Utility};
 use globset::GlobSet;
 use miette::Diagnostic;
 use thiserror::Error;
-use tower_lsp::lsp_types::Url;
+use tower_lsp::lsp_types::{
+    CompletionItem, CompletionItemKind, Documentation, MarkupContent, MarkupKind, Url,
+};
 
 /// Cache for the LSP server.
 /// This cache is used to store the generated utilities, viewports, custom properties, and content globs.
@@ -125,6 +127,23 @@ impl NemCache {
                     .map(|ext| CSS_EXTENSIONS.contains(&ext))
             })
             .unwrap_or(false)
+    }
+
+    /// Returns completion items for custom properties matching the given partial name
+    pub fn var_completions(&self, partial_name: &str) -> Vec<CompletionItem> {
+        self.custom_properties
+            .iter()
+            .filter(|prop| partial_name.is_empty() || prop.name.starts_with(partial_name))
+            .map(|prop| CompletionItem {
+                label: prop.name.to_string(),
+                kind: Some(CompletionItemKind::PROPERTY),
+                documentation: Some(Documentation::MarkupContent(MarkupContent {
+                    kind: MarkupKind::Markdown,
+                    value: format!("```css\n{}: {};\n```", prop.name, prop.value),
+                })),
+                ..Default::default()
+            })
+            .collect()
     }
 }
 
@@ -269,7 +288,7 @@ mod tests {
         #[test]
         fn test_cache_custom_properties_are_structured() {
             let temp_dir = create_test_project().expect("failed to create test project");
-            let cache = NemCache::build(&temp_dir.path()).expect("failed to build cache");
+            let cache = NemCache::build(temp_dir.path()).expect("failed to build cache");
 
             assert!(!cache.custom_properties.is_empty());
 
@@ -311,6 +330,31 @@ mod tests {
             assert!(CustomProperty::parse("invalid").is_none());
             assert!(CustomProperty::parse("--property_with_no_value").is_none());
             assert!(CustomProperty::parse("").is_none());
+        }
+    }
+
+    mod completions {
+        use super::*;
+
+        #[test]
+        fn test_var_completions_returns_empty_when_no_matching_properties() {
+            let temp_dir = create_test_project().expect("failed to create test project");
+            let cache = NemCache::build(temp_dir.path()).expect("failed to build cache");
+
+            let completions = cache.var_completions("foo");
+            assert!(completions.is_empty());
+        }
+
+        #[test]
+        fn test_var_completions_returns_matching_properties() {
+            let temp_dir = create_test_project().expect("failed to create test project");
+            let cache = NemCache::build(temp_dir.path()).expect("failed to build cache");
+
+            let completions = cache.var_completions("--color");
+            assert_eq!(completions.len(), 2);
+
+            assert_eq!(completions[0].label, "--color-primary");
+            assert_eq!(completions[1].label, "--color-secondary");
         }
     }
 }
