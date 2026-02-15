@@ -13,6 +13,9 @@ use ropey::Rope;
 /// The maximum number of lines to scan up to for detecting a class context.
 pub(crate) const MAX_SCAN_LINES: usize = 15;
 
+/// Marker for the start of a `var(...)` expression.
+const VAR_OPEN: &str = "var(";
+
 /// Represents information about the cursor's position within a class context.
 /// The "class context" is being used instead of "class name" because
 /// the class can take multiple forms, based on the framework being used.
@@ -30,6 +33,19 @@ pub struct ClassContext {
     ///
     /// Example: `class="sm:bg-|"` → responsive_prefix = Some("sm")
     pub responsive_prefix: Option<String>,
+}
+
+/// Context when the cursor is inside of a `var(--...)` expression
+/// It is going to capture whatever is inside the `var(...)` expression.
+#[derive(Debug, PartialEq)]
+pub struct VarContext {
+    /// The partial custom property typed so far
+    ///
+    /// # Examples
+    /// - 'var(--|)' -> partial = "--"
+    /// - 'var(--color-|)' -> partial = "--color-"
+    /// - 'var(--bg-primary|)' -> partial = "--bg-primary"
+    pub partial_property: String,
 }
 
 /// Check whether the `col` (a byte offset) falls inside the value span of
@@ -152,6 +168,30 @@ pub fn detect_multiline_class_context(
     detect_class_context(&combined, combined_col)
 }
 
+/// Detects whether the cursor is inside a `var(--...)` expression.
+///
+/// Scans backwards to find the start of the `var(...)` expression.
+///
+/// # Returns
+/// It returns `Some(VarContext)` with the partial property name typed so far, or `None` if the cursor is not inside a `var(...)` expression.
+pub fn detect_var_context(line: &str, col: usize) -> Option<VarContext> {
+    let before_cursor = &line.get(..col)?;
+
+    let var_open = before_cursor.rfind(VAR_OPEN)?;
+    let content_start = var_open + VAR_OPEN.len();
+
+    let partial_property = &before_cursor.get(content_start..)?;
+
+    // If the cursor is past the closing parenthesis, we assume it's not inside a var expression
+    if partial_property.contains(')') {
+        return None;
+    }
+
+    Some(VarContext {
+        partial_property: partial_property.to_string(),
+    })
+}
+
 /// Extracts the token at the cursor position.
 ///
 /// It scans in **both** directions to extract the full token.
@@ -201,6 +241,37 @@ pub fn extract_token_at_cursor(
         None
     } else {
         Some(token.to_string())
+    }
+}
+
+/// Extracts the full custom property name under the cursor inside a `var(...)` expression.
+///
+/// Unlike [`detect_var_context`], which returns the partial property name typed so far,
+/// this function returns the full property name.
+///
+/// # Returns
+/// Returns `Some(String)` with the extracted property name, or `None` if the cursor is not inside a `var(...)` expression.
+pub fn extract_var_property(line: &str, col: usize) -> Option<String> {
+    // If the cursor is not inside a `var(...)` expression, we don't want to extract anything
+    detect_var_context(line, col)?;
+
+    let var_open = line.get(..col)?.rfind(VAR_OPEN)? + VAR_OPEN.len();
+    let after = line.get(var_open..)?;
+
+    let end = after
+        .find(|c: char| c == ',' || c == ')' || c.is_whitespace())
+        .unwrap_or(after.len());
+
+    if col > var_open.saturating_add(end) {
+        return None;
+    }
+
+    let property = after.get(..end)?.trim();
+
+    if property.starts_with("--") && property.len() > 2 {
+        Some(property.to_string())
+    } else {
+        None
     }
 }
 
@@ -491,6 +562,116 @@ mod tests {
 
             let result = extract_token_at_cursor(class_content, 7, 19, 31);
             assert!(result.is_none());
+        }
+    }
+
+    mod detect_var_context {
+        use super::*;
+
+        #[test]
+        fn test_cursor_after_var_paren() {
+            let (line, col) = parse_cursor(r#"var(|");"#);
+            let ctx = detect_var_context(&line, col).expect("should detect context");
+            assert_eq!(ctx.partial_property, "");
+        }
+
+        #[test]
+        fn test_cursor_after_double_dashes() {
+            let (line, col) = parse_cursor(r#"var(--|");"#);
+            let ctx = detect_var_context(&line, col).expect("should detect context");
+            assert_eq!(ctx.partial_property, "--");
+        }
+
+        #[test]
+        fn test_cursor_mid_property_name() {
+            let (line, col) = parse_cursor(r#"var(--bg-|);"#);
+            let ctx = detect_var_context(&line, col).expect("should detect context");
+            assert_eq!(ctx.partial_property, "--bg-");
+        }
+
+        #[test]
+        fn test_cursor_after_property_name() {
+            let (line, col) = parse_cursor(r#"var(--bg-primary|);"#);
+            let ctx = detect_var_context(&line, col).expect("should detect context");
+            assert_eq!(ctx.partial_property, "--bg-primary");
+        }
+
+        #[test]
+        fn test_var_in_jsx_inline_style() {
+            let (line, col) = parse_cursor(r#"<div style={{color: "var(--|)"}}/>"#);
+            let ctx = detect_var_context(&line, col).expect("should detect context");
+            assert_eq!(ctx.partial_property, "--");
+        }
+
+        #[test]
+        fn test_var_in_template_literal() {
+            let (line, col) = parse_cursor("const css = `color: var(--spacing-|);");
+            let ctx = detect_var_context(&line, col).expect("should detect context");
+            assert_eq!(ctx.partial_property, "--spacing-");
+        }
+
+        #[test]
+        fn test_not_inside_var() {
+            let (line, col) = parse_cursor(r#"const name = "hello|";"#);
+            assert!(detect_var_context(&line, col).is_none());
+        }
+
+        #[test]
+        fn test_cursor_outside_var() {
+            let (line, col) = parse_cursor("color: var(--bg-primary)|;");
+            assert!(detect_var_context(&line, col).is_none());
+        }
+
+        #[test]
+        fn test_cursor_past_closing_paren() {
+            let (line, col) = parse_cursor(r#"var(--bg-primary)|;"#);
+            assert!(detect_var_context(&line, col).is_none());
+        }
+
+        #[test]
+        fn test_var_with_fallback_cursor_before_comma() {
+            let (line, col) = parse_cursor(r#"var(--bg-primary|, black);"#);
+            let ctx = detect_var_context(&line, col).expect("should detect context");
+            assert_eq!(ctx.partial_property, "--bg-primary");
+        }
+    }
+
+    mod extract_var_property {
+        use super::*;
+
+        #[test]
+        fn test_inside_var_expression() {
+            let line = "color: var(--bg-primary);";
+            let result = extract_var_property(line, 16).expect("should extract property");
+            assert_eq!(result, "--bg-primary");
+        }
+
+        #[test]
+        fn test_beginning_of_var_expression() {
+            let line = "color: var(--bg-primary);";
+            let result = extract_var_property(line, 12).expect("should extract property");
+            assert_eq!(result, "--bg-primary");
+        }
+
+        #[test]
+        fn test_cursor_at_end_of_var_expression() {
+            let line = "color: var(--bg-primary);";
+            let result = extract_var_property(line, 23).expect("should extract property");
+            assert_eq!(result, "--bg-primary");
+        }
+
+        #[test]
+        fn test_cursor_on_fallback_value() {
+            let line = "color: var(--bg-primary, black);";
+            let col = 28;
+            assert!(extract_var_property(line, col).is_none());
+        }
+
+        #[test]
+        fn test_returns_none_if_cursor_not_inside_var() {
+            let line = "--bg-primary";
+            let col = 4;
+            assert!(extract_var_property(line, col).is_none());
         }
     }
 }

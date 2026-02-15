@@ -81,6 +81,8 @@ impl LanguageServer for Backend {
                         "'".to_string(),
                         // Responsive prefix
                         ":".to_string(),
+                        // Var prefix
+                        "-".to_string(),
                     ]),
                     ..CompletionOptions::default()
                 }),
@@ -148,17 +150,31 @@ impl LanguageServer for Backend {
         let position = &params.text_document_position.position;
         let uri = &params.text_document_position.text_document.uri;
 
-        let rope_ref = match self.documents.get(&uri.to_string()) {
-            Some(rope) => rope,
+        let ResolvedCursorPosition {
+            rope,
+            col,
+            line_idx,
+        } = match self.resolve_cursor_position(uri, position).await {
+            Some(resolved_cursor_position) => resolved_cursor_position,
             None => return Ok(None),
         };
 
-        let encoding = self.position_encoding.read().await;
-        let line_idx = position.line as usize;
-        let col = lsp_col_to_byte(&rope_ref, position, &encoding);
+        // Check for var(--...) context
+        let current_line = rope.line(line_idx).to_string();
+        if let Some(var_ctx) = context::detect_var_context(&current_line, col) {
+            let cache_guard = self.cache.read().await;
+            let cache = match cache_guard.as_ref() {
+                Some(cache) if cache.is_relevant_file(uri) => cache,
+                _ => return Ok(None),
+            };
 
-        let class_context = match context::detect_multiline_class_context(&rope_ref, line_idx, col)
-        {
+            let partial_property = &var_ctx.partial_property;
+            let items: Vec<CompletionItem> = cache.var_completions(partial_property);
+
+            return Ok(Some(CompletionResponse::Array(items)));
+        }
+
+        let class_context = match context::detect_multiline_class_context(&rope, line_idx, col) {
             Some(context) => context,
             None => return Ok(None),
         };
@@ -170,47 +186,12 @@ impl LanguageServer for Backend {
         };
 
         let partial = &class_context.partial_token;
-        let mut completion_items: Vec<CompletionItem> = Vec::new();
 
-        if class_context.responsive_prefix.is_some() {
-            for responsive_utility in &cache.responsive_utilities {
-                if partial.is_empty() || responsive_utility.responsive_class_name.contains(partial)
-                {
-                    let documentation_markdown =
-                        format!("```css\n{}\n```", responsive_utility.full_css_definition);
-
-                    completion_items.push(CompletionItem {
-                        label: responsive_utility.responsive_class_name.to_string(),
-                        kind: Some(CompletionItemKind::VALUE),
-                        documentation: Some(tower_lsp::lsp_types::Documentation::MarkupContent(
-                            MarkupContent {
-                                kind: MarkupKind::Markdown,
-                                value: documentation_markdown,
-                            },
-                        )),
-                        ..Default::default()
-                    })
-                }
-            }
+        let completion_items = if class_context.responsive_prefix.is_some() {
+            cache.responsive_class_completions(partial)
         } else {
-            for utility in &cache.utilities {
-                if partial.is_empty() || utility.class_name().starts_with(partial) {
-                    let documentation_markdown = format!("```css\n{}\n```", utility.full_class());
-
-                    completion_items.push(CompletionItem {
-                        label: utility.class_name().to_string(),
-                        kind: Some(CompletionItemKind::VALUE),
-                        documentation: Some(tower_lsp::lsp_types::Documentation::MarkupContent(
-                            MarkupContent {
-                                kind: MarkupKind::Markdown,
-                                value: documentation_markdown,
-                            },
-                        )),
-                        ..Default::default()
-                    });
-                }
-            }
-        }
+            cache.class_completions(partial)
+        };
 
         Ok(Some(CompletionResponse::Array(completion_items)))
     }
@@ -219,25 +200,32 @@ impl LanguageServer for Backend {
         let uri = &params.text_document_position_params.text_document.uri;
         let position = &params.text_document_position_params.position;
 
-        let rope_ref = match self.documents.get(&uri.to_string()) {
-            Some(rope) => rope,
+        let ResolvedCursorPosition {
+            rope,
+            col,
+            line_idx,
+        } = match self.resolve_cursor_position(uri, position).await {
+            Some(resolved_cursor_position) => resolved_cursor_position,
             None => return Ok(None),
         };
 
-        let encoding = self.position_encoding.read().await;
-        let line_idx = position.line as usize;
-        let col = lsp_col_to_byte(&rope_ref, position, &encoding);
+        let line_str = rope.line(line_idx).to_string();
 
-        let line_str = rope_ref.line(line_idx).to_string();
+        if let Some(prop_name) = context::extract_var_property(&line_str, col) {
+            let cache_guard = self.cache.read().await;
+            let cache = match cache_guard.as_ref() {
+                Some(cache) if cache.is_relevant_file(uri) => cache,
+                _ => return Ok(None),
+            };
+
+            return Ok(cache.hover_for_custom_property(&prop_name));
+        }
+
         let (content, col, span) = match context::find_class_span(&line_str, col) {
             Some(span) => (line_str, col, span),
             None => {
-                let (combined, combined_col) = context::build_multiline_window(
-                    &rope_ref,
-                    line_idx,
-                    col,
-                    context::MAX_SCAN_LINES,
-                );
+                let (combined, combined_col) =
+                    context::build_multiline_window(&rope, line_idx, col, context::MAX_SCAN_LINES);
                 match context::find_class_span(&combined, combined_col) {
                     Some(span) => (combined, combined_col, span),
                     None => return Ok(None),
@@ -258,26 +246,7 @@ impl LanguageServer for Backend {
             _ => return Ok(None),
         };
 
-        let css = cache
-            .utilities
-            .iter()
-            .find(|u| u.class_name() == token)
-            .map(|u| u.full_class().to_string())
-            .or_else(|| {
-                cache
-                    .responsive_utilities
-                    .iter()
-                    .find(|u| u.responsive_class_name == token)
-                    .map(|u| u.full_css_definition.to_string())
-            });
-
-        Ok(css.map(|definition| Hover {
-            contents: HoverContents::Markup(MarkupContent {
-                kind: MarkupKind::Markdown,
-                value: format!("```css\n{}\n```", definition),
-            }),
-            range: None,
-        }))
+        Ok(cache.hover_for_class(&token))
     }
 
     async fn did_change_watched_files(&self, _: DidChangeWatchedFilesParams) {
@@ -298,9 +267,9 @@ impl LanguageServer for Backend {
 /// RebuildCacheError represents the error type when rebuilding the cache.
 #[derive(Debug, Error, Diagnostic)]
 enum RebuildCacheError {
-    #[error("failed to get workspace root: {0}")]
+    #[error("workspace root is not set and current directory is unavailable")]
     #[diagnostic(code(lsp_error::workspace_root_error))]
-    WorkspaceRoot(std::io::Error),
+    WorkspaceRoot,
 
     #[error(transparent)]
     #[diagnostic(code(lsp_error::cache_build_error))]
@@ -331,8 +300,21 @@ enum SetupFileWatchersError {
     RegisterCapability(tower_lsp::jsonrpc::Error),
 }
 
+/// ResolvedCursorPosition represents the resolved cursor position
+/// from a given URI and LSP position.
+/// It handles the conversion from LSP position to byte offset (for documents that are UTF-16).
+#[derive(Debug, PartialEq)]
+struct ResolvedCursorPosition {
+    /// The document rope
+    rope: Rope,
+    /// The byte offset of the cursor
+    col: usize,
+    /// The line index of the cursor
+    line_idx: usize,
+}
+
 impl Backend {
-    /// Buids a new `Backend` instance.
+    /// Builds a new `Backend` instance.
     /// For the position encoding, we follow
     /// https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocuments
     /// To stay backwards compatible the only mandatory encoding is UTF-16 represented via the string utf-16.
@@ -347,6 +329,26 @@ impl Backend {
         }
     }
 
+    /// Resolves the document rope and cursor byte offset from a given URI and LSP position.
+    /// Returns `None` if the document is not currently open.
+    async fn resolve_cursor_position(
+        &self,
+        uri: &Url,
+        position: &Position,
+    ) -> Option<ResolvedCursorPosition> {
+        let rope = self.documents.get(&uri.to_string())?.value().clone();
+
+        let encoding = self.position_encoding.read().await;
+        let line_idx = position.line as usize;
+        let col = lsp_col_to_byte(&rope, position, &encoding);
+
+        Some(ResolvedCursorPosition {
+            rope,
+            col,
+            line_idx,
+        })
+    }
+
     async fn rebuild_cache(&self) -> miette::Result<(), RebuildCacheError> {
         let workspace_root = self
             .workspace_root
@@ -355,12 +357,7 @@ impl Backend {
             .as_ref()
             .cloned()
             .or_else(|| std::env::current_dir().ok())
-            .ok_or_else(|| {
-                RebuildCacheError::WorkspaceRoot(std::io::Error::new(
-                    std::io::ErrorKind::NotFound,
-                    "workspace root not found",
-                ))
-            })?;
+            .ok_or(RebuildCacheError::WorkspaceRoot)?;
         let cache = NemCache::build(&workspace_root)?;
 
         self.cache.write().await.replace(cache);
