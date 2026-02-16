@@ -1,0 +1,7 @@
+---
+source: crates/lsp/tests/hover.rs
+expression: hover_text
+---
+```css
+--color-white: hsl(0, 0%, 100%);
+```

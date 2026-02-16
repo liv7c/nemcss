@@ -1,0 +1,14 @@
+{
+  "title": "Color Tokens",
+  "description": "Example design token file for colors",
+  "items": [
+    {
+      "name": "white",
+      "value": "hsl(0, 0%, 100%)"
+    },
+    {
+      "name": "black",
+      "value": "hsl(0, 0%, 0%)"
+    }
+  ]
+}

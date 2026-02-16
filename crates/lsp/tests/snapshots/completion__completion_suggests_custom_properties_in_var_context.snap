@@ -1,0 +1,18 @@
+---
+source: crates/lsp/tests/completion.rs
+expression: completion_labels(&result)
+---
+[
+  "--color-black",
+  "--color-white",
+  "--spacing-0",
+  "--spacing-lg",
+  "--spacing-md",
+  "--spacing-sm",
+  "--spacing-xl",
+  "--spacing-xs",
+  "--spacing-xxl",
+  "--spacing-xxs",
+  "--viewport-md",
+  "--viewport-sm"
+]

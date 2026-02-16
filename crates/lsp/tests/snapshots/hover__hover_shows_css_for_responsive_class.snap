@@ -1,0 +1,11 @@
+---
+source: crates/lsp/tests/hover.rs
+expression: hover_text
+---
+```css
+@media (min-width: 540px) {
+  .sm\:bg-black {
+    background-color: var(--color-black);
+  }
+}
+```

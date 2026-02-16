@@ -1,0 +1,14 @@
+{
+  "title": "Viewport Tokens",
+  "description": "Example design token file for viewports",
+  "items": [
+    {
+      "name": "sm",
+      "value": "540px"
+    },
+    {
+      "name": "md",
+      "value": "768px"
+    }
+  ]
+}

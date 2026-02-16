@@ -1,0 +1,18 @@
+---
+source: crates/lsp/tests/basic.rs
+expression: "result[\"capabilities\"]"
+---
+{
+  "completionProvider": {
+    "triggerCharacters": [
+      " ",
+      "\"",
+      "'",
+      ":",
+      "-"
+    ]
+  },
+  "hoverProvider": true,
+  "positionEncoding": "utf-16",
+  "textDocumentSync": 1
+}

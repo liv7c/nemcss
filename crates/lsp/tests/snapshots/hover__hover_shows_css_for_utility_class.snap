@@ -1,0 +1,9 @@
+---
+source: crates/lsp/tests/hover.rs
+expression: hover_text
+---
+```css
+.bg-black {
+  background-color: var(--color-black);
+}
+```

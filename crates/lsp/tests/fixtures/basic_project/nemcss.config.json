@@ -1,0 +1,16 @@
+{
+  "content": [
+    "src/**/*.html"
+  ],
+  "tokensDir": "design-tokens",
+  "theme": {
+    "colors": {
+      "prefix": "color",
+      "source": "design-tokens/colors.json",
+      "utilities": [
+        { "prefix": "text", "property": "color" },
+        { "prefix": "bg", "property": "background-color" }
+      ]
+    }
+  }
+}

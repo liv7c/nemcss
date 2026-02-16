@@ -1,0 +1,8 @@
+---
+source: crates/lsp/tests/completion.rs
+expression: completion_labels(&result)
+---
+[
+  "text-black",
+  "text-white"
+]

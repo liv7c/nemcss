@@ -1,0 +1,6 @@
+@nemcss base;
+
+body {
+  background-color: var(--color-black);
+  color: var(--color-white);
+}
