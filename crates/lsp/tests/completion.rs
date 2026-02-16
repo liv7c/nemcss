@@ -4,6 +4,8 @@ use common::{file_uri, fixture_path, init_context};
 use insta::assert_json_snapshot;
 use serde_json::json;
 
+use crate::common::{LspNotification, LspRequest};
+
 fn completion_labels(result: &serde_json::Value) -> Vec<&str> {
     let items = result
         .as_array()
@@ -30,7 +32,7 @@ async fn test_completion_excluded_for_non_content_files() {
     let uri = file_uri(&file_path);
 
     ctx.notify(
-        "textDocument/didOpen",
+        LspNotification::DidOpen,
         json!({
             "textDocument": {
                 "uri": uri,
@@ -44,7 +46,7 @@ async fn test_completion_excluded_for_non_content_files() {
 
     let result = ctx
         .request(
-            "textDocument/completion",
+            LspRequest::Completion,
             json!({
                 "textDocument": {
                     "uri": uri,
@@ -52,7 +54,7 @@ async fn test_completion_excluded_for_non_content_files() {
                 "position": {
                     "line": 0,
                     // "<div class="bg-">"
-                    //                ^ col 15 (closing quote, right after "bg-")
+                    //                ^ col 15
                     "character": 15,
                 },
             }),
@@ -73,7 +75,7 @@ async fn test_did_change_updates_document_for_completion() {
     let uri = file_uri(&file_path);
 
     ctx.notify(
-        "textDocument/didOpen",
+        LspNotification::DidOpen,
         json!({
             "textDocument": {
                 "uri": uri,
@@ -86,7 +88,7 @@ async fn test_did_change_updates_document_for_completion() {
     .await;
 
     ctx.notify(
-        "textDocument/didChange",
+        LspNotification::DidChange,
         json!({
             "textDocument": {
                 "uri": uri,
@@ -101,7 +103,7 @@ async fn test_did_change_updates_document_for_completion() {
 
     let result = ctx
         .request(
-            "textDocument/completion",
+            LspRequest::Completion,
             json!({
                 "textDocument": {
                     "uri": uri,
@@ -109,7 +111,7 @@ async fn test_did_change_updates_document_for_completion() {
                 "position": {
                     "line": 0,
                     // "<div class="text-"></div>"
-                    //                  ^ col 17 (closing quote, right after "text-")
+                    //                  ^ col 17
                     "character": 17,
                 },
             }),
@@ -127,7 +129,7 @@ async fn test_completion_suggests_custom_properties_in_var_context() {
     let uri = file_uri(&file_path);
 
     ctx.notify(
-        "textDocument/didOpen",
+        LspNotification::DidOpen,
         json!({
             "textDocument": {
                 "uri": uri,
@@ -141,7 +143,7 @@ async fn test_completion_suggests_custom_properties_in_var_context() {
 
     let result = ctx
         .request(
-            "textDocument/completion",
+            LspRequest::Completion,
             json!({
                 "textDocument": {
                     "uri": uri,

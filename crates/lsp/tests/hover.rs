@@ -4,6 +4,8 @@ use common::{file_uri, fixture_path, init_context};
 use insta::assert_snapshot;
 use serde_json::json;
 
+use crate::common::{LspNotification, LspRequest};
+
 #[tokio::test]
 async fn test_hover_shows_css_for_utility_class() {
     let fixture = "basic_project";
@@ -12,7 +14,7 @@ async fn test_hover_shows_css_for_utility_class() {
     let uri = file_uri(&file_path);
 
     ctx.notify(
-        "textDocument/didOpen",
+        LspNotification::DidOpen,
         json!({
             "textDocument": {
                 "uri": uri,
@@ -26,7 +28,7 @@ async fn test_hover_shows_css_for_utility_class() {
 
     let result = ctx
         .request(
-            "textDocument/hover",
+            LspRequest::Hover,
             json!({
                 "textDocument": {
                     "uri": uri,
@@ -56,7 +58,7 @@ async fn test_hover_shows_value_for_custom_property() {
     let uri = file_uri(&file_path);
 
     ctx.notify(
-        "textDocument/didOpen",
+        LspNotification::DidOpen,
         json!({
             "textDocument": {
                 "uri": uri,
@@ -70,7 +72,7 @@ async fn test_hover_shows_value_for_custom_property() {
 
     let result = ctx
         .request(
-            "textDocument/hover",
+            LspRequest::Hover,
             json!({
                 "textDocument": {
                     "uri": uri,
@@ -78,7 +80,7 @@ async fn test_hover_shows_value_for_custom_property() {
                 "position": {
                     "line": 0,
                     // ".foo { color: var(--color-white); }"
-                    //                      ^ col 20 (on 'c' in "--color-white")
+                    //                      ^ col 20
                     "character": 20,
                 },
             }),
@@ -101,7 +103,7 @@ async fn test_hover_returns_nothing_outside_class_attribute() {
     let uri = file_uri(&file_path);
 
     ctx.notify(
-        "textDocument/didOpen",
+        LspNotification::DidOpen,
         json!({
             "textDocument": {
                 "uri": uri,
@@ -114,7 +116,7 @@ async fn test_hover_returns_nothing_outside_class_attribute() {
     .await;
     let result = ctx
         .request(
-            "textDocument/hover",
+            LspRequest::Hover,
             json!({
                 "textDocument": {
                     "uri": uri,
@@ -122,7 +124,7 @@ async fn test_hover_returns_nothing_outside_class_attribute() {
                 "position": {
                     "line": 0,
                     // "<div class="bg-black text-white"></div>"
-                    //                                     ^ col 36 (inside "</div>", past the attribute)
+                    //                                     ^ col 36
                     "character": 36,
                 },
             }),
@@ -143,7 +145,7 @@ async fn test_hover_shows_css_for_responsive_class() {
     let uri = file_uri(&file_path);
 
     ctx.notify(
-        "textDocument/didOpen",
+        LspNotification::DidOpen,
         json!({
             "textDocument": {
                 "uri": uri,
@@ -157,7 +159,7 @@ async fn test_hover_shows_css_for_responsive_class() {
 
     let result = ctx
         .request(
-            "textDocument/hover",
+            LspRequest::Hover,
             json!({
                 "textDocument": {
                     "uri": uri,
@@ -165,7 +167,7 @@ async fn test_hover_shows_css_for_responsive_class() {
                 "position": {
                     "line": 0,
                     // "<div class="sm:bg-black text-white"></div>"
-                    //                 ^ col 15 (on 'b' in "bg-black", after "sm:" prefix)
+                    //                 ^ col 15
                     "character": 15,
                 },
             }),
@@ -187,7 +189,7 @@ async fn test_hover_returns_nothing_for_unknown_class() {
     let uri = file_uri(&file_path);
 
     ctx.notify(
-        "textDocument/didOpen",
+        LspNotification::DidOpen,
         json!({
             "textDocument": {
                 "uri": uri,
@@ -201,7 +203,7 @@ async fn test_hover_returns_nothing_for_unknown_class() {
 
     let result = ctx
         .request(
-            "textDocument/hover",
+            LspRequest::Hover,
             json!({
                 "textDocument": {
                     "uri": uri,

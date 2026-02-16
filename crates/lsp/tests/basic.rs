@@ -4,6 +4,8 @@ use common::{TestContext, file_uri, fixture_path, init_context};
 use insta::assert_json_snapshot;
 use serde_json::json;
 
+use crate::common::{LspNotification, LspRequest};
+
 #[tokio::test]
 async fn test_initialize_returns_capabilities() {
     let mut ctx = TestContext::new();
@@ -12,7 +14,7 @@ async fn test_initialize_returns_capabilities() {
 
     let result = ctx
         .request(
-            "initialize",
+            LspRequest::Initialize,
             json!({
                 "processId": null,
                 "rootUri": root_uri,
@@ -38,7 +40,7 @@ async fn test_did_close_remove_document() {
     let uri = file_uri(&file_path);
 
     ctx.notify(
-        "textDocument/didOpen",
+        LspNotification::DidOpen,
         json!({
             "textDocument": {
                 "uri": uri,
@@ -51,7 +53,7 @@ async fn test_did_close_remove_document() {
     .await;
 
     ctx.notify(
-        "textDocument/didClose",
+        LspNotification::DidClose,
         json!({
             "textDocument": {
                 "uri": uri,
@@ -62,7 +64,7 @@ async fn test_did_close_remove_document() {
 
     let result = ctx
         .request(
-            "textDocument/hover",
+            LspRequest::Hover,
             json!({
                 "textDocument": {
                     "uri": uri,
@@ -70,8 +72,8 @@ async fn test_did_close_remove_document() {
                 "position": {
                     "line": 0,
                     // "<div class="bg-black text-white"></div>"
-                    //                ^ col 15 (closing quote, right after "bg-black")
-                     "character": 15,
+                    //                ^ col 15
+                    "character": 15,
                 },
             }),
         )
