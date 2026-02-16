@@ -1,28 +1,110 @@
-// The module 'vscode' contains the VS Code extensibility API
-// Import the module and reference it with the alias vscode in your code below
-import * as vscode from "vscode";
+import * as path from "path";
+import * as fs from "fs";
+import { workspace, ExtensionContext, window } from "vscode";
 
-// This method is called when your extension is activated
-// Your extension is activated the very first time the command is executed
-export function activate(context: vscode.ExtensionContext) {
-  // Use the console to output diagnostic information (console.log) and errors (console.error)
-  // This line of code will only be executed once when your extension is activated
-  console.log('Congratulations, your extension "nemcss" is now active!');
+import {
+  LanguageClient,
+  LanguageClientOptions,
+  ServerOptions,
+} from "vscode-languageclient/node";
 
-  // The command has been defined in the package.json file
-  // Now provide the implementation of the command with registerCommand
-  // The commandId parameter must match the command field in package.json
-  const disposable = vscode.commands.registerCommand(
-    "nemcss.helloWorld",
-    () => {
-      // The code you place here will be executed every time your command is executed
-      // Display a message box to the user
-      vscode.window.showInformationMessage("Hello World from nemcss!");
-    },
+let client: LanguageClient;
+
+function getLspBinaryPath(context: ExtensionContext): string | null {
+  const config = workspace.getConfiguration("nemcss");
+  const customPath = config.get<string>("lspPath");
+
+  if (customPath) {
+    // Normalize and validate the path to prevent path traversal attacks
+    const normalizedPath = path.normalize(customPath);
+
+    // Prevent path traversal (e.g., "../../../etc/passwd")
+    if (normalizedPath.includes("..")) {
+      window.showWarningMessage(
+        `NemCSS: Invalid LSP path (contains ..): ${customPath}`,
+      );
+      return null;
+    }
+
+    if (fs.existsSync(normalizedPath)) {
+      return normalizedPath;
+    }
+
+    window.showWarningMessage(
+      `NemCSS: Custom LSP path not found: ${customPath}`,
+    );
+  }
+
+  const platform = process.platform;
+  const arch = process.arch;
+  let binaryName = "lsp";
+
+  if (platform === "win32") {
+    binaryName = `lsp-${platform}-${arch}.exe`;
+  } else {
+    binaryName = `lsp-${platform}-${arch}`;
+  }
+
+  const binaryPath = path.join(context.extensionPath, "bin", binaryName);
+
+  if (fs.existsSync(binaryPath)) {
+    return binaryPath;
+  }
+
+  window.showErrorMessage(
+    `NemCSS: LSP binary not found at ${binaryPath}. Please check your installation`,
   );
-
-  context.subscriptions.push(disposable);
+  return null;
 }
 
-// This method is called when your extension is deactivated
-export function deactivate() {}
+export function activate(context: ExtensionContext) {
+  const lspPath = getLspBinaryPath(context);
+
+  // cannot start without the binary
+  if (!lspPath) {
+    return;
+  }
+
+  const serverOptions: ServerOptions = {
+    command: lspPath,
+    args: [],
+  };
+
+  const clientOptions: LanguageClientOptions = {
+    documentSelector: [
+      { scheme: "file", language: "css" },
+      { scheme: "file", language: "scss" },
+      { scheme: "file", language: "sass" },
+      { scheme: "file", language: "less" },
+
+      { scheme: "file", language: "html" },
+      { scheme: "file", language: "php" },
+
+      { scheme: "file", language: "javascript" },
+      { scheme: "file", language: "javascriptreact" },
+      { scheme: "file", language: "typescript" },
+      { scheme: "file", language: "typescriptreact" },
+
+      { scheme: "file", language: "vue" },
+      { scheme: "file", language: "svelte" },
+      { scheme: "file", language: "astro" },
+    ],
+  };
+
+  client = new LanguageClient(
+    "nemcss",
+    "NemCSS LSP",
+    serverOptions,
+    clientOptions,
+  );
+
+  client.start();
+}
+
+export function deactivate(): Thenable<void> | undefined {
+  if (!client) {
+    return undefined;
+  }
+
+  return client.stop();
+}

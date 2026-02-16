@@ -6,6 +6,7 @@ on:
     paths:
       - '.github/workflows/build.yml'
       - 'crates/**'
+      - 'editors/vscode/**'
       - 'Cargo.toml'
       - 'Cargo.lock'
   pull_request:
@@ -13,6 +14,7 @@ on:
     paths:
       - '.github/workflows/build.yml'
       - 'crates/**'
+      - 'editors/vscode/**'
       - 'Cargo.toml'
       - 'Cargo.lock'
 
@@ -71,4 +73,51 @@ jobs:
           path: |
             target/${{ matrix.arch }}/release/nemcss-lsp
             target/${{ matrix.arch }}/release/nemcss-lsp.exe
+
+  package-vscode:
+    name: Package VS Code Extension
+    needs: build-binaries
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v6
+
+      - name: Download LSP artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: nemcss-lsp-*
+          path: lsp-artifacts
+
+      - name: Prepare bin directory
+        run: mkdir -p editors/vscode/bin
+
+      - name: Copy and rename binaries
+        run: |
+          cp lsp-artifacts/nemcss-lsp-darwin-arm64/nemcss-lsp editors/vscode/bin/lsp-darwin-arm64
+          cp lsp-artifacts/nemcss-lsp-darwin-x64/nemcss-lsp   editors/vscode/bin/lsp-darwin-x64
+          cp lsp-artifacts/nemcss-lsp-linux-x64/nemcss-lsp    editors/vscode/bin/lsp-linux-x64
+          cp lsp-artifacts/nemcss-lsp-win32-x64/nemcss-lsp.exe editors/vscode/bin/lsp-win32-x64.exe
+          chmod +x editors/vscode/bin/lsp-darwin-arm64 editors/vscode/bin/lsp-darwin-x64 editors/vscode/bin/lsp-linux-x64
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        working-directory: editors/vscode
+        run: npm ci
+
+      - name: Install vsce
+        run: npm install -g @vscode/vsce
+
+      - name: Package extension
+        working-directory: editors/vscode
+        run: vsce package
+
+      - name: Upload VSIX artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: nemcss-vscode
+          path: editors/vscode/*.vsix
 

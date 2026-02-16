@@ -2,22 +2,45 @@
   "name": "nemcss",
   "displayName": "nemcss",
   "description": "Language Server Protocol support for NemCSS",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/liv7c/nemcss"
+  },
   "version": "0.0.1",
   "engines": {
     "vscode": "^1.109.0"
   },
+  "publisher": "liv7c",
   "categories": [
     "Other"
   ],
-  "activationEvents": [],
+  "activationEvents": [
+    "onLanguage:css",
+    "onLanguage:scss",
+    "onLanguage:sass",
+    "onLanguage:less",
+    "onLanguage:html",
+    "onLanguage:javascript",
+    "onLanguage:javascriptreact",
+    "onLanguage:typescript",
+    "onLanguage:typescriptreact",
+    "onLanguage:vue",
+    "onLanguage:svelte",
+    "onLanguage:astro",
+    "onLanguage:php"
+  ],
   "main": "./dist/extension.js",
   "contributes": {
-    "commands": [
-      {
-        "command": "nemcss.helloWorld",
-        "title": "Hello World"
+    "configuration": {
+      "title": "NemCSS",
+      "properties": {
+        "nemcss.lspPath": {
+          "type": "string",
+          "description": "Path to the NemCSS LSP server binary. If not set, the 'lsp' from the bundled NemCSS binary will be used.",
+          "default": ""
+        }
       }
-    ]
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run package",
@@ -34,15 +57,18 @@
     "test": "vscode-test"
   },
   "devDependencies": {
-    "@types/vscode": "^1.109.0",
     "@types/mocha": "^10.0.10",
     "@types/node": "22.x",
-    "typescript-eslint": "^8.54.0",
-    "eslint": "^9.39.2",
+    "@types/vscode": "^1.109.0",
+    "@vscode/test-cli": "^0.0.12",
+    "@vscode/test-electron": "^2.5.2",
     "esbuild": "^0.27.2",
+    "eslint": "^9.39.2",
     "npm-run-all": "^4.1.5",
     "typescript": "^5.9.3",
-    "@vscode/test-cli": "^0.0.12",
-    "@vscode/test-electron": "^2.5.2"
+    "typescript-eslint": "^8.54.0"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^9.0.1"
   }
 }
