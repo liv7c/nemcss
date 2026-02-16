@@ -94,7 +94,7 @@ impl TestContext {
                     Err(err) => panic!("LSP error: {:?}", err),
                 }
             }
-            None => Value::Null,
+            None => panic!("request produced no response"),
         }
     }
 
@@ -129,10 +129,8 @@ pub fn fixture_path(fixture: &str) -> PathBuf {
 }
 
 /// Converts a path to a file URI
-pub fn file_uri(path: &Path) -> String {
-    lsp_types::Url::from_file_path(path)
-        .expect("path should be absolute and valid")
-        .to_string()
+pub fn file_uri(path: &Path) -> lsp_types::Url {
+    lsp_types::Url::from_file_path(path).expect("path should be absolute and valid")
 }
 
 /// Creates a TestContext and run the initialize -> initialized handshake.
