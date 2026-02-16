@@ -40,7 +40,8 @@ jobs:
             target: win32-x64
             arch: x86_64-pc-windows-msvc
     steps:
-      - uses: actions/checkout@v4
+      - name: Check out repository code
+        uses: actions/checkout@v4
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -52,11 +53,8 @@ jobs:
         with:
           key: ${{ matrix.target }}
 
-      - name: Build nemcss
-        run: cargo build --release --target ${{ matrix.arch }} --bin nemcss
-
-      - name: Build nemcss-lsp
-        run: cargo build --release --target ${{ matrix.arch }} --bin nemcss-lsp
+      - name: Build binaries
+        run: cargo build --release --target ${{ matrix.arch }} --bin nemcss --bin nemcss-lsp
 
       - name: Upload nemcss artifact
         uses: actions/upload-artifact@v4
