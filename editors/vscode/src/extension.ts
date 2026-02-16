@@ -15,24 +15,24 @@ function getLspBinaryPath(context: ExtensionContext): string | null {
   const customPath = config.get<string>("lspPath");
 
   if (customPath) {
-    // Normalize and validate the path to prevent path traversal attacks
-    const normalizedPath = path.normalize(customPath);
-
-    // Prevent path traversal (e.g., "../../../etc/passwd")
-    if (normalizedPath.includes("..")) {
+    // Custom path must be absolute
+    if (!path.isAbsolute(customPath)) {
       window.showWarningMessage(
-        `NemCSS: Invalid LSP path (contains ..): ${customPath}`,
+        `NemCSS: Invalid LSP path. The path should be absolute, got ${customPath}`,
       );
+
       return null;
     }
 
-    if (fs.existsSync(normalizedPath)) {
-      return normalizedPath;
+    if (!fs.existsSync(customPath)) {
+      window.showWarningMessage(
+        `NemCSS: Custom LSP path not found: ${customPath}`,
+      );
+
+      return null;
     }
 
-    window.showWarningMessage(
-      `NemCSS: Custom LSP path not found: ${customPath}`,
-    );
+    return customPath;
   }
 
   const platform = process.platform;
