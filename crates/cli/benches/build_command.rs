@@ -2,7 +2,7 @@ use assert_fs::TempDir;
 use assert_fs::prelude::*;
 use config::CONFIG_FILE_NAME;
 use rand::rngs::StdRng;
-use rand::{Rng, SeedableRng};
+use rand::{RngExt, SeedableRng};
 use std::path::{Path, PathBuf};
 
 use divan::AllocProfiler;
