@@ -57,7 +57,7 @@ jobs:
         run: cargo build --release --target ${{ matrix.arch }} --bin nemcss --bin nemcss-lsp
 
       - name: Upload nemcss artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: nemcss-${{ matrix.target }}
           path: |
@@ -65,7 +65,7 @@ jobs:
             target/${{ matrix.arch }}/release/nemcss.exe
 
       - name: Upload nemcss-lsp artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: nemcss-lsp-${{ matrix.target }}
           path: |
