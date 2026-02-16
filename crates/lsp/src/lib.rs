@@ -138,6 +138,8 @@ impl LanguageServer for Backend {
     async fn did_change(&self, params: DidChangeTextDocumentParams) {
         let uri = params.text_document.uri;
 
+        // Because we use TextDocumentSyncKind::FULL, the content_changes array will always
+        // contain one single change, which is the entire updated document.
         if let Some(content) = params.content_changes.into_iter().last() {
             self.documents
                 .insert(uri.to_string(), Rope::from(content.text));
@@ -386,8 +388,11 @@ impl Backend {
             .tokens_dir
             .to_str()
             .ok_or(SetupFileWatchersError::InvalidTokensDirPath)?;
-        let tokens_glob_pattern = format!("**/{}/**/*.json", tokens_dir_str);
-        let config_glob_pattern = format!("**/{}", CONFIG_FILE_NAME);
+        let tokens_glob_pattern = format!(
+            "{}/**/*.json",
+            workspace_root.join(tokens_dir_str).display()
+        );
+        let config_glob_pattern = workspace_root.join(CONFIG_FILE_NAME).display().to_string();
 
         let watchers = vec![
             FileSystemWatcher {

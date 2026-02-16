@@ -14,11 +14,11 @@ use tower_lsp::lsp_types::{
 /// This cache is used to store the generated utilities, viewports, custom properties, and content globs.
 #[derive(Debug)]
 pub struct NemCache {
-    pub utilities: Vec<Utility>,
-    pub responsive_utilities: Vec<ResponsiveUtility>,
-    pub config: NemCssConfig,
-    pub custom_properties: Vec<CustomProperty>,
-    pub content_globs: GlobSet,
+    pub(crate) utilities: Vec<Utility>,
+    pub(crate) responsive_utilities: Vec<ResponsiveUtility>,
+    pub(crate) config: NemCssConfig,
+    pub(crate) custom_properties: Vec<CustomProperty>,
+    pub(crate) content_globs: GlobSet,
 }
 
 /// A parsed CSS custom property with its name and resolved value.
@@ -138,6 +138,7 @@ impl NemCache {
             .map(|prop| CompletionItem {
                 label: prop.name.to_string(),
                 kind: Some(CompletionItemKind::PROPERTY),
+                detail: Some(prop.value.to_string()),
                 documentation: Some(Documentation::MarkupContent(MarkupContent {
                     kind: MarkupKind::Markdown,
                     value: format!("```css\n{}: {};\n```", prop.name, prop.value),
@@ -155,6 +156,7 @@ impl NemCache {
             .map(|u| CompletionItem {
                 label: u.class_name().to_string(),
                 kind: Some(CompletionItemKind::VALUE),
+                detail: Some(u.class_value().to_string()),
                 documentation: Some(Documentation::MarkupContent(MarkupContent {
                     kind: MarkupKind::Markdown,
                     value: format!("```css\n{}\n```", u.full_class()),
@@ -172,6 +174,7 @@ impl NemCache {
             .map(|u| CompletionItem {
                 label: u.responsive_class_name.to_string(),
                 kind: Some(CompletionItemKind::VALUE),
+                detail: Some(u.base_utility.class_value().to_string()),
                 documentation: Some(Documentation::MarkupContent(MarkupContent {
                     kind: MarkupKind::Markdown,
                     value: format!("```css\n{}\n```", u.full_css_definition),
