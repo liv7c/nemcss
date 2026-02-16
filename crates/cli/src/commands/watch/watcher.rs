@@ -3,13 +3,14 @@
 use config::CONFIG_FILE_NAME;
 use miette::{Diagnostic, Result};
 use std::{
+    collections::HashSet,
     path::{Path, PathBuf},
     time::Duration,
 };
 use thiserror::Error;
 
 use notify_debouncer_full::{
-    DebounceEventResult, Debouncer, FileIdMap, RecommendedCache, new_debouncer_opt, notify::*,
+    DebounceEventResult, Debouncer, RecommendedCache, new_debouncer_opt, notify::*,
 };
 
 use crate::commands::watch::{command::WatchContext, paths::extract_watch_dirs};
@@ -19,7 +20,7 @@ use crate::commands::watch::{command::WatchContext, paths::extract_watch_dirs};
 /// It also contains the glob set of paths to watch.
 pub struct FileWatcher {
     /// The debouncer from the notify-full-debouncer crate.
-    pub watcher: Debouncer<RecommendedWatcher, FileIdMap>,
+    pub watcher: Debouncer<RecommendedWatcher, RecommendedCache>,
 }
 
 #[derive(Debug, Diagnostic, Error)]
@@ -67,8 +68,8 @@ impl FileWatcher {
     ) -> Result<Vec<PathBuf>, FilterEventsError> {
         match result {
             Ok(events) => {
-                use std::collections::HashSet;
-
+                // Use a HashSet to deduplicate paths; note the resulting Vec has no
+                // guaranteed order since HashSet iteration order is non-deterministic.
                 let files: HashSet<PathBuf> = events
                     .iter()
                     .filter(|event| {
@@ -92,8 +93,8 @@ impl FileWatcher {
     fn create_debounced_watcher(
         tx: std::sync::mpsc::Sender<DebounceEventResult>,
         watch_context: &WatchContext,
-    ) -> Result<Debouncer<RecommendedWatcher, FileIdMap>, SetupWatcherError> {
-        let mut watcher = new_debouncer_opt::<_, _, FileIdMap>(
+    ) -> Result<Debouncer<RecommendedWatcher, RecommendedCache>, SetupWatcherError> {
+        let mut watcher = new_debouncer_opt::<_, _, RecommendedCache>(
             Duration::from_secs(2),
             None,
             tx,
