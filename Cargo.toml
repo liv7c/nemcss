@@ -20,8 +20,8 @@ lto = true
 
 [profile.release.package.lsp]
 opt-level = "s"
-strip = true
+strip = "debuginfo"
 
 [profile.release.package.cli]
 opt-level = "s"
-strip = true
+strip = "debuginfo"
