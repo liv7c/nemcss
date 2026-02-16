@@ -41,7 +41,7 @@ jobs:
             arch: x86_64-pc-windows-msvc
     steps:
       - name: Check out repository code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
