@@ -14,11 +14,11 @@ use tower_lsp::lsp_types::{
 /// This cache is used to store the generated utilities, viewports, custom properties, and content globs.
 #[derive(Debug)]
 pub struct NemCache {
-    pub utilities: Vec<Utility>,
-    pub responsive_utilities: Vec<ResponsiveUtility>,
-    pub config: NemCssConfig,
-    pub custom_properties: Vec<CustomProperty>,
-    pub content_globs: GlobSet,
+    pub(crate) utilities: Vec<Utility>,
+    pub(crate) responsive_utilities: Vec<ResponsiveUtility>,
+    pub(crate) config: NemCssConfig,
+    pub(crate) custom_properties: Vec<CustomProperty>,
+    pub(crate) content_globs: GlobSet,
 }
 
 /// A parsed CSS custom property with its name and resolved value.
