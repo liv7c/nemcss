@@ -9,6 +9,10 @@ description.workspace = true
 name = "lsp"
 path = "src/lib.rs"
 
+[[bin]]
+name = "nemcss-lsp"
+path = "src/main.rs"
+
 [dependencies]
 tokio = { version = "1.49.0", features = ["full"] }
 tower-lsp = "0.20.0"

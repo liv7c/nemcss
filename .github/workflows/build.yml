@@ -1,0 +1,76 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/build.yml'
+      - 'crates/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/build.yml'
+      - 'crates/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build-binaries:
+    name: Build - ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            target: darwin-arm64
+            arch: aarch64-apple-darwin
+          - os: macos-15-intel
+            target: darwin-x64
+            arch: x86_64-apple-darwin
+          - os: ubuntu-latest
+            target: linux-x64
+            arch: x86_64-unknown-linux-gnu
+          - os: windows-latest
+            target: win32-x64
+            arch: x86_64-pc-windows-msvc
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.arch }}
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+
+      - name: Build nemcss
+        run: cargo build --release --target ${{ matrix.arch }} --bin nemcss
+
+      - name: Build nemcss-lsp
+        run: cargo build --release --target ${{ matrix.arch }} --bin nemcss-lsp
+
+      - name: Upload nemcss artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nemcss-${{ matrix.target }}
+          path: |
+            target/${{ matrix.arch }}/release/nemcss
+            target/${{ matrix.arch }}/release/nemcss.exe
+
+      - name: Upload nemcss-lsp artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nemcss-lsp-${{ matrix.target }}
+          path: |
+            target/${{ matrix.arch }}/release/nemcss-lsp
+            target/${{ matrix.arch }}/release/nemcss-lsp.exe
+
