@@ -1,0 +1,9 @@
+---
+source: crates/lsp/tests/file_watchers.rs
+expression: hover_text
+---
+```css
+.bg-special {
+  background-color: var(--color-special);
+}
+```

@@ -1,5 +1,7 @@
 use std::path::{Path, PathBuf};
 
+use assert_fs::TempDir;
+use assert_fs::prelude::*;
 use lsp::Backend;
 use serde_json::{Value, json};
 use tower::{Service, ServiceExt};
@@ -12,6 +14,7 @@ pub enum LspNotification {
     DidOpen,
     DidChange,
     DidClose,
+    DidChangeWatchedFiles,
 }
 
 impl LspNotification {
@@ -21,6 +24,7 @@ impl LspNotification {
             LspNotification::DidOpen => "textDocument/didOpen",
             LspNotification::DidChange => "textDocument/didChange",
             LspNotification::DidClose => "textDocument/didClose",
+            LspNotification::DidChangeWatchedFiles => "workspace/didChangeWatchedFiles",
         }
     }
 }
@@ -133,12 +137,60 @@ pub fn file_uri(path: &Path) -> lsp_types::Url {
     lsp_types::Url::from_file_path(path).expect("path should be absolute and valid")
 }
 
+/// Copies a fixture directory to a temporary directory
+#[allow(dead_code)]
+pub fn copy_fixture_to_temp(fixture: &str) -> TempDir {
+    let src = fixture_path(fixture);
+    let temp_dir = TempDir::new().expect("failed to create temp dir");
+    temp_dir
+        .copy_from(&src, &["**/*"])
+        .expect("failed to copy fixture");
+    temp_dir
+}
+
 /// Creates a TestContext and run the initialize -> initialized handshake.
 /// After this, the cache is built and the server is ready to receive requests.
+#[allow(dead_code)]
 pub async fn init_context(fixture: &str) -> TestContext {
     let mut ctx = TestContext::new();
     let root = fixture_path(fixture);
     let root_uri = file_uri(&root);
+
+    let result = ctx
+        .request(
+            LspRequest::Initialize,
+            json!({
+                "processId": null,
+                "rootUri": root_uri,
+                "capabilities": {
+                    "general": {
+                        "positionEncodings": ["utf-8"],
+                    }
+                },
+                "workspaceFolders": [{
+                    "uri": root_uri,
+                    "name": "test"
+                }]
+            }),
+        )
+        .await;
+
+    assert!(result["capabilities"]["completionProvider"].is_object());
+    assert!(
+        result["capabilities"]["hoverProvider"]
+            .as_bool()
+            .unwrap_or(false)
+    );
+
+    ctx.notify(LspNotification::Initialized, json!({})).await;
+    ctx
+}
+
+/// Creates a TestContext pointing at an arbitrary path and run the initialize -> initialized handshake.
+#[allow(dead_code)]
+pub async fn init_context_at_path(path: &Path) -> TestContext {
+    let mut ctx = TestContext::new();
+    let root_uri = file_uri(path);
 
     let result = ctx
         .request(
