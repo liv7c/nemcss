@@ -1,1 +1,4 @@
 /target
+editors/vscode/node_modules
+editors/vscode/out
+editors/vscode/dist
