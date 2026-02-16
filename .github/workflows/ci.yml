@@ -48,7 +48,7 @@ jobs:
         with:
           components: clippy
       - name: Linting
-        run: cargo clippy --workspace --all-features -- -D warnings
+        run: cargo clippy --workspace --all-features --tests --benches -- -D warnings
 
   coverage:
     name: Code coverage
