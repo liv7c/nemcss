@@ -1,14 +1,47 @@
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
+use napi_derive::napi;
+
+/// JsTokenUtility is the configuration of a utility class for a given token.
+///
+/// # Example
+/// ```no_run
+/// { prefix: "bg", property: "background-color" }
+/// ```
+#[napi(object)]
+pub struct JsTokenUtility {
+    pub prefix: String,
+    pub property: String,
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+/// JsTokenEntry is the configuration of a token entry.
+/// In Rust, we have an enum (Simple or List). We simplify it to an array of strings.
+#[napi(object)]
+pub struct JsTokenEntry {
+    /// The name of the token entry.
+    pub name: String,
+    /// The value of the token entry.
+    pub value: Vec<String>,
+}
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
+/// JsResolvedToken is the configuration of a resolved token.
+/// It is used to generate both the CSS custom properties and the utilities for a given design token.
+///
+/// # Example
+/// ```no_run
+/// {
+///     prefix: "bg",
+///     tokens: [
+///         { name: "color", value: ["red"] },
+///         { name: "opacity", value: ["0.5"] }
+///     ],
+///     utilities: [
+///         { prefix: "bg", property: "background-color" },
+///         { prefix: "bg", property: "background-image" }
+///     ]
+/// }
+/// ```
+#[napi(object)]
+pub struct JsResolvedToken {
+    pub prefix: String,
+    pub tokens: Vec<JsTokenEntry>,
+    pub utilities: Vec<JsTokenUtility>,
 }
