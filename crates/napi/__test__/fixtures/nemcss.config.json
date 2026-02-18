@@ -1,0 +1,16 @@
+{
+  "content": ["src/**/*.html"],
+  "theme": {
+    "colors": {
+      "source": "design-tokens/colors.json",
+      "utilities": [
+        { "prefix": "text", "property": "color" },
+        { "prefix": "bg", "property": "background-color" }
+      ]
+    },
+    "spacing": {
+      "source": "design-tokens/spacing.json",
+      "utilities": [{ "prefix": "p", "property": "padding" }]
+    }
+  }
+}

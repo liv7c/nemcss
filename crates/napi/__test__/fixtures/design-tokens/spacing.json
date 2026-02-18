@@ -1,0 +1,8 @@
+{
+  "title": "Spacing",
+  "description": "Spacing scale",
+  "items": [
+    { "name": "sm", "value": "0.5rem" },
+    { "name": "md", "value": "1rem" }
+  ]
+}
