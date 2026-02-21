@@ -3,6 +3,7 @@
   "private": true,
   "workspaces": [
     "crates/napi",
-    "packages/*"
+    "packages/*",
+    "playground/*"
   ]
 }

@@ -5,3 +5,4 @@ editors/vscode/dist
 # For the crate napi
 node_modules
 *.node
+**/dist
