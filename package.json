@@ -1,0 +1,8 @@
+{
+  "name": "nemcss-monorepo",
+  "private": true,
+  "workspaces": [
+    "crates/napi",
+    "packages/*"
+  ]
+}
