@@ -160,3 +160,75 @@ async fn test_completion_suggests_custom_properties_in_var_context() {
 
     assert_json_snapshot!(completion_labels(&result));
 }
+
+#[tokio::test]
+async fn test_responsive_completion_has_text_edit_replacing_prefix() {
+    let fixture = "basic_project";
+    let mut ctx = init_context(fixture).await;
+    let file_path = fixture_path(fixture).join("src").join("index.html");
+    let uri = file_uri(&file_path);
+
+    ctx.notify(
+        LspNotification::DidOpen,
+        json!({
+            "textDocument": {
+                "uri": uri,
+                "languageId": "html",
+                "version": 1,
+                "text": "<div class=\"md:\">"
+            }
+        }),
+    )
+    .await;
+
+    let result = ctx
+        .request(
+            LspRequest::Completion,
+            json!({
+                "textDocument": {
+                    "uri": uri,
+                },
+                "position": {
+                    "line": 0,
+                    // "<div class=\"md:\">"
+                    //                ^ col 15
+                    "character": 15,
+                },
+            }),
+        )
+        .await;
+
+    let items = result.as_array().expect("should return an array");
+    assert!(!items.is_empty(), "should return completion items");
+
+    for item in items {
+        let text_edit = &item["textEdit"];
+        assert!(!text_edit.is_null(), "should have a text edit");
+
+        let start_char = text_edit["range"]["start"]["character"]
+            .as_u64()
+            .expect("should have a start character");
+        let end_char = text_edit["range"]["end"]["character"]
+            .as_u64()
+            .expect("should have an end character");
+        let new_text = text_edit["newText"]
+            .as_str()
+            .expect("should have a new text");
+        let label = item["label"].as_str().expect("should have a label");
+
+        assert_eq!(start_char, 12, "range should start at the `m` of `md:`");
+
+        assert_eq!(end_char, 15, "range should end at the end of cursor");
+
+        assert_eq!(
+            new_text, label,
+            "text edit should replace `md:` with `md:[classname]`"
+        );
+
+        assert!(
+            !label.starts_with("md:md:"),
+            "label must not contain double prefix `md:md:`, got `{}`",
+            label
+        );
+    }
+}
