@@ -195,8 +195,28 @@ impl LanguageServer for Backend {
 
         let partial = &class_context.partial_token;
 
-        let completion_items = if class_context.responsive_prefix.is_some() {
-            cache.responsive_class_completions(partial)
+        let completion_items = if let Some(prefix) = class_context.responsive_prefix {
+            // NOTE: assumes responsive prefix and partial are ASCII-only
+            let typed_len = (prefix.len().saturating_add(1) + partial.len()) as u32;
+            let start_char = position.character.saturating_sub(typed_len);
+            let edit_range = Range {
+                start: Position {
+                    line: position.line,
+                    character: start_char,
+                },
+                end: *position,
+            };
+
+            let mut items = cache.responsive_class_completions(partial);
+
+            for item in &mut items {
+                item.text_edit = Some(CompletionTextEdit::Edit(TextEdit {
+                    range: edit_range,
+                    new_text: item.label.clone(),
+                }));
+            }
+
+            items
         } else {
             cache.class_completions(partial)
         };
