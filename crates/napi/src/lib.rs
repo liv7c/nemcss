@@ -69,7 +69,9 @@ pub fn generate_css(config_path: String, used_classes: Option<Vec<String>>) -> R
         .map_err(|e| Error::from_reason(format!("{e}")))?;
 
     let used_set: Option<HashSet<String>> = used_classes.map(|v| v.into_iter().collect());
-    let viewports = resolved.get("viewport");
+    let viewports = resolved
+        .get("viewports")
+        .or_else(|| resolved.get("viewport"));
     let generated = engine::generate_css(resolved.values(), viewports, used_set.as_ref());
 
     Ok(generated.to_css())
