@@ -218,7 +218,25 @@ impl LanguageServer for Backend {
 
             items
         } else {
-            cache.class_completions(partial)
+            let start_char = position.character.saturating_sub(partial.len() as u32);
+            let edit_range = Range {
+                start: Position {
+                    line: position.line,
+                    character: start_char,
+                },
+                end: *position,
+            };
+
+            let mut items = cache.class_completions(partial);
+
+            for item in &mut items {
+                item.text_edit = Some(CompletionTextEdit::Edit(TextEdit {
+                    range: edit_range,
+                    new_text: item.label.clone(),
+                }));
+            }
+
+            items
         };
 
         Ok(Some(CompletionResponse::Array(completion_items)))
