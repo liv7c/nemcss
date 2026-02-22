@@ -132,7 +132,7 @@ pub fn resolve_all_tokens(
 ) -> Result<HashMap<String, ResolvedToken>, ResolveTokensError> {
     let mut resolved_tokens = HashMap::new();
 
-    let tokens_dir = config.base_dir.join(&config.tokens_dir);
+    let tokens_dir = config.tokens_dir();
     let token_files = scan_tokens_dir(&tokens_dir)?;
 
     // Map the token source to the token name in the theme configuration.
