@@ -1,5 +1,4 @@
 import type { Plugin, ResolvedConfig, ViteDevServer, HmrContext } from "vite";
-import type { PluginContext } from "rollup";
 import { createFilter } from "vite";
 import type { NemcssPluginOptions } from "./types";
 import { resolve, sep } from "node:path";
@@ -8,11 +7,7 @@ import fg from "fast-glob";
 
 import { extractClasses, generateCss } from "@nemcss/napi";
 
-/**
- * The CSS directive users write in their source code
- * It supports both @nemcss; and @nemcss <layer>; (e.g. @nemcss base;)
- */
-const DIRECTIVE_RE = /@nemcss(?:\s+(\w+))?\s*;/g;
+const DIRECTIVE_RE = /@nemcss base;/g;
 
 /**
  * Extracts the non-glob prefix directory from a glob pattern so we can
@@ -98,7 +93,7 @@ export function nemcss(options: NemcssPluginOptions = {}): Plugin {
         const classes = extractClasses(content);
         for (const cls of classes) allClasses.add(cls);
       } catch (e) {
-        console.error(`Error reading ${file}: ${e}`);
+        viteConfig.logger.error(`Error reading ${file}: ${e}`);
       }
     }
 
@@ -133,7 +128,7 @@ export function nemcss(options: NemcssPluginOptions = {}): Plugin {
       // CLI's watcher.watch(dir) calls in create_debounced_watcher).
       addWatches(devServer.watcher);
     },
-    async buildStart(this: PluginContext) {
+    async buildStart(this) {
       this.addWatchFile(configPath);
       await rebuild();
     },
@@ -179,13 +174,14 @@ export function nemcss(options: NemcssPluginOptions = {}): Plugin {
     },
     transform(this: void, code: string, id: string) {
       if (!id.endsWith(".css")) return;
-      if (!code.includes("@nemcss")) return;
+      if (!code.includes("@nemcss base;")) {
+        nemcssStylesheets.delete(id);
+        return;
+      }
 
       nemcssStylesheets.add(id);
 
-      const result = code.replace(DIRECTIVE_RE, () => {
-        return generatedCss;
-      });
+      const result = code.replace(DIRECTIVE_RE, () => generatedCss);
 
       return {
         code: result,
