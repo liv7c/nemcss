@@ -2,7 +2,10 @@
   "content": [
     "src/**/*.html",
     "src/**/*.jsx",
-    "src/**/*.tsx"
+    "src/**/*.tsx",
+    "src/**/*.vue",
+    "src/**/*.svelte",
+    "src/**/*.astro"
   ],
   "tokensDir": "design-tokens",
   "theme": {
