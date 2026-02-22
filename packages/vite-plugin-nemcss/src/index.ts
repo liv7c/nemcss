@@ -1,4 +1,5 @@
-import type { Plugin, ResolvedConfig, ViteDevServer } from "vite";
+import type { Plugin, ResolvedConfig, ViteDevServer, HmrContext } from "vite";
+import type { PluginContext } from "rollup";
 import { createFilter } from "vite";
 import type { NemcssPluginOptions } from "./types";
 import { resolve, sep } from "node:path";
@@ -115,8 +116,8 @@ export function nemcss(options: NemcssPluginOptions = {}): Plugin {
 
   return {
     name: "vite-plugin-nemcss",
-    enforce: "pre",
-    configResolved(resolvedConfig) {
+    enforce: "pre" as const,
+    configResolved(this: void, resolvedConfig: ResolvedConfig) {
       viteConfig = resolvedConfig;
       configPath = resolve(
         viteConfig.root,
@@ -124,7 +125,7 @@ export function nemcss(options: NemcssPluginOptions = {}): Plugin {
       );
       loadNemcssConfig();
     },
-    configureServer(devServer) {
+    configureServer(this: void, devServer: ViteDevServer) {
       server = devServer;
       if (options.hmr === false) return;
       // Watch the tokens directory and all content base directories so that
@@ -132,11 +133,11 @@ export function nemcss(options: NemcssPluginOptions = {}): Plugin {
       // CLI's watcher.watch(dir) calls in create_debounced_watcher).
       addWatches(devServer.watcher);
     },
-    async buildStart() {
+    async buildStart(this: PluginContext) {
       this.addWatchFile(configPath);
       await rebuild();
     },
-    async handleHotUpdate({ file, modules, server: s }) {
+    async handleHotUpdate(this: void, { file, modules, server }: HmrContext) {
       if (options.hmr === false) return;
 
       const isConfig = file === configPath;
@@ -150,7 +151,7 @@ export function nemcss(options: NemcssPluginOptions = {}): Plugin {
         viteConfig.logger.info("nemcss: config changed, reloading...");
         loadNemcssConfig();
         // Re-register watches: tokensDir or content globs may have changed.
-        addWatches(s.watcher);
+        addWatches(server.watcher);
       }
 
       await rebuild();
@@ -159,9 +160,9 @@ export function nemcss(options: NemcssPluginOptions = {}): Plugin {
       // new generatedCss on the next request.
       const cssModules = [];
       for (const id of nemcssStylesheets) {
-        const mod = s.moduleGraph.getModuleById(id);
+        const mod = server.moduleGraph.getModuleById(id);
         if (mod) {
-          s.moduleGraph.invalidateModule(mod);
+          server.moduleGraph.invalidateModule(mod);
           cssModules.push(mod);
         }
       }
@@ -176,7 +177,7 @@ export function nemcss(options: NemcssPluginOptions = {}): Plugin {
 
       return cssModules;
     },
-    transform(code, id) {
+    transform(this: void, code: string, id: string) {
       if (!id.endsWith(".css")) return;
       if (!code.includes("@nemcss")) return;
 
@@ -193,3 +194,5 @@ export function nemcss(options: NemcssPluginOptions = {}): Plugin {
     },
   };
 }
+
+export type { NemcssPluginOptions } from "./types.js";

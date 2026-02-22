@@ -1,9 +1,5 @@
 {
   "name": "nemcss-monorepo",
   "private": true,
-  "workspaces": [
-    "crates/napi",
-    "packages/*",
-    "playground/*"
-  ]
+  "packageManager": "pnpm@10.4.1"
 }

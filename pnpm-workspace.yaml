@@ -1,0 +1,10 @@
+packages:
+  - 'crates/napi'
+  - 'packages/*'
+  - 'playground/*'
+  - 'editors/*'
+
+onlyBuiltDependencies:
+  - '@vscode/vsce-sign'
+  - esbuild
+  - keytar

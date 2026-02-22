@@ -26,7 +26,7 @@
   },
   "license": "MIT",
   "peerDependencies": {
-    "vite": "^5.0.0 || ^6.0.0"
+    "vite": "^5.2.0 || ^6 || ^7"
   },
   "author": "Olivia Coumans",
   "scripts": {
@@ -35,7 +35,7 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
-    "@nemcss/napi": "*",
+    "@nemcss/napi": "workspace:*",
     "fast-glob": "^3.3.3"
   },
   "devDependencies": {

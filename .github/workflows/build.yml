@@ -99,21 +99,21 @@ jobs:
           cp lsp-artifacts/nemcss-lsp-win32-x64/nemcss-lsp.exe editors/vscode/bin/lsp-win32-x64.exe
           chmod +x editors/vscode/bin/lsp-darwin-arm64 editors/vscode/bin/lsp-darwin-x64 editors/vscode/bin/lsp-linux-x64
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: 'pnpm'
 
       - name: Install dependencies
-        working-directory: editors/vscode
-        run: npm ci
-
-      - name: Install vsce
-        run: npm install -g @vscode/vsce
+        run: pnpm install --frozen-lockfile
 
       - name: Package extension
         working-directory: editors/vscode
-        run: vsce package
+        run: pnpm exec vsce package
 
       - name: Upload VSIX artifact
         uses: actions/upload-artifact@v6
