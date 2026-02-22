@@ -26,8 +26,7 @@
     "onLanguage:typescriptreact",
     "onLanguage:vue",
     "onLanguage:svelte",
-    "onLanguage:astro",
-    "onLanguage:php"
+    "onLanguage:astro"
   ],
   "main": "./dist/extension.js",
   "contributes": {

@@ -8,7 +8,7 @@ Provides IDE support via the NemCSS Language Server for the utility classes and 
 
 - **Autocomplete** for NemCSS utility classes and custom properties
 - **Hover** documentation showing the resolved value of a utility class or custom property
-- Works across CSS, SCSS, Sass, Less, HTML, PHP, Blade, Twig, JavaScript, TypeScript, Vue, Svelte, and Astro files
+- Works across CSS, SCSS, Sass, Less, HTML, JavaScript, TypeScript, Vue, Svelte, and Astro files
 
 ## Requirements
 
