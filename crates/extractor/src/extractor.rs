@@ -815,7 +815,7 @@ mod tests {
         );
         assert!(
             result.contains("active"),
-            "Expected 'font-bold', got {result:?}"
+            "Expected 'active', got {result:?}"
         );
     }
 }

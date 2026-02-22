@@ -1,0 +1,19 @@
+[package]
+name = "nemcss-napi"
+edition = "2024"
+version.workspace = true
+authors.workspace = true
+description.workspace = true
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+napi = "3.8.3"
+napi-derive = "3.5.2"
+config = { path = "../config" }
+extractor = { path = "../extractor" }
+engine = { path = "../engine" }
+
+[build-dependencies]
+napi-build = "2"

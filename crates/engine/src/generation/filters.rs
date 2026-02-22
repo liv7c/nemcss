@@ -12,7 +12,7 @@ use config::ResolvedToken;
 /// Returns a vec of utilities and a map of used responsive utility classes.
 pub fn generate_filtered_utilities(
     resolved_tokens: &[&ResolvedToken],
-    used_utilities: &[String],
+    used_utilities: &HashSet<String>,
     used_responsive_utilities: &HashMap<String, Vec<String>>,
 ) -> (Vec<Utility>, HashMap<String, Vec<Utility>>) {
     let mut utilities = Vec::new();
@@ -84,8 +84,8 @@ pub fn generate_filtered_responsive_utilities(
 /// Splits the used classes into utility classes and responsive utility classes.
 pub fn parse_used_classes(
     used_classes: &HashSet<String>,
-) -> (Vec<String>, HashMap<String, Vec<String>>) {
-    let mut used_utility_classes = Vec::new();
+) -> (HashSet<String>, HashMap<String, Vec<String>>) {
+    let mut used_utility_classes = HashSet::new();
     let mut used_responsive_utilities: HashMap<String, Vec<String>> = HashMap::new();
 
     for class_name in used_classes {
@@ -96,7 +96,7 @@ pub fn parse_used_classes(
                 .push(vw.to_string());
             continue;
         }
-        used_utility_classes.push(class_name.to_string());
+        used_utility_classes.insert(class_name.to_string());
     }
 
     (used_utility_classes, used_responsive_utilities)
@@ -126,9 +126,9 @@ mod tests {
         assert_eq!(used_utility_classes.len(), 3);
         assert_eq!(used_responsive_utilities.len(), 2);
 
-        assert!(used_utility_classes.contains(&"text-primary".to_string()));
-        assert!(used_utility_classes.contains(&"text-secondary".to_string()));
-        assert!(used_utility_classes.contains(&"m-2".to_string()));
+        assert!(used_utility_classes.contains("text-primary"));
+        assert!(used_utility_classes.contains("text-secondary"));
+        assert!(used_utility_classes.contains("m-2"));
 
         assert!(
             used_responsive_utilities
@@ -190,7 +190,7 @@ mod tests {
         );
 
         let all_tokens: Vec<_> = resolved_tokens.values().collect();
-        let used_utilities = vec!["text-primary".to_string()];
+        let used_utilities = HashSet::from(["text-primary".to_string()]);
         let used_responsive_utilities = HashMap::from([(
             "bg-primary".to_string(),
             vec!["sm".to_string(), "md".to_string()],

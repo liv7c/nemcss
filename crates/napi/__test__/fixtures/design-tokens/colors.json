@@ -1,0 +1,8 @@
+{
+  "title": "Colors",
+  "description": "Brand color palette",
+  "items": [
+    { "name": "primary", "value": "#fccd26" },
+    { "name": "secondary", "value": "#171406" }
+  ]
+}

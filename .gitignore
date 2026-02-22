@@ -2,3 +2,7 @@
 editors/vscode/node_modules
 editors/vscode/out
 editors/vscode/dist
+# For the crate napi
+node_modules
+*.node
+**/dist

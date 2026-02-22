@@ -1,6 +1,6 @@
 use divan::AllocProfiler;
 use engine::VIEWPORT_TOKEN_PREFIX;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use config::{ResolvedToken, TokenUtilityConfig, TokenValue};
 
@@ -149,6 +149,23 @@ fn large_design_system(bencher: divan::Bencher) {
     });
 }
 
+/// Helper to derive all possible class names from a token map.
+/// Mirrors what the engine does: `{utility_prefix}-{token_name}` for every combination.
+fn generate_class_names(tokens: &HashMap<String, ResolvedToken>) -> HashSet<String> {
+    tokens
+        .values()
+        .filter(|r| r.prefix != VIEWPORT_TOKEN_PREFIX)
+        .flat_map(|token| {
+            token.utilities.iter().flat_map(move |utility| {
+                token
+                    .tokens
+                    .iter()
+                    .map(move |(token_name, _)| format!("{}-{}", utility.prefix, token_name))
+            })
+        })
+        .collect()
+}
+
 /// Parameterized benchmark testing CSS generation scaling.
 ///
 /// Measures performance across different design system sizes to verify linear scaling characteristics.
@@ -175,6 +192,73 @@ fn by_category_count(bencher: divan::Bencher, num_categories: usize) {
             divan::black_box(tokens.values()),
             divan::black_box(Some(&viewport_value)),
             None,
+        );
+        divan::black_box(css.to_css());
+    });
+}
+
+#[divan::bench]
+fn realistic_project_filtered(bencher: divan::Bencher) {
+    let tokens = create_tokens();
+    let viewports = create_viewports();
+    let all_classes = generate_class_names(&tokens);
+    let half_count = all_classes.len() / 2;
+    let half: HashSet<String> = all_classes.into_iter().take(half_count).collect();
+
+    bencher.bench(|| {
+        let css = engine::generate_css(
+            divan::black_box(tokens.values()),
+            divan::black_box(Some(&viewports)),
+            divan::black_box(Some(&half)),
+        );
+        divan::black_box(css.to_css());
+    });
+}
+
+#[divan::bench]
+fn large_design_system_filtered(bencher: divan::Bencher) {
+    let mut tokens = HashMap::new();
+    let (_, viewport_value) = create_token_category("viewports", VIEWPORT_TOKEN_PREFIX, 8, 0);
+
+    for i in 0..10 {
+        let (key, value) =
+            create_token_category(&format!("category-{i}"), &format!("prefix-{i}"), 20, 5);
+        tokens.insert(key, value);
+    }
+
+    let all_classes = generate_class_names(&tokens);
+    let half_count = all_classes.len() / 2;
+    let half: HashSet<String> = all_classes.into_iter().take(half_count).collect();
+
+    bencher.bench(|| {
+        let css = engine::generate_css(
+            divan::black_box(tokens.values()),
+            divan::black_box(Some(&viewport_value)),
+            divan::black_box(Some(&half)),
+        );
+        divan::black_box(css.to_css());
+    });
+}
+
+#[divan::bench(args = [1, 3, 5, 8, 10, 12])]
+fn by_category_count_filtered(bencher: divan::Bencher, num_categories: usize) {
+    let mut tokens = HashMap::new();
+    let (_, viewport_value) = create_token_category("viewports", VIEWPORT_TOKEN_PREFIX, 5, 0);
+    for i in 0..num_categories {
+        let (key, value) =
+            create_token_category(&format!("category-{i}"), &format!("prefix-{i}"), 15, 5);
+        tokens.insert(key, value);
+    }
+
+    let all_classes = generate_class_names(&tokens);
+    let half_count = all_classes.len() / 2;
+    let half: HashSet<String> = all_classes.into_iter().take(half_count).collect();
+
+    bencher.bench(|| {
+        let css = engine::generate_css(
+            divan::black_box(tokens.values()),
+            divan::black_box(Some(&viewport_value)),
+            divan::black_box(Some(&half)),
         );
         divan::black_box(css.to_css());
     });

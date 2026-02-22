@@ -6,6 +6,7 @@ on:
     paths:
       - '.github/workflows/build.yml'
       - 'crates/**'
+      - 'packages/**'
       - 'editors/vscode/**'
       - 'Cargo.toml'
       - 'Cargo.lock'
@@ -14,6 +15,7 @@ on:
     paths:
       - '.github/workflows/build.yml'
       - 'crates/**'
+      - 'packages/**'
       - 'editors/vscode/**'
       - 'Cargo.toml'
       - 'Cargo.lock'
@@ -74,6 +76,83 @@ jobs:
             target/${{ matrix.arch }}/release/nemcss-lsp
             target/${{ matrix.arch }}/release/nemcss-lsp.exe
 
+  build-napi:
+    name: Build NAPI - ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            target: darwin-arm64
+          - os: macos-15-intel
+            target: darwin-x64
+          - os: ubuntu-latest
+            target: linux-x64
+          - os: windows-latest
+            target: win32-x64
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v6
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: napi-${{ matrix.target }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build NAPI module
+        working-directory: crates/napi
+        run: pnpm run build
+
+      - name: Upload NAPI artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: napi-${{ matrix.target }}
+          path: crates/napi/*.node
+
+  build-vite-plugin:
+    name: Build Vite Plugin
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Vite plugin
+        run: pnpm --filter vite-plugin-nemcss build
+
+      - name: Upload Vite plugin artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: vite-plugin-nemcss
+          path: packages/vite-plugin-nemcss/dist/
+
   package-vscode:
     name: Package VS Code Extension
     needs: build-binaries
@@ -99,21 +178,21 @@ jobs:
           cp lsp-artifacts/nemcss-lsp-win32-x64/nemcss-lsp.exe editors/vscode/bin/lsp-win32-x64.exe
           chmod +x editors/vscode/bin/lsp-darwin-arm64 editors/vscode/bin/lsp-darwin-x64 editors/vscode/bin/lsp-linux-x64
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: 'pnpm'
 
       - name: Install dependencies
-        working-directory: editors/vscode
-        run: npm ci
-
-      - name: Install vsce
-        run: npm install -g @vscode/vsce
+        run: pnpm install --frozen-lockfile
 
       - name: Package extension
         working-directory: editors/vscode
-        run: vsce package
+        run: pnpm exec vsce package --no-dependencies
 
       - name: Upload VSIX artifact
         uses: actions/upload-artifact@v6

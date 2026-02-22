@@ -1,0 +1,5 @@
+{
+  "name": "nemcss-monorepo",
+  "private": true,
+  "packageManager": "pnpm@10.4.1"
+}

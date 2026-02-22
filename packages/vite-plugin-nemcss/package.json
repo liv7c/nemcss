@@ -1,0 +1,45 @@
+{
+  "name": "vite-plugin-nemcss",
+  "version": "0.1.0",
+  "type": "module",
+  "module": "./dist/index.js",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "types": "./dist/index.d.ts",
+  "description": "Plugin to support nemcss",
+  "keywords": [
+    "vite-plugin"
+  ],
+  "homepage": "https://github.com/liv7c/nemcss#readme",
+  "bugs": {
+    "url": "https://github.com/liv7c/nemcss/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/liv7c/nemcss.git"
+  },
+  "license": "MIT",
+  "peerDependencies": {
+    "vite": "^5.2.0 || ^6 || ^7"
+  },
+  "author": "Olivia Coumans",
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "@nemcss/napi": "workspace:*",
+    "fast-glob": "^3.3.3"
+  },
+  "devDependencies": {
+    "@types/node": "^25.3.0",
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.1"
+  }
+}
