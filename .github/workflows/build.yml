@@ -192,7 +192,7 @@ jobs:
 
       - name: Package extension
         working-directory: editors/vscode
-        run: pnpm exec vsce package
+        run: pnpm exec vsce package --no-dependencies
 
       - name: Upload VSIX artifact
         uses: actions/upload-artifact@v6
