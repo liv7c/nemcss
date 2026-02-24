@@ -125,6 +125,34 @@ jobs:
           name: napi-${{ matrix.target }}
           path: crates/napi/*.node
 
+  build-postcss-plugin:
+    name: Build PostCSS Plugin
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build PostCSS plugin
+        run: pnpm --filter postcss-plugin-nemcss build
+
+      - name: Upload PostCSS plugin artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: postcss-plugin-nemcss
+          path: packages/postcss-plugin-nemcss/dist/
+
   build-vite-plugin:
     name: Build Vite Plugin
     runs-on: ubuntu-latest
