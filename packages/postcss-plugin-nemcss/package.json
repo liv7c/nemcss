@@ -1,0 +1,44 @@
+{
+  "name": "postcss-plugin-nemcss",
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "types": "./dist/index.d.ts",
+  "description": "Plugin to support nemcss",
+  "keywords": [
+    "postcss-plugin"
+  ],
+  "homepage": "https://github.com/liv7c/nemcss#readme",
+  "bugs": {
+    "url": "https://github.com/liv7c/nemcss/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/liv7c/nemcss.git"
+  },
+  "license": "MIT",
+  "peerDependencies": {
+    "postcss": "^8"
+  },
+  "author": "Olivia Coumans",
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "@nemcss/napi": "workspace:*",
+    "fast-glob": "^3.3.3"
+  },
+  "devDependencies": {
+    "@types/node": "^25.3.0",
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3",
+    "postcss": "^8"
+  }
+}
