@@ -1,5 +1,5 @@
 {
-  "name": "vite-plugin-nemcss",
+  "name": "@nemcss/vite",
   "version": "0.1.0",
   "type": "module",
   "module": "./dist/index.js",
@@ -20,7 +20,8 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/liv7c/nemcss.git"
+    "url": "git+https://github.com/liv7c/nemcss.git",
+    "directory": "packages/vite-plugin-nemcss"
   },
   "license": "MIT",
   "peerDependencies": {

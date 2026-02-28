@@ -75,6 +75,34 @@ importers:
         specifier: ^8.54.0
         version: 8.56.0(eslint@9.39.3)(typescript@5.9.3)
 
+  npm/@nemcss/cli-darwin-arm64: {}
+
+  npm/@nemcss/cli-darwin-x64: {}
+
+  npm/@nemcss/cli-linux-arm64: {}
+
+  npm/@nemcss/cli-linux-x64: {}
+
+  npm/@nemcss/cli-win32-x64: {}
+
+  packages/nemcss:
+    optionalDependencies:
+      '@nemcss/cli-darwin-arm64':
+        specifier: workspace:*
+        version: link:../../npm/@nemcss/cli-darwin-arm64
+      '@nemcss/cli-darwin-x64':
+        specifier: workspace:*
+        version: link:../../npm/@nemcss/cli-darwin-x64
+      '@nemcss/cli-linux-arm64':
+        specifier: workspace:*
+        version: link:../../npm/@nemcss/cli-linux-arm64
+      '@nemcss/cli-linux-x64':
+        specifier: workspace:*
+        version: link:../../npm/@nemcss/cli-linux-x64
+      '@nemcss/cli-win32-x64':
+        specifier: workspace:*
+        version: link:../../npm/@nemcss/cli-win32-x64
+
   packages/postcss-plugin-nemcss:
     dependencies:
       '@nemcss/napi':
