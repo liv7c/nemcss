@@ -1,0 +1,30 @@
+{
+  "name": "nemcss",
+  "version": "0.1.0",
+  "description": "Command-line interface for nemcss, a design-token-driven CSS utility generator",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/liv7c/nemcss.git",
+    "directory": "packages/nemcss"
+  },
+  "author": "Olivia Coumans",
+  "bin": {
+    "nemcss": "./bin/nemcss.js"
+  },
+  "bugs": {
+    "url": "https://github.com/liv7c/nemcss/issues"
+  },
+  "keywords": [
+    "command-line",
+    "css generator"
+  ],
+  "files": ["bin"],
+  "optionalDependencies": {
+    "@nemcss/cli-darwin-arm64": "workspace:*",
+    "@nemcss/cli-darwin-x64": "workspace:*",
+    "@nemcss/cli-linux-x64": "workspace:*",
+    "@nemcss/cli-linux-arm64": "workspace:*",
+    "@nemcss/cli-win32-x64": "workspace:*"
+  }
+}

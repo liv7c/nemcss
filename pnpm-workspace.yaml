@@ -1,6 +1,7 @@
 packages:
   - 'crates/napi'
   - 'packages/*'
+  - 'npm/@nemcss/*'
   - 'editors/*'
 
 onlyBuiltDependencies:

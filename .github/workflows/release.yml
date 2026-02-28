@@ -1,0 +1,213 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: Build - ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            target: darwin-arm64
+            arch: aarch64-apple-darwin
+          - os: macos-15-intel
+            target: darwin-x64
+            arch: x86_64-apple-darwin
+          - os: ubuntu-latest
+            target: linux-x64
+            arch: x86_64-unknown-linux-gnu
+          - os: ubuntu-24.04-arm
+            target: linux-arm64
+            arch: aarch64-unknown-linux-gnu
+          - os: windows-latest
+            target: win32-x64
+            arch: x86_64-pc-windows-msvc
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.arch }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: release-${{ matrix.target }}
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: 'pnpm'
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build CLI
+        run: cargo build --release --target ${{ matrix.arch }} --bin nemcss
+
+      - name: Build NAPI
+        working-directory: crates/napi
+        run: pnpm run build
+
+      - name: Stage artifacts
+        shell: bash
+        run: |
+          mkdir -p dist/cli dist/napi
+          cp crates/napi/*.node dist/napi/
+          if [ -f "target/${{ matrix.arch }}/release/nemcss" ]; then
+            cp "target/${{ matrix.arch }}/release/nemcss" dist/cli/
+          fi
+          if [ -f "target/${{ matrix.arch }}/release/nemcss.exe" ]; then
+            cp "target/${{ matrix.arch }}/release/nemcss.exe" dist/cli/
+          fi
+
+      - uses: actions/upload-artifact@v6
+        with:
+          name: cli-${{ matrix.target }}
+          path: dist/cli/
+
+      - uses: actions/upload-artifact@v6
+        with:
+          name: napi-${{ matrix.target }}
+          path: dist/napi/
+
+  build-plugins:
+    name: Build JS plugins
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: 'pnpm'
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm --filter @nemcss/vite build
+
+      - run: pnpm --filter @nemcss/postcss build
+
+      - uses: actions/upload-artifact@v6
+        with:
+          name: vite-plugin
+          path: packages/vite-plugin-nemcss/dist/
+
+      - uses: actions/upload-artifact@v6
+        with:
+          name: postcss-plugin
+          path: packages/postcss-plugin-nemcss/dist/
+
+  publish:
+    name: Publish to npm
+    needs: [build, build-plugins]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v7
+        with:
+          path: artifacts
+
+      - name: Set version from tag
+        run: |
+          node -e "
+            const fs = require('fs');
+            const version = process.env.VERSION.replace(/^v/, '');
+            const pkgs = [
+              'crates/napi',
+              'packages/nemcss',
+              'npm/@nemcss/cli-darwin-arm64',
+              'npm/@nemcss/cli-darwin-x64',
+              'npm/@nemcss/cli-linux-x64',
+              'npm/@nemcss/cli-linux-arm64',
+              'npm/@nemcss/cli-win32-x64',
+              'packages/vite-plugin-nemcss',
+              'packages/postcss-plugin-nemcss',
+            ];
+            pkgs.forEach(p => {
+              const json = JSON.parse(fs.readFileSync(p + '/package.json', 'utf8'));
+              json.version = version;
+              for (const field of ['dependencies', 'optionalDependencies']) {
+                if (!json[field]) continue;
+                for (const [k, v] of Object.entries(json[field])) {
+                  if (v.startsWith('workspace:') || k.startsWith('@nemcss/')) {
+                    json[field][k] = version;
+                  }
+                }
+              }
+              fs.writeFileSync(p + '/package.json', JSON.stringify(json, null, 2) + '\n');
+            });
+          "
+        env:
+          VERSION: ${{ github.ref_name }}
+
+      - name: Copy CLI binaries into platform packages
+        run: |
+          mkdir -p npm/@nemcss/cli-darwin-arm64/bin
+          mkdir -p npm/@nemcss/cli-darwin-x64/bin
+          mkdir -p npm/@nemcss/cli-linux-x64/bin
+          mkdir -p npm/@nemcss/cli-linux-arm64/bin
+          mkdir -p npm/@nemcss/cli-win32-x64/bin
+
+          cp artifacts/cli-darwin-arm64/nemcss   npm/@nemcss/cli-darwin-arm64/bin/nemcss
+          cp artifacts/cli-darwin-x64/nemcss     npm/@nemcss/cli-darwin-x64/bin/nemcss
+          cp artifacts/cli-linux-x64/nemcss      npm/@nemcss/cli-linux-x64/bin/nemcss
+          cp artifacts/cli-linux-arm64/nemcss    npm/@nemcss/cli-linux-arm64/bin/nemcss
+          cp artifacts/cli-win32-x64/nemcss.exe  npm/@nemcss/cli-win32-x64/bin/nemcss.exe
+
+          chmod +x npm/@nemcss/cli-darwin-arm64/bin/nemcss
+          chmod +x npm/@nemcss/cli-darwin-x64/bin/nemcss
+          chmod +x npm/@nemcss/cli-linux-x64/bin/nemcss
+          chmod +x npm/@nemcss/cli-linux-arm64/bin/nemcss
+
+      - name: Copy NAPI bindings
+        run: cp artifacts/napi-*/*.node crates/napi/
+
+      - name: Copy plugin dist
+        run: |
+          cp -r artifacts/vite-plugin/.   packages/vite-plugin-nemcss/dist/
+          cp -r artifacts/postcss-plugin/. packages/postcss-plugin-nemcss/dist/
+
+      - name: Publish CLI platform packages
+        run: |
+          npm publish npm/@nemcss/cli-darwin-arm64 --access public
+          npm publish npm/@nemcss/cli-darwin-x64 --access public
+          npm publish npm/@nemcss/cli-linux-x64 --access public
+          npm publish npm/@nemcss/cli-linux-arm64 --access public
+          npm publish npm/@nemcss/cli-win32-x64 --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish @nemcss/napi
+        run: npm publish crates/napi --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish JS plugins
+        run: |
+          npm publish packages/vite-plugin-nemcss --access public
+          npm publish packages/postcss-plugin-nemcss --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish main CLI package
+        run: npm publish packages/nemcss --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
