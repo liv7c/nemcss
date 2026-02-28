@@ -19,6 +19,7 @@
     "command-line",
     "css generator"
   ],
+  "engines": { "node": ">=18" },
   "files": ["bin"],
   "optionalDependencies": {
     "@nemcss/cli-darwin-arm64": "workspace:*",
