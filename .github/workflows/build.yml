@@ -64,7 +64,7 @@ jobs:
         run: cargo build --release --target ${{ matrix.arch }} --bin nemcss --bin nemcss-lsp
 
       - name: Upload nemcss artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: nemcss-${{ matrix.target }}
           path: |
@@ -72,7 +72,7 @@ jobs:
             target/${{ matrix.arch }}/release/nemcss.exe
 
       - name: Upload nemcss-lsp artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: nemcss-lsp-${{ matrix.target }}
           path: |
@@ -125,7 +125,7 @@ jobs:
         run: pnpm run build
 
       - name: Upload NAPI artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: napi-${{ matrix.target }}
           path: crates/napi/*.node
@@ -153,7 +153,7 @@ jobs:
         run: pnpm --filter postcss-plugin-nemcss build
 
       - name: Upload PostCSS plugin artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: postcss-plugin-nemcss
           path: packages/postcss-plugin-nemcss/dist/
@@ -181,7 +181,7 @@ jobs:
         run: pnpm --filter vite-plugin-nemcss build
 
       - name: Upload Vite plugin artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: vite-plugin-nemcss
           path: packages/vite-plugin-nemcss/dist/
@@ -195,7 +195,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Download LSP artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           pattern: nemcss-lsp-*
           path: lsp-artifacts
@@ -228,7 +228,7 @@ jobs:
         run: pnpm exec vsce package --no-dependencies
 
       - name: Upload VSIX artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: nemcss-vscode
           path: editors/vscode/*.vsix

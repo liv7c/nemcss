@@ -68,7 +68,7 @@ jobs:
       - name: Generate report
         run: cargo llvm-cov report --html --output-dir coverage
       - name: Upload coverage report
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: "Coverage report"
           path: coverage/
