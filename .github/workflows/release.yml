@@ -69,12 +69,12 @@ jobs:
             cp "target/${{ matrix.arch }}/release/nemcss.exe" dist/cli/
           fi
 
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           name: cli-${{ matrix.target }}
           path: dist/cli/
 
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           name: napi-${{ matrix.target }}
           path: dist/napi/
@@ -98,12 +98,12 @@ jobs:
 
       - run: pnpm --filter @nemcss/postcss build
 
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           name: vite-plugin
           path: packages/vite-plugin-nemcss/dist/
 
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           name: postcss-plugin
           path: packages/postcss-plugin-nemcss/dist/
@@ -121,7 +121,7 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
 
       - name: Download all artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           path: artifacts
 
