@@ -78,6 +78,19 @@ pub fn build(
     let input = input.as_ref();
     let output = output.as_ref();
 
+    // Check input CSS file
+    let input_content =
+        std::fs::read_to_string(input).map_err(|e| BuildError::ReadFileContent {
+            path: input.to_path_buf(),
+            source: e,
+        })?;
+
+    if !input_content.contains("@nemcss base;") {
+        return Err(BuildError::MissingBaseDirective(
+            input.display().to_string(),
+        ));
+    }
+
     let current_dir = std::env::current_dir().map_err(BuildError::RetrieveCurrentDir)?;
     let config_path = current_dir.join(CONFIG_FILE_NAME);
     let config = NemCssConfig::from_path(&config_path)?;
@@ -113,19 +126,6 @@ pub fn build(
     // write the css to the output directory
     let generated_css =
         engine::generate_css(resolved_tokens.values(), viewports, Some(&used_classes));
-
-    // replace the @nemcss directives
-    let input_content =
-        std::fs::read_to_string(input).map_err(|e| BuildError::ReadFileContent {
-            path: input.to_path_buf(),
-            source: e,
-        })?;
-
-    if !input_content.contains("@nemcss base;") {
-        return Err(BuildError::MissingBaseDirective(
-            input.display().to_string(),
-        ));
-    }
 
     let output_css = input_content.replace("@nemcss base;", &generated_css.to_css());
 
