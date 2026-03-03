@@ -6,3 +6,6 @@ editors/vscode/dist
 node_modules
 *.node
 **/dist
+
+docs/.vitepress/dist
+docs/.vitepress/cache
