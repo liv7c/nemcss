@@ -96,9 +96,18 @@ pub fn build(
     let config = NemCssConfig::from_path(&config_path)?;
 
     let resolved_tokens = config.resolve_all_tokens()?;
-    let viewports = resolved_tokens.get("viewports");
+    let viewports = resolved_tokens
+        .get("viewports")
+        .or_else(|| resolved_tokens.get("viewport"));
 
     let files_to_scan = get_content_files(&config.content, current_dir.as_path())?;
+
+    if files_to_scan.is_empty() && !quiet {
+        eprintln!(
+            " {} No content files matched your patterns. Check the 'content' field in nemcss.config.json",
+            "⚠".yellow()
+        );
+    }
 
     // Generate the css via css_extractor
     // With try_fold, each thread maintains its own HashSet (no lock, mutex needed)
