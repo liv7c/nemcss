@@ -95,7 +95,7 @@ impl FileWatcher {
         watch_context: &WatchContext,
     ) -> Result<Debouncer<RecommendedWatcher, RecommendedCache>, SetupWatcherError> {
         let mut watcher = new_debouncer_opt::<_, _, RecommendedCache>(
-            Duration::from_secs(2),
+            Duration::from_millis(300),
             None,
             tx,
             RecommendedCache::default(),
