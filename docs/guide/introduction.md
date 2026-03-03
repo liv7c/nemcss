@@ -1,10 +1,8 @@
 # Introduction
 
-NemCSS is a utility that generates CSS custom properties and utility classes based on your design tokens.
+NemCSS connects your design token JSON files to your CSS. Define your tokens as simple name/value pairs, then configure in `nemcss.config.json` the custom property prefix and the utility classes to derive from each token. Only the utilities your project actually uses end up in the final CSS.
 
-The idea is simple: you define your design tokens (colors, spacings, fonts, etc.) in JSON files, add a `@nemcss base;` directive to your CSS input file, and NemCSS replaces it at build time with the generated output. You can configure which utilities are generated and how they are named in a `nemcss.config.json` file.
-
-NemCSS also ships a Language Server Protocol (LSP) implementation, giving you **autocomplete and hover documentation** for every generated utility class and custom property directly in your editor.
+NemCSS also ships a LSP to smooth out your developer experience. You get autocomplete and hover documentation for all generated utility classes and custom properties directly in your editor. Add a new token or update your config and your IDE picks it up instantly.
 
 ## How it works
 
