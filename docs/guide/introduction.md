@@ -2,7 +2,7 @@
 
 NemCSS connects your design token JSON files to your CSS. Define your tokens as simple name/value pairs, then configure in `nemcss.config.json` the custom property prefix and the utility classes to derive from each token. Only the utilities your project actually uses end up in the final CSS.
 
-NemCSS also ships a LSP to smooth out your developer experience. You get autocomplete and hover documentation for all generated utility classes and custom properties directly in your editor. Add a new token or update your config and your IDE picks it up instantly.
+NemCSS also ships an LSP to smooth out your developer experience. You get autocomplete and hover documentation for all generated utility classes and custom properties directly in your editor. Add a new token or update your config and your IDE picks it up instantly.
 
 ## How it works
 

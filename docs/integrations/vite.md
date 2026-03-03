@@ -21,7 +21,21 @@ bun add -D @nemcss/vite
 
 ## Setup
 
-Add the plugin to your Vite config:
+If you haven't already, run `nemcss init` in your project to generate `nemcss.config.json` and the `design-tokens/` folder:
+
+::: code-group
+```sh [npx]
+npx nemcss init
+```
+```sh [pnpm dlx]
+pnpm dlx nemcss init
+```
+```sh [yarn dlx]
+yarn dlx nemcss init
+```
+:::
+
+Then add the plugin to your Vite config:
 
 ```js
 // vite.config.js

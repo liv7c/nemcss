@@ -21,7 +21,21 @@ bun add -D @nemcss/postcss
 
 ## Setup
 
-Add the plugin to your PostCSS config:
+If you haven't already, run `nemcss init` in your project to generate `nemcss.config.json` and the `design-tokens/` folder:
+
+::: code-group
+```sh [npx]
+npx nemcss init
+```
+```sh [pnpm dlx]
+pnpm dlx nemcss init
+```
+```sh [yarn dlx]
+yarn dlx nemcss init
+```
+:::
+
+Then add the plugin to your PostCSS config:
 
 ```js
 // postcss.config.js

@@ -1,6 +1,6 @@
 # Getting Started
 
-The quickest way to get started is with the `nemcss` CLI. If you're using Vite or PostCSS, steps 1–3 are the same. Only the build step differs. See [Vite](/integrations/vite) or [PostCSS](/integrations/postcss) for integration-specific setup.
+The quickest way to get started is with the `nemcss` CLI. If you're using Vite or PostCSS, steps 1–4 are the same. Only the build step differs. See [Vite](/integrations/vite) or [PostCSS](/integrations/postcss) for integration-specific setup.
 
 ## Step 0: Install nemcss
 
@@ -62,10 +62,62 @@ nemcss init
 
 :::
 
-This generates:
+This generates the following files:
 
-- A `design-tokens/` folder with example `colors.json` and `spacings.json` files
-- A `nemcss.config.json` file at the root of your project
+**`nemcss.config.json`**
+```json
+{
+  "content": [
+    "src/**/*.html",
+    "src/**/*.jsx",
+    "src/**/*.tsx",
+    "src/**/*.vue",
+    "src/**/*.svelte",
+    "src/**/*.astro"
+  ],
+  "tokensDir": "design-tokens",
+  "theme": {
+    "colors": {
+      "prefix": "color",
+      "source": "design-tokens/colors.json",
+      "utilities": [
+        { "prefix": "text", "property": "color" },
+        { "prefix": "bg", "property": "background-color" }
+      ]
+    }
+  }
+}
+```
+
+**`design-tokens/colors.json`**
+```json
+{
+  "title": "Color Tokens",
+  "description": "Example design token file for colors",
+  "items": [
+    { "name": "white", "value": "hsl(0, 0%, 100%)" },
+    { "name": "black", "value": "hsl(0, 0%, 0%)" }
+  ]
+}
+```
+
+**`design-tokens/spacings.json`**
+```json
+{
+  "title": "Spacing Tokens",
+  "description": "Example design token file for spacings",
+  "items": [
+    { "name": "0", "value": "0" },
+    { "name": "xxs", "value": "0.125rem" },
+    { "name": "xs", "value": "0.25rem" },
+    { "name": "sm", "value": "0.5rem" },
+    { "name": "md", "value": "1rem" },
+    { "name": "lg", "value": "1.5rem" },
+    { "name": "xl", "value": "2rem" },
+    { "name": "xxl", "value": "3rem" }
+  ]
+}
+```
 
 ## Step 2: Point `content` at your source files
 
@@ -85,11 +137,24 @@ Edit the `content` field in `nemcss.config.json` to match your project's source 
 
 ## Step 3: Add `@nemcss base;` to your CSS
 
-NemCSS looks for this directive in your CSS input file and replaces it at build time with the generated custom properties and utility classes.
+Add the directive to your CSS file. NemCSS replaces it in-place at build time with the generated custom properties and utility classes. Any other CSS in the file is preserved.
 
 ```css
+/* other CSS can appear before */
+
 @nemcss base;
+
+/* or after */
+body {
+  background-color: var(--color-black);
+}
 ```
+
+A few things to keep in mind:
+- Place the directive in your CSS entry file, or high enough in your CSS so the generated custom properties are available to the rest of your styles
+- Use it once per file
+- With the CLI, the directive must be in the file passed via `-i`. With the Vite and PostCSS plugins it can be in any CSS file processed by the pipeline
+- The CLI will error if the directive is missing. The Vite and PostCSS plugins will silently skip the file
 
 ## Step 4: Build your CSS
 

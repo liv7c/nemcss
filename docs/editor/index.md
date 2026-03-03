@@ -15,6 +15,9 @@ Once installed, the extension automatically starts the language server when it d
 - Autocomplete for all generated CSS custom properties (e.g. `--color-primary`)
 - Hover documentation showing the resolved value for each token
 
+**Supported file types:**
+CSS, SCSS, Sass, Less, HTML, JavaScript, TypeScript, JSX, TSX, Vue, Svelte, Astro
+
 ## Neovim and other editors
 
 For any editor that supports the Language Server Protocol, you can use the standalone `nemcss-lsp` binary.

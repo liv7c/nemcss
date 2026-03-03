@@ -190,6 +190,7 @@ Custom utilities are merged with the built-in defaults for that category, not re
 {
   "theme": {
     "colors": {
+      "source": "design-tokens/colors.json",
       "utilities": [{ "prefix": "text", "property": "color" }]
     }
   }

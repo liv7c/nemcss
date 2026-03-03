@@ -6,7 +6,7 @@
 <a href="https://github.com/liv7c/nemcss/blob/main/LICENSE"><img src="https://img.shields.io/github/license/liv7c/nemcss" alt="License"></a>
 <a href="https://www.npmjs.com/package/nemcss"><img src="https://img.shields.io/npm/v/nemcss" alt="Latest Release"></a>
 
-NemCSS connects your design token JSON files to your CSS. Define your tokens as simple name/value pairs, then configure in `nemcss.config.json` the custom property prefix and the utility classes to derive from each token. Only the utilities your project actually uses end up in the final CSS. NemCSS also ships a LSP to smooth out your developer experience: you get autocomplete and hover documentation for all generated utility classes and custom properties directly in your editor.
+NemCSS connects your design token JSON files to your CSS. Define your tokens as simple name/value pairs, then configure in `nemcss.config.json` the custom property prefix and the utility classes to derive from each token. Only the utilities your project actually uses end up in the final CSS. NemCSS also ships an LSP to smooth out your developer experience: you get autocomplete and hover documentation for all generated utility classes and custom properties directly in your editor.
 
 ## Documentation
 
