@@ -15,6 +15,9 @@ use notify_debouncer_full::{
 
 use crate::commands::watch::{command::WatchContext, paths::extract_watch_dirs};
 
+/// Debounce time for the debouncer
+const DEBOUNCE_TIME: u64 = 500;
+
 /// FileWatcher is the watcher used to watch for file changes.
 /// It is a wrapper around the notify-full-debouncer Debouncer.
 /// It also contains the glob set of paths to watch.
@@ -95,7 +98,7 @@ impl FileWatcher {
         watch_context: &WatchContext,
     ) -> Result<Debouncer<RecommendedWatcher, RecommendedCache>, SetupWatcherError> {
         let mut watcher = new_debouncer_opt::<_, _, RecommendedCache>(
-            Duration::from_millis(300),
+            Duration::from_millis(DEBOUNCE_TIME),
             None,
             tx,
             RecommendedCache::default(),
