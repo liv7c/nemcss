@@ -10,6 +10,10 @@ use config::{CONFIG_FILE_NAME, NemCssConfig};
 
 use crate::commands::build::glob::{GetContentFilesError, get_content_files};
 
+/// Directive the command will look for in the input file to replace it
+/// with generated CSS
+const NEMCSS_BASE_DIRECTIVE: &str = "@nemcss base;";
+
 /// Errors that can occur while building the CSS
 #[derive(Debug, Error, Diagnostic)]
 pub enum BuildError {
@@ -85,7 +89,7 @@ pub fn build(
             source: e,
         })?;
 
-    if !input_content.contains("@nemcss base;") {
+    if !input_content.contains(NEMCSS_BASE_DIRECTIVE) {
         return Err(BuildError::MissingBaseDirective(
             input.display().to_string(),
         ));
@@ -136,7 +140,7 @@ pub fn build(
     let generated_css =
         engine::generate_css(resolved_tokens.values(), viewports, Some(&used_classes));
 
-    let output_css = input_content.replace("@nemcss base;", &generated_css.to_css());
+    let output_css = input_content.replace(NEMCSS_BASE_DIRECTIVE, &generated_css.to_css());
 
     fs::write(output, output_css).map_err(BuildError::WriteCss)?;
 
