@@ -10,6 +10,10 @@ use config::{CONFIG_FILE_NAME, NemCssConfig};
 
 use crate::commands::build::glob::{GetContentFilesError, get_content_files};
 
+/// Directive the command will look for in the input file to replace it
+/// with generated CSS
+const NEMCSS_BASE_DIRECTIVE: &str = "@nemcss base;";
+
 /// Errors that can occur while building the CSS
 #[derive(Debug, Error, Diagnostic)]
 pub enum BuildError {
@@ -78,14 +82,36 @@ pub fn build(
     let input = input.as_ref();
     let output = output.as_ref();
 
+    // Check input CSS file
+    let input_content =
+        std::fs::read_to_string(input).map_err(|e| BuildError::ReadFileContent {
+            path: input.to_path_buf(),
+            source: e,
+        })?;
+
+    if !input_content.contains(NEMCSS_BASE_DIRECTIVE) {
+        return Err(BuildError::MissingBaseDirective(
+            input.display().to_string(),
+        ));
+    }
+
     let current_dir = std::env::current_dir().map_err(BuildError::RetrieveCurrentDir)?;
     let config_path = current_dir.join(CONFIG_FILE_NAME);
     let config = NemCssConfig::from_path(&config_path)?;
 
     let resolved_tokens = config.resolve_all_tokens()?;
-    let viewports = resolved_tokens.get("viewports");
+    let viewports = resolved_tokens
+        .get("viewports")
+        .or_else(|| resolved_tokens.get("viewport"));
 
     let files_to_scan = get_content_files(&config.content, current_dir.as_path())?;
+
+    if files_to_scan.is_empty() && !quiet {
+        eprintln!(
+            " {} No content files matched your patterns. Check the 'content' field in nemcss.config.json",
+            "⚠".yellow()
+        );
+    }
 
     // Generate the css via css_extractor
     // With try_fold, each thread maintains its own HashSet (no lock, mutex needed)
@@ -114,20 +140,7 @@ pub fn build(
     let generated_css =
         engine::generate_css(resolved_tokens.values(), viewports, Some(&used_classes));
 
-    // replace the @nemcss directives
-    let input_content =
-        std::fs::read_to_string(input).map_err(|e| BuildError::ReadFileContent {
-            path: input.to_path_buf(),
-            source: e,
-        })?;
-
-    if !input_content.contains("@nemcss base;") {
-        return Err(BuildError::MissingBaseDirective(
-            input.display().to_string(),
-        ));
-    }
-
-    let output_css = input_content.replace("@nemcss base;", &generated_css.to_css());
+    let output_css = input_content.replace(NEMCSS_BASE_DIRECTIVE, &generated_css.to_css());
 
     fs::write(output, output_css).map_err(BuildError::WriteCss)?;
 
