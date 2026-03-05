@@ -26,6 +26,9 @@ pub struct NemCssConfig {
     /// Theme configuration.
     pub theme: Option<ThemeConfig>,
 
+    /// Semantic tokens
+    pub semantic: Option<SemanticConfig>,
+
     /// The base directory of the NemCSS project.
     #[serde(skip)]
     pub base_dir: PathBuf,
@@ -175,6 +178,26 @@ pub struct TokenUtilityConfig {
     pub property: String,
 }
 
+/// The semantic config enables the creation of groups of semantic tokens (e.g. for "text",
+/// "background") with their own configuration (e.g. the CSS property they target and the tokens
+/// they use)
+#[derive(Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct SemanticConfig {
+    /// Groups of semantic tokens
+    #[serde(flatten)]
+    pub groups: HashMap<String, SemanticGroupConfig>,
+}
+
+/// A single semantic token config
+#[derive(Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct SemanticGroupConfig {
+    /// CSS property this group targets (e.g. "color", "background-color")
+    pub property: String,
+    /// Mapping between a semantic name and an existing design token value
+    /// e.g. "primary" -> "{colors.blue-800}"
+    pub tokens: HashMap<String, String>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -209,5 +232,38 @@ mod tests {
         let glob_set = config.content_glob_set();
 
         assert!(glob_set.is_err());
+    }
+
+    mod semantic_tokens {
+        use super::*;
+
+        #[test]
+        fn test_deserialize_config_with_semantic_tokens() {
+            let json = r#"{
+                "content": [],
+                "semantic": {
+                    "text": {
+                        "property": "color",
+                        "tokens": {
+                            "primary": "{colors.blue-500}",
+                            "error": "{colors.red-700}"
+                        }
+                    }
+                }
+            }"#;
+
+            let config: NemCssConfig = serde_json::from_str(json).unwrap();
+            let semantic = config.semantic.unwrap();
+            let text = semantic.groups.get("text").unwrap();
+            assert_eq!(text.property, "color");
+            assert_eq!(text.tokens.get("primary").unwrap(), "{colors.blue-500}");
+        }
+
+        #[test]
+        fn test_config_without_semantic_is_valid() {
+            let json = r#"{ "content": [] }"#;
+            let config: NemCssConfig = serde_json::from_str(json).unwrap();
+            assert!(config.semantic.is_none());
+        }
     }
 }
