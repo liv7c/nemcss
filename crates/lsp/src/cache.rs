@@ -235,7 +235,22 @@ mod tests {
         let temp_dir = TempDir::new()?;
         temp_dir.child(CONFIG_FILE_NAME).write_str(
             r#"{
-                "content": ["src/**/*.html"]
+                "content": ["src/**/*.html"],
+                "theme": {
+                    "colors": {
+                        "source": "design-tokens/colors.json",
+                        "utilities": [
+                            { "prefix": "text", "property": "color" },
+                            { "prefix": "bg",   "property": "background-color" }
+                        ]
+                    },
+                    "spacings": {
+                        "source": "design-tokens/spacings.json",
+                        "utilities": [
+                            { "prefix": "p", "property": "padding" }
+                        ]
+                    }
+                }
             }"#,
         )?;
 
@@ -288,10 +303,14 @@ mod tests {
 
             let utility_names: Vec<_> = cache.utilities.iter().map(|u| u.class_name()).collect();
 
-            assert_eq!(utility_names.len(), 32, "should have 32 utilities");
+            assert_eq!(utility_names.len(), 6, "should have exactly 6 utilities");
             assert!(!utility_names.is_empty(), "should have generated utilities");
+            assert!(utility_names.contains(&"text-primary"));
+            assert!(utility_names.contains(&"text-secondary"));
+            assert!(utility_names.contains(&"bg-primary"));
+            assert!(utility_names.contains(&"bg-secondary"));
             assert!(utility_names.contains(&"p-sm"));
-            assert!(utility_names.contains(&"ml-md"));
+            assert!(utility_names.contains(&"p-md"));
         }
 
         #[test]

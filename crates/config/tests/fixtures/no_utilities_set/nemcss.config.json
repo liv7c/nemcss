@@ -1,0 +1,17 @@
+{
+  "content": [
+    "src/**/*.html",
+    "src/**/*.svelte"
+  ],
+  "tokensDir": "design-tokens",
+  "theme": {
+    "colors": {
+      "source": "design-tokens/colors.json"
+    },
+    "spacings": {
+      "prefix": "spacing",
+      "source": "design-tokens/spacings.json"
+    }
+  }
+}
+

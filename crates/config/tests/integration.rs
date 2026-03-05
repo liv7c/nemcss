@@ -172,8 +172,8 @@ fn test_generates_utilities_for_explicitly_configured_tokens() {
 }
 
 #[test]
-fn test_overrides_default_configuration_for_explicitly_configured_tokens() {
-    let config_path = get_config_fixture_path("default_and_overrides_combination");
+fn test_no_utilities_get_generated_if_not_explicitly_set() {
+    let config_path = get_config_fixture_path("no_utilities_set");
     let config = NemCssConfig::from_path(&config_path).unwrap();
     let tokens = config.resolve_all_tokens().unwrap();
 
@@ -193,28 +193,10 @@ fn test_overrides_default_configuration_for_explicitly_configured_tokens() {
         Some(&TokenValue::Simple("0.25rem".to_string()))
     );
 
-    let spacing_utilities = spacing_token.utilities.clone();
-    assert!(spacing_utilities.len() > 2);
-    assert!(spacing_utilities.iter().any(|u| u.prefix == "pb"));
-    assert!(
-        spacing_utilities
-            .iter()
-            .find(|u| u.prefix == "pb")
-            .unwrap()
-            .property
-            == "padding-block"
-    );
+    let spacing_utilities = &spacing_token.utilities;
+    assert!(spacing_utilities.is_empty());
 
     let color_token = tokens.get("colors").unwrap();
-    let color_utilities = color_token.utilities.clone();
-    assert!(color_utilities.len() > 2);
-    assert!(color_utilities.iter().any(|u| u.prefix == "highlight"));
-    assert!(
-        color_utilities
-            .iter()
-            .find(|u| u.prefix == "highlight")
-            .unwrap()
-            .property
-            == "background-color"
-    );
+    let color_utilities = &color_token.utilities;
+    assert!(color_utilities.is_empty());
 }

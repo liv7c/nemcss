@@ -38,9 +38,7 @@ impl TestCmdHelper {
     "title": "colors",
     "items": [
         {"name": "primary", "value": "#ff0000"},
-        {"name": "secondary", "value": "#00ff00"},
-        {"name": "neutral-100", "value": "#c1c1c1"},
-        {"name": "neutral-200", "value": "#c2c2c2"}
+        {"name": "secondary", "value": "#00ff00"}
     ]
 }"##,
             )?;
@@ -52,14 +50,43 @@ impl TestCmdHelper {
                 r##"{
     "title": "spacings",
     "items": [
-        {"name": "xs", "value": "0.25rem"},
         {"name": "sm", "value": "0.5rem"},
-        {"name": "md", "value": "1rem"},
-        {"name": "lg", "value": "1.5rem"},
-        {"name": "xl", "value": "2rem"}
+        {"name": "md", "value": "1rem"}
     ]
 }"##,
             )?;
+
+        Ok(self)
+    }
+
+    /// Add explicit utilities
+    fn with_explicit_utilities_for_colors_spacings(
+        self,
+    ) -> Result<Self, Box<dyn std::error::Error>> {
+        self.temp_dir.child("nemcss.config.json").write_str(
+            r#"
+        {
+            "content": ["src/**/*.html"],
+            "theme": {
+                "colors": {
+                    "source": "design-tokens/colors.json",
+                    "utilities": [
+                        { "prefix": "text", "property": "color" },
+                        { "prefix": "bg",   "property": "background-color" },
+                        { "prefix": "bc",   "property": "border-color" }
+                    ]
+                },
+                "spacings": {
+                    "source": "design-tokens/spacings.json",
+                    "utilities": [
+                        { "prefix": "p", "property": "padding" },
+                        { "prefix": "m", "property": "margin" }
+                    ]
+                }
+            }
+        }
+        "#,
+        )?;
 
         Ok(self)
     }
@@ -123,13 +150,15 @@ fn test_build_generates_css_with_only_used_classes() {
         .unwrap()
         .with_standard_design_tokens()
         .unwrap()
+        .with_explicit_utilities_for_colors_spacings()
+        .unwrap()
         .with_content_file(
             "src/index.html",
             r#"
             <div class="text-primary">Primary</div>
             <div class="text-secondary">Secondary</div>
-            <div class="bg-neutral-100">Primary</div>
-            <div class="m-sm">Margin</div>
+            <div class="bg-secondary">Primary</div>
+            <div class="p-sm">Margin</div>
             "#,
         )
         .unwrap()
@@ -159,10 +188,10 @@ fn test_build_generates_css_with_only_used_classes() {
         "Missing .text-secondary"
     );
     assert!(
-        css_content.contains(".bg-neutral-100"),
-        "Missing .bg-neutral-100"
+        css_content.contains(".bg-secondary"),
+        "Missing .bg-secondary"
     );
-    assert!(css_content.contains(".m-sm"), "Missing .m-sm");
+    assert!(css_content.contains(".p-sm"), "Missing .p-sm");
     assert!(
         css_content.contains(".custom-class"),
         "Missing .custom-class from input CSS"
@@ -170,32 +199,20 @@ fn test_build_generates_css_with_only_used_classes() {
 
     // Assert unused classes are NOT present
     assert!(
-        !css_content.contains(".text-neutral-200"),
-        "Should not generate unused .text-neutral-200"
-    );
-    assert!(
         !css_content.contains(".bg-primary"),
         "Should not generate unused .bg-primary"
     );
     assert!(
-        !css_content.contains(".bg-secondary"),
-        "Should not generate unused .bg-secondary"
-    );
-    assert!(
-        !css_content.contains(".m-xs"),
-        "Should not generate unused .m-xs"
+        !css_content.contains(".m-sm"),
+        "Should not generate unused .m-sm"
     );
     assert!(
         !css_content.contains(".m-md"),
         "Should not generate unused .m-md"
     );
     assert!(
-        !css_content.contains(".m-lg"),
-        "Should not generate unused .m-lg"
-    );
-    assert!(
-        !css_content.contains(".m-xl"),
-        "Should not generate unused .m-xl"
+        !css_content.contains(".p-md"),
+        "Should not generate unused .p-md"
     );
 }
 
@@ -205,11 +222,13 @@ fn test_build_generate_only_used_responsive_utilities() {
         .unwrap()
         .with_standard_design_tokens()
         .unwrap()
+        .with_explicit_utilities_for_colors_spacings()
+        .unwrap()
         .with_content_file(
             "src/index.html",
             r#"
         <div class="text-primary md:text-secondary">Primary</div>
-        <div class="bg-neutral-100 lg:bg-neutral-200">Primary</div>
+        <div class="bg-primary lg:bg-secondary">Primary</div>
             "#,
         )
         .unwrap()
@@ -243,7 +262,7 @@ fn test_build_generate_only_used_responsive_utilities() {
         "Missing media query for lg viewport"
     );
     assert!(
-        css_content.contains(".lg\\:bg-neutral-200"),
+        css_content.contains(".lg\\:bg-secondary"),
         "Missing .lg:bg-neutral-200"
     );
 
