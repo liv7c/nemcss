@@ -5,7 +5,7 @@ use std::collections::{HashMap, HashSet};
 use crate::generation::{responsive::create_media_query_block, utilities::create_utility};
 
 use super::utilities::{Utility, VIEWPORT_TOKEN_PREFIX};
-use config::ResolvedToken;
+use config::{ResolvedSemanticGroup, ResolvedToken};
 
 /// Generates filtered utilities based on the used classes.
 ///
@@ -47,6 +47,48 @@ pub fn generate_filtered_utilities(
                             .or_default()
                             .push(utility.clone());
                     }
+                }
+            }
+        }
+    }
+
+    (utilities, responsive_utilities)
+}
+
+/// Generates filtered semantic utilities
+pub fn generate_filtered_semantic_utilities(
+    semantic_groups: &[&ResolvedSemanticGroup],
+    used_utilities: &HashSet<String>,
+    used_responsive_utilities: &HashMap<String, Vec<String>>,
+) -> (Vec<Utility>, HashMap<String, Vec<Utility>>) {
+    let mut utilities = Vec::new();
+    let mut responsive_utilities: HashMap<String, Vec<Utility>> = HashMap::new();
+
+    for group in semantic_groups.iter() {
+        for (token_name, _) in group.tokens.iter() {
+            let utility_class_name = format!("{}-{}", group.prefix, token_name);
+
+            let is_used = used_utilities.contains(&utility_class_name);
+            let is_used_responsive = used_responsive_utilities.contains_key(&utility_class_name);
+
+            if !is_used && !is_used_responsive {
+                continue;
+            }
+
+            let class_value = format!("{}: var(--{}-{})", group.property, group.prefix, token_name);
+            let full_class = format!(".{} {{\n  {};\n}}", utility_class_name, class_value);
+            let utility = Utility::new(&full_class, &utility_class_name, &class_value);
+
+            if is_used {
+                utilities.push(utility.clone());
+            }
+
+            if let Some(viewports) = used_responsive_utilities.get(&utility_class_name) {
+                for vw in viewports {
+                    responsive_utilities
+                        .entry(vw.clone())
+                        .or_default()
+                        .push(utility.clone());
                 }
             }
         }
@@ -258,5 +300,108 @@ mod tests {
             result[1],
             "@media (min-width: 1024px) {\n.lg\\:bg-primary {\n  background-color: var(--color-primary);\n}\n}"
         );
+    }
+
+    mod semantic_utilities {
+        use super::*;
+        use config::ResolvedSemanticGroup;
+
+        #[test]
+        fn test_generate_filtered_semantic_utilities() {
+            let group = ResolvedSemanticGroup {
+                prefix: "text".to_string(),
+                property: "color".to_string(),
+                tokens: vec![
+                    ("primary".to_string(), "var(--color-primary)".to_string()),
+                    (
+                        "secondary".to_string(),
+                        "var(--color-secondary)".to_string(),
+                    ),
+                ],
+            };
+
+            let all_groups = vec![&group];
+            let used_utilities = HashSet::from(["text-primary".to_string()]);
+            let used_responsive_utilities = HashMap::from([(
+                "bg-primary".to_string(),
+                vec!["sm".to_string(), "md".to_string()],
+            )]);
+            let (utilities, responsive_utilities) = generate_filtered_semantic_utilities(
+                &all_groups,
+                &used_utilities,
+                &used_responsive_utilities,
+            );
+
+            assert_eq!(utilities.len(), 1);
+            assert_eq!(responsive_utilities.len(), 0);
+
+            assert!(utilities.contains(&Utility::new(
+                ".text-primary {\n  color: var(--text-primary);\n}",
+                "text-primary",
+                "color: var(--text-primary)"
+            )));
+        }
+
+        #[test]
+        fn test_generate_filtered_semantic_utilities_responsive() {
+            let group = ResolvedSemanticGroup {
+                prefix: "text".to_string(),
+                property: "color".to_string(),
+                tokens: vec![
+                    ("primary".to_string(), "var(--color-primary)".to_string()),
+                    (
+                        "secondary".to_string(),
+                        "var(--color-secondary)".to_string(),
+                    ),
+                ],
+            };
+
+            let all_groups = vec![&group];
+            let used_utilities = HashSet::from(["text-primary".to_string()]);
+            let used_responsive_utilities = HashMap::from([(
+                "text-primary".to_string(),
+                vec!["sm".to_string(), "md".to_string()],
+            )]);
+
+            let (utilities, responsive_utilities) = generate_filtered_semantic_utilities(
+                &all_groups,
+                &used_utilities,
+                &used_responsive_utilities,
+            );
+
+            assert_eq!(utilities.len(), 1);
+            assert_eq!(responsive_utilities.len(), 2);
+
+            assert!(utilities.contains(&Utility::new(
+                ".text-primary {\n  color: var(--text-primary);\n}",
+                "text-primary",
+                "color: var(--text-primary)"
+            )));
+
+            assert!(responsive_utilities.contains_key("sm"));
+            assert!(responsive_utilities.contains_key("md"));
+
+            assert!(
+                responsive_utilities
+                    .get("sm")
+                    .unwrap()
+                    .contains(&Utility::new(
+                        ".text-primary {\n  color: var(--text-primary);\n}",
+                        "text-primary",
+                        "color: var(--text-primary)"
+                    ))
+            );
+
+            assert!(
+                responsive_utilities
+                    .get("md")
+                    .unwrap()
+                    .contains(&Utility::new(
+                        ".text-primary {\n  color: var(--text-primary);\n}",
+                        "text-primary",
+                        "color: var(--text-primary)"
+                    ))
+            );
+        }
     }
 }
