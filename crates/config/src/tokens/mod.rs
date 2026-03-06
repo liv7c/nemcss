@@ -17,5 +17,8 @@ mod resolver;
 mod token;
 mod utilities;
 
-pub use resolver::{ResolveTokensError, ResolvedToken, resolve_all_tokens};
+pub use resolver::{
+    ResolveSemanticError, ResolveTokensError, ResolvedSemanticGroup, ResolvedToken,
+    resolve_all_tokens,
+};
 pub use token::TokenValue;

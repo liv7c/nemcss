@@ -7,7 +7,7 @@ use thiserror::Error;
 
 use crate::tokens::token::{TokenFile, TokenValue};
 use crate::tokens::utilities::{default_prefix_for_token_type, get_utilities_for_token_type};
-use crate::{NemCssConfig, TokenUtilityConfig};
+use crate::{NemCssConfig, SemanticConfig, TokenUtilityConfig};
 
 /// Represents the error type when scanning the tokens directory.
 #[derive(Debug, Diagnostic, Error)]
@@ -181,6 +181,93 @@ pub fn resolve_all_tokens(
     Ok(resolved_tokens)
 }
 
+/// A resolved semantic group for CSS generation.
+/// It contains the group name, the CSS property for CSS generation as well as a vector
+/// of tuples containing both the semantic name and resolved var pairs for a given semantic group
+pub struct ResolvedSemanticGroup {
+    /// Group name used for both CSS variable prefix and utility class prefix (e.g. "text-", "--text-*")
+    pub prefix: String,
+    /// CSS property for utility classes (e.g. "background-color")
+    pub property: String,
+    /// (semantic-name, resolved-var) pairs (e.g. ("primary", "var(--color-blue-500)"))
+    pub tokens: Vec<(String, String)>,
+}
+
+/// Resolves a "{group.token}" reference to "var(--prefix-token)"
+/// Returns None if the syntax is wrong or the group does not exist
+fn resolve_semantic_reference(
+    reference: &str,
+    primitive_tokens: &HashMap<String, ResolvedToken>,
+) -> Option<String> {
+    let inner = reference.strip_prefix('{')?.strip_suffix('}')?;
+    let (group_key, token_name) = inner.split_once('.')?;
+
+    if group_key.is_empty() || token_name.is_empty() {
+        return None;
+    }
+
+    let resolved = primitive_tokens.get(group_key)?;
+
+    let mut token_exist = false;
+    for (primitive_token_name, _) in resolved.tokens.iter() {
+        if token_name == primitive_token_name {
+            token_exist = true;
+            break;
+        }
+    }
+
+    if !token_exist {
+        return None;
+    }
+
+    Some(format!("var(--{}-{})", resolved.prefix, token_name))
+}
+
+#[derive(Debug, Diagnostic, Error)]
+pub enum ResolveSemanticError {
+    #[error("unresolvable reference '{reference}' in semantic group '{group}'")]
+    #[diagnostic(code(config::semantic::unresolvable_reference))]
+    UnresolvableReference { group: String, reference: String },
+}
+
+pub fn resolve_all_semantic_groups(
+    semantic: Option<&SemanticConfig>,
+    primitive_tokens: &HashMap<String, ResolvedToken>,
+) -> Result<HashMap<String, ResolvedSemanticGroup>, ResolveSemanticError> {
+    let Some(semantic) = semantic else {
+        return Ok(HashMap::new());
+    };
+
+    // TODO: check if needs to give base capacity to HashMap
+    let mut result = HashMap::new();
+
+    for (group_name, group_cfg) in &semantic.groups {
+        let mut tokens = Vec::with_capacity(group_cfg.tokens.len());
+        for (token_name, reference) in &group_cfg.tokens {
+            let resolved =
+                resolve_semantic_reference(reference, primitive_tokens).ok_or_else(|| {
+                    ResolveSemanticError::UnresolvableReference {
+                        group: group_name.clone(),
+                        reference: reference.clone(),
+                    }
+                })?;
+
+            tokens.push((token_name.clone(), resolved));
+        }
+
+        result.insert(
+            group_name.clone(),
+            ResolvedSemanticGroup {
+                prefix: group_name.clone(),
+                property: group_cfg.property.clone(),
+                tokens,
+            },
+        );
+    }
+
+    Ok(result)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -234,5 +321,144 @@ mod tests {
                 .to_string()
                 .contains("failed to read tokens directory")
         );
+    }
+
+    mod semantic_tokens_resolution {
+        use crate::{SemanticConfig, SemanticGroupConfig};
+
+        use super::*;
+
+        #[test]
+        fn test_resolve_reference_valid() {
+            let mut primitives = HashMap::new();
+            primitives.insert(
+                "colors".to_string(),
+                ResolvedToken {
+                    tokens: vec![(
+                        "blue-700".to_string(),
+                        TokenValue::Simple("#3b82f6".to_string()),
+                    )],
+                    utilities: vec![],
+                    prefix: "color".to_string(),
+                },
+            );
+            assert_eq!(
+                resolve_semantic_reference("{colors.blue-700}", &primitives),
+                Some("var(--color-blue-700)".to_string())
+            );
+        }
+
+        #[test]
+        fn test_resolve_reference_token_does_not_exist_returns_none() {
+            let mut primitives = HashMap::new();
+            primitives.insert(
+                "colors".to_string(),
+                ResolvedToken {
+                    tokens: vec![(
+                        "blue-700".to_string(),
+                        TokenValue::Simple("#3b82f6".to_string()),
+                    )],
+                    utilities: vec![],
+                    prefix: "color".to_string(),
+                },
+            );
+            assert!(resolve_semantic_reference("{colors.blue-600}", &primitives).is_none());
+        }
+
+        #[test]
+        fn test_resolve_reference_missing_group_returns_none() {
+            let primitives = HashMap::new();
+            assert!(resolve_semantic_reference("{colors.blue-700}", &primitives).is_none());
+        }
+
+        #[test]
+        fn test_resolve_reference_invalid_syntax_returns_none() {
+            let mut primitives = HashMap::new();
+            primitives.insert(
+                "colors".to_string(),
+                ResolvedToken {
+                    tokens: vec![(
+                        "blue-700".to_string(),
+                        TokenValue::Simple("#3b82f6".to_string()),
+                    )],
+                    utilities: vec![],
+                    prefix: "color".to_string(),
+                },
+            );
+            assert!(resolve_semantic_reference("no-braces", &primitives).is_none());
+            assert!(resolve_semantic_reference("{blue-700}", &primitives).is_none());
+            assert!(resolve_semantic_reference("{}", &primitives).is_none());
+        }
+
+        #[test]
+        fn test_resolve_all_semantic_groups() {
+            let mut primitives = HashMap::new();
+            primitives.insert(
+                "colors".to_string(),
+                ResolvedToken {
+                    tokens: vec![(
+                        "blue-700".to_string(),
+                        TokenValue::Simple("#3b82f6".to_string()),
+                    )],
+                    utilities: vec![],
+                    prefix: "color".to_string(),
+                },
+            );
+
+            let semantic = SemanticConfig {
+                groups: HashMap::from([(
+                    "text".to_string(),
+                    SemanticGroupConfig {
+                        property: "color".to_string(),
+                        tokens: HashMap::from([(
+                            "primary".to_string(),
+                            "{colors.blue-700}".to_string(),
+                        )]),
+                    },
+                )]),
+            };
+
+            let result = resolve_all_semantic_groups(Some(&semantic), &primitives)
+                .expect("expect resolve_all_semantic_groups to return a HashMap");
+            let text = result
+                .get("text")
+                .expect("expect result to contain a text semantic group");
+            assert_eq!(text.prefix, "text");
+            assert_eq!(text.property, "color");
+            assert_eq!(
+                text.tokens[0],
+                ("primary".to_string(), "var(--color-blue-700)".to_string())
+            );
+        }
+
+        #[test]
+        fn test_resolve_unresolvable_reference_returns_error() {
+            let primitives = HashMap::new();
+            let semantic = SemanticConfig {
+                groups: HashMap::from([(
+                    "text".to_string(),
+                    SemanticGroupConfig {
+                        property: "color".to_string(),
+                        tokens: HashMap::from([(
+                            "primary".to_string(),
+                            "{missing.token}".to_string(),
+                        )]),
+                    },
+                )]),
+            };
+
+            assert!(
+                resolve_all_semantic_groups(Some(&semantic), &primitives).is_err(),
+                "expect semantic group containing unknown token to return an error"
+            );
+        }
+
+        #[test]
+        fn test_resolve_with_no_semantic_config_returns_empty() {
+            let primitives = HashMap::new();
+            let result = resolve_all_semantic_groups(None, &primitives).expect("expect resolve_all_semantic_groups not to return an error when semantic groups is none");
+
+            assert!(result.is_empty());
+        }
     }
 }
