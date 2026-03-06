@@ -63,6 +63,9 @@ pub enum BuildCacheError {
     #[error("failed to generate responsive utilities: {0}")]
     #[diagnostic(code(build_cache_error::generate_responsive_utilities_error))]
     GenerateResponsiveUtilities(#[from] engine::GenerateResponsiveUtilitiesError),
+    #[error("failed to resolve the semantic groups: {0}")]
+    #[diagnostic(code(build_cache_error::resolve_semantic))]
+    ResolveSemantic(#[from] config::ResolveSemanticError),
 }
 
 /// File extensions that always get custom property completions
@@ -76,8 +79,16 @@ impl NemCache {
 
         let resolved_tokens = config.resolve_all_tokens()?;
         let viewports = resolved_tokens.get("viewports");
+        let resolved_semantic_groups = config
+            .resolve_semantic_groups(&resolved_tokens)
+            .map_err(BuildCacheError::ResolveSemantic)?;
 
-        let generated_css = engine::generate_css(resolved_tokens.values(), viewports, None);
+        let generated_css = engine::generate_css(
+            resolved_tokens.values(),
+            resolved_semantic_groups.values(),
+            viewports,
+            None,
+        );
         let responsive_utilities =
             engine::generate_all_responsive_utilities(&generated_css.utilities, viewports)?;
 

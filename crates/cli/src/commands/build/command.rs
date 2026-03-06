@@ -48,6 +48,10 @@ pub enum BuildError {
     #[error("unable to write the generated CSS to the output file: {0}")]
     #[diagnostic(code(nemcss::build::write_css))]
     WriteCss(std::io::Error),
+
+    #[error("failed to resolve the semantic groups: {0}")]
+    #[diagnostic(code(nemcss::build::resolve_semantic))]
+    ResolveSemantic(#[from] config::ResolveSemanticError),
 }
 
 /// Builds the CSS output file from design tokens and content files.
@@ -137,8 +141,15 @@ pub fn build(
         )?;
 
     // write the css to the output directory
-    let generated_css =
-        engine::generate_css(resolved_tokens.values(), viewports, Some(&used_classes));
+    let resolved_semantic_groups = config
+        .resolve_semantic_groups(&resolved_tokens)
+        .map_err(BuildError::ResolveSemantic)?;
+    let generated_css = engine::generate_css(
+        resolved_tokens.values(),
+        resolved_semantic_groups.values(),
+        viewports,
+        Some(&used_classes),
+    );
 
     let output_css = input_content.replace(NEMCSS_BASE_DIRECTIVE, &generated_css.to_css());
 
