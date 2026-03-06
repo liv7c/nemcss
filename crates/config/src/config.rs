@@ -6,7 +6,10 @@ use miette::Diagnostic;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::tokens::{ResolveTokensError, ResolvedToken, resolve_all_tokens};
+use crate::tokens::{
+    ResolveTokensError, ResolvedToken, resolve_all_semantic_groups, resolve_all_tokens,
+};
+use crate::{ResolveSemanticError, ResolvedSemanticGroup};
 
 /// The name of the NemCSS configuration file.
 pub const CONFIG_FILE_NAME: &str = "nemcss.config.json";
@@ -96,6 +99,13 @@ impl NemCssConfig {
     /// cannot be loaded.
     pub fn resolve_all_tokens(&self) -> Result<HashMap<String, ResolvedToken>, ResolveTokensError> {
         resolve_all_tokens(self)
+    }
+
+    pub fn resolve_semantic_groups(
+        &self,
+        primitive_tokens: &HashMap<String, ResolvedToken>,
+    ) -> Result<HashMap<String, ResolvedSemanticGroup>, ResolveSemanticError> {
+        resolve_all_semantic_groups(self.semantic.as_ref(), primitive_tokens)
     }
 
     /// Get absolute path to the tokens directory.
