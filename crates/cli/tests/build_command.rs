@@ -91,6 +91,40 @@ impl TestCmdHelper {
         Ok(self)
     }
 
+    /// Add semantic tokens for semantic tests
+    fn with_semantic_tokens(self) -> Result<Self, Box<dyn std::error::Error>> {
+        self.temp_dir.child("nemcss.config.json").write_str(
+            r#"
+        {
+            "content": ["src/**/*.html"],
+            "theme": {
+                "colors": {
+                    "source": "design-tokens/colors.json",
+                    "utilities": []
+                },
+                "spacings": {
+                    "source": "design-tokens/spacings.json",
+                    "utilities": [
+                        { "prefix": "p", "property": "padding" },
+                        { "prefix": "m", "property": "margin" }
+                    ]
+                }
+            },
+            "semantic": {
+                "text": {
+                    "property": "color",
+                    "tokens": {
+                        "primary": "{colors.primary}"
+                    }
+                }
+            }
+        }
+        "#,
+        )?;
+
+        Ok(self)
+    }
+
     /// Add viewport tokens for responsive tests
     fn with_standard_viewport_tokens(self) -> Result<Self, Box<dyn std::error::Error>> {
         self.temp_dir
@@ -142,6 +176,65 @@ impl TestCmdHelper {
     fn output_css(&self) -> String {
         std::fs::read_to_string(self.temp_dir.child("output.css")).unwrap()
     }
+}
+
+#[test]
+fn test_build_generates_css_with_semantic_classes() {
+    let mut test_setup = TestCmdHelper::new()
+        .unwrap()
+        .with_standard_design_tokens()
+        .unwrap()
+        .with_semantic_tokens()
+        .unwrap()
+        .with_content_file(
+            "src/index.html",
+            r#"
+            <div class="text-primary">Primary</div>
+            <div class="p-sm">Margin</div>
+            "#,
+        )
+        .unwrap()
+        .with_input_css_file(
+            r#"
+        @nemcss base;
+
+        .custom-class {
+            color: red;
+        }
+
+        "#,
+        )
+        .unwrap()
+        .with_semantic_tokens()
+        .unwrap();
+
+    test_setup.run_build_command().success();
+
+    let css_content = test_setup.output_css();
+
+    // Assert used classes are present
+    assert!(
+        css_content.contains(".text-primary"),
+        "Missing .text-primary"
+    );
+    assert!(css_content.contains(".p-sm"), "Missing .p-sm");
+    assert!(
+        css_content.contains(".custom-class"),
+        "Missing .custom-class from input CSS"
+    );
+
+    assert!(
+        !css_content.contains(".m-sm"),
+        "Should not generate unused .m-sm"
+    );
+    assert!(
+        !css_content.contains(".m-md"),
+        "Should not generate unused .m-md"
+    );
+    assert!(
+        !css_content.contains(".p-md"),
+        "Should not generate unused .p-md"
+    );
 }
 
 #[test]

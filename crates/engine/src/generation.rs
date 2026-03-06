@@ -229,6 +229,50 @@ mod tests {
     }
 
     #[test]
+    fn test_to_css_semantic_tokens() {
+        let mut resolved_tokens = HashMap::new();
+        resolved_tokens.insert(
+            "colors".to_string(),
+            ResolvedToken {
+                tokens: vec![
+                    (
+                        "blue-400".to_string(),
+                        TokenValue::Simple("blue".to_string()),
+                    ),
+                    (
+                        "error-600".to_string(),
+                        TokenValue::Simple("red".to_string()),
+                    ),
+                ],
+                utilities: vec![],
+                prefix: "color".to_string(),
+            },
+        );
+
+        let semantic_groups = [ResolvedSemanticGroup {
+            prefix: "text".to_string(),
+            property: "color".to_string(),
+            tokens: vec![
+                ("primary".to_string(), "var(--color-blue-400)".to_string()),
+                ("error".to_string(), "var(--color-error-600)".to_string()),
+            ],
+        }];
+
+        let css_to_generate = generate_css(resolved_tokens.values(), &semantic_groups, None, None);
+
+        let result = css_to_generate.to_css();
+        let expected_root_css = ":root {\n  --color-blue-400: blue;\n  --color-error-600: red;\n  --text-primary: var(--color-blue-400);\n  --text-error: var(--color-error-600);\n}\n\n";
+        let expected_utilities_css = ".text-primary {\n  color: var(--text-primary);\n}\n.text-error {\n  color: var(--text-error);\n}\n";
+
+        assert!(
+            result.contains(expected_root_css),
+            "expected: {}, got {result}",
+            expected_root_css
+        );
+        assert!(result.contains(expected_utilities_css));
+    }
+
+    #[test]
     fn test_to_css_with_responsive_utilities() {
         let mut resolved_tokens = HashMap::new();
         resolved_tokens.insert(
