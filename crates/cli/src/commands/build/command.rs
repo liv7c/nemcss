@@ -49,6 +49,10 @@ pub enum BuildError {
     #[diagnostic(code(nemcss::build::write_css))]
     WriteCss(std::io::Error),
 
+    #[error("failed to create output directories: {0}")]
+    #[diagnostic(code(nemcss::build::create_output_dir))]
+    CreateOutputDir(std::io::Error),
+
     #[error("failed to resolve the semantic groups: {0}")]
     #[diagnostic(code(nemcss::build::resolve_semantic))]
     ResolveSemantic(#[from] config::ResolveSemanticError),
@@ -153,6 +157,11 @@ pub fn build(
 
     let output_css = input_content.replace(NEMCSS_BASE_DIRECTIVE, &generated_css.to_css());
 
+    if let Some(parent) = output.parent()
+        && !parent.as_os_str().is_empty()
+    {
+        fs::create_dir_all(parent).map_err(BuildError::CreateOutputDir)?;
+    }
     fs::write(output, output_css).map_err(BuildError::WriteCss)?;
 
     if !quiet {
