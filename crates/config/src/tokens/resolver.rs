@@ -184,6 +184,7 @@ pub fn resolve_all_tokens(
 /// A resolved semantic group for CSS generation.
 /// It contains the group name, the CSS property for CSS generation as well as a vector
 /// of tuples containing both the semantic name and resolved var pairs for a given semantic group
+#[derive(Debug, PartialEq, Default)]
 pub struct ResolvedSemanticGroup {
     /// Group name used for both CSS variable prefix and utility class prefix (e.g. "text-", "--text-*")
     pub prefix: String,
