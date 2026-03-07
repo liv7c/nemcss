@@ -88,6 +88,7 @@ export function activate(context: ExtensionContext) {
       { scheme: "file", language: "vue" },
       { scheme: "file", language: "svelte" },
       { scheme: "file", language: "astro" },
+      { scheme: "file", pattern: "**/nemcss.config.json" },
     ],
   };
 
