@@ -11,6 +11,8 @@
     "vscode": "^1.109.0"
   },
   "publisher": "liv7c",
+  "license": "MIT",
+  "icon": "icon.png",
   "categories": [
     "Other"
   ],

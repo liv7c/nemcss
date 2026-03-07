@@ -50,8 +50,8 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - name: Build CLI
-        run: cargo build --release --target ${{ matrix.arch }} --bin nemcss
+      - name: Build CLI and LSP
+        run: cargo build --release --target ${{ matrix.arch }} --bin nemcss --bin nemcss-lsp
 
       - name: Build NAPI
         working-directory: crates/napi
@@ -60,13 +60,19 @@ jobs:
       - name: Stage artifacts
         shell: bash
         run: |
-          mkdir -p dist/cli dist/napi
+          mkdir -p dist/cli dist/napi dist/lsp
           cp crates/napi/*.node dist/napi/
           if [ -f "target/${{ matrix.arch }}/release/nemcss" ]; then
             cp "target/${{ matrix.arch }}/release/nemcss" dist/cli/
           fi
           if [ -f "target/${{ matrix.arch }}/release/nemcss.exe" ]; then
             cp "target/${{ matrix.arch }}/release/nemcss.exe" dist/cli/
+          fi
+          if [ -f "target/${{ matrix.arch }}/release/nemcss-lsp" ]; then
+            cp "target/${{ matrix.arch }}/release/nemcss-lsp" dist/lsp/
+          fi
+          if [ -f "target/${{ matrix.arch }}/release/nemcss-lsp.exe" ]; then
+            cp "target/${{ matrix.arch }}/release/nemcss-lsp.exe" dist/lsp/
           fi
 
       - uses: actions/upload-artifact@v7
@@ -78,6 +84,11 @@ jobs:
         with:
           name: napi-${{ matrix.target }}
           path: dist/napi/
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: nemcss-lsp-${{ matrix.target }}
+          path: dist/lsp/
 
   build-plugins:
     name: Build JS plugins
@@ -108,9 +119,65 @@ jobs:
           name: postcss-plugin
           path: packages/postcss-plugin-nemcss/dist/
 
+  build-vscode:
+    name: Package VS Code extension
+    needs: [build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Download LSP artifacts
+        uses: actions/download-artifact@v7
+        with:
+          pattern: nemcss-lsp-*
+          path: lsp-artifacts
+
+      - name: Copy LSP binaries
+        run: |
+          mkdir -p editors/vscode/bin
+          cp lsp-artifacts/nemcss-lsp-darwin-arm64/nemcss-lsp  editors/vscode/bin/lsp-darwin-arm64
+          cp lsp-artifacts/nemcss-lsp-darwin-x64/nemcss-lsp    editors/vscode/bin/lsp-darwin-x64
+          cp lsp-artifacts/nemcss-lsp-linux-x64/nemcss-lsp     editors/vscode/bin/lsp-linux-x64
+          cp lsp-artifacts/nemcss-lsp-linux-arm64/nemcss-lsp   editors/vscode/bin/lsp-linux-arm64
+          cp lsp-artifacts/nemcss-lsp-win32-x64/nemcss-lsp.exe editors/vscode/bin/lsp-win32-x64.exe
+          chmod +x editors/vscode/bin/lsp-darwin-arm64 \
+                    editors/vscode/bin/lsp-darwin-x64 \
+                    editors/vscode/bin/lsp-linux-x64 \
+                    editors/vscode/bin/lsp-linux-arm64
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Set VS Code extension version
+        run: |
+          node -e "
+            const fs = require('fs');
+            const version = process.env.VERSION.replace(/^v/, '');
+            const json = JSON.parse(fs.readFileSync('editors/vscode/package.json', 'utf8'));
+            json.version = version;
+            fs.writeFileSync('editors/vscode/package.json', JSON.stringify(json, null, 2) + '\n');
+          "
+        env:
+          VERSION: ${{ github.ref_name }}
+
+      - name: Package extension
+        working-directory: editors/vscode
+        run: pnpm exec vsce package --no-dependencies
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: nemcss-vscode
+          path: editors/vscode/*.vsix
+
   publish:
     name: Publish to npm
-    needs: [build, build-plugins]
+    needs: [build, build-plugins, build-vscode]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -121,7 +188,7 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
 
       - name: Download all artifacts
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@v7
         with:
           path: artifacts
 
@@ -140,6 +207,7 @@ jobs:
               'npm/@nemcss/cli-win32-x64',
               'packages/vite-plugin-nemcss',
               'packages/postcss-plugin-nemcss',
+              'editors/vscode',
             ];
             pkgs.forEach(p => {
               const json = JSON.parse(fs.readFileSync(p + '/package.json', 'utf8'));
@@ -211,3 +279,40 @@ jobs:
         run: npm publish packages/nemcss --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Generate release notes
+        uses: orhun/git-cliff-action@v4
+        with:
+          config: cliff.toml
+          args: --latest --strip all
+        env:
+          OUTPUT: RELEASE_NOTES.md
+          GITHUB_REPO: ${{ github.repository }}
+
+      - name: Publish VS Code extension
+        uses: HaaLeo/publish-vscode-extension@v2
+        with:
+          pat: ${{ secrets.VSCE_PAT }}
+          extensionFile: ./artifacts/nemcss-vscode/nemcss-*.vsix
+
+      - name: Download LSP artifacts for GitHub Release
+        uses: actions/download-artifact@v7
+        with:
+          pattern: nemcss-lsp-*
+          path: artifacts/lsp/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          body_path: RELEASE_NOTES.md
+          files: |
+            artifacts/cli-darwin-arm64/nemcss
+            artifacts/cli-darwin-x64/nemcss
+            artifacts/cli-linux-x64/nemcss
+            artifacts/cli-linux-arm64/nemcss
+            artifacts/cli-win32-x64/nemcss.exe
+            artifacts/lsp/nemcss-lsp-darwin-arm64/nemcss-lsp
+            artifacts/lsp/nemcss-lsp-darwin-x64/nemcss-lsp
+            artifacts/lsp/nemcss-lsp-linux-x64/nemcss-lsp
+            artifacts/lsp/nemcss-lsp-linux-arm64/nemcss-lsp
+            artifacts/lsp/nemcss-lsp-win32-x64/nemcss-lsp.exe
