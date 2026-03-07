@@ -168,17 +168,20 @@ jobs:
 
       - name: Package extension
         working-directory: editors/vscode
-        run: pnpm exec vsce package --no-dependencies
+        run: pnpm exec vsce package --no-dependencies --out nemcss.vsix
 
       - uses: actions/upload-artifact@v7
         with:
           name: nemcss-vscode
-          path: editors/vscode/*.vsix
+          path: editors/vscode/nemcss.vsix
 
   publish:
     name: Publish to npm
     needs: [build, build-plugins, build-vscode]
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: read
     steps:
       - uses: actions/checkout@v6
 
@@ -253,30 +256,34 @@ jobs:
           cp -r artifacts/vite-plugin/.   packages/vite-plugin-nemcss/dist/
           cp -r artifacts/postcss-plugin/. packages/postcss-plugin-nemcss/dist/
 
-      - name: Publish CLI platform packages
+      - name: Publish all packages to npm
         run: |
-          npm publish npm/@nemcss/cli-darwin-arm64 --access public
-          npm publish npm/@nemcss/cli-darwin-x64 --access public
-          npm publish npm/@nemcss/cli-linux-x64 --access public
-          npm publish npm/@nemcss/cli-linux-arm64 --access public
-          npm publish npm/@nemcss/cli-win32-x64 --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: Publish @nemcss/napi
-        run: npm publish crates/napi --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: Publish JS plugins
-        run: |
-          npm publish packages/vite-plugin-nemcss --access public
-          npm publish packages/postcss-plugin-nemcss --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: Publish main CLI package
-        run: npm publish packages/nemcss --access public
+          npm_publish() {
+            local dir="$1" flags="${2:-}"
+            local out retries=3
+            for i in $(seq 1 $retries); do
+              out=$(npm publish "$dir" --access public $flags 2>&1) && { echo "$out"; return 0; }
+              if echo "$out" | grep -qE "previously published|publish over"; then
+                echo "Skipping $dir (already published at this version)"
+                return 0
+              fi
+              if echo "$out" | grep -q "409" && [ $i -lt $retries ]; then
+                echo "Registry busy, retrying $dir in 5s... (attempt $i/$retries)"
+                sleep 5
+                continue
+              fi
+              echo "$out" >&2; return 1
+            done
+          }
+          npm_publish ./npm/@nemcss/cli-darwin-arm64
+          npm_publish ./npm/@nemcss/cli-darwin-x64
+          npm_publish ./npm/@nemcss/cli-linux-x64
+          npm_publish ./npm/@nemcss/cli-linux-arm64
+          npm_publish ./npm/@nemcss/cli-win32-x64
+          npm_publish ./crates/napi --ignore-scripts
+          npm_publish ./packages/vite-plugin-nemcss
+          npm_publish ./packages/postcss-plugin-nemcss
+          npm_publish ./packages/nemcss
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
@@ -288,12 +295,14 @@ jobs:
         env:
           OUTPUT: RELEASE_NOTES.md
           GITHUB_REPO: ${{ github.repository }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publish VS Code extension
         uses: HaaLeo/publish-vscode-extension@v2
         with:
           pat: ${{ secrets.VSCE_PAT }}
-          extensionFile: ./artifacts/nemcss-vscode/nemcss-*.vsix
+          registryUrl: https://marketplace.visualstudio.com
+          extensionFile: ./artifacts/nemcss-vscode/nemcss.vsix
 
       - name: Download LSP artifacts for GitHub Release
         uses: actions/download-artifact@v7
@@ -301,18 +310,29 @@ jobs:
           pattern: nemcss-lsp-*
           path: artifacts/lsp/
 
+      - name: Rename release assets to unique names
+        run: |
+          cp artifacts/cli-darwin-arm64/nemcss     artifacts/cli-darwin-arm64/nemcss-darwin-arm64
+          cp artifacts/cli-darwin-x64/nemcss       artifacts/cli-darwin-x64/nemcss-darwin-x64
+          cp artifacts/cli-linux-x64/nemcss        artifacts/cli-linux-x64/nemcss-linux-x64
+          cp artifacts/cli-linux-arm64/nemcss      artifacts/cli-linux-arm64/nemcss-linux-arm64
+          cp artifacts/lsp/nemcss-lsp-darwin-arm64/nemcss-lsp  artifacts/lsp/nemcss-lsp-darwin-arm64/nemcss-lsp-darwin-arm64
+          cp artifacts/lsp/nemcss-lsp-darwin-x64/nemcss-lsp    artifacts/lsp/nemcss-lsp-darwin-x64/nemcss-lsp-darwin-x64
+          cp artifacts/lsp/nemcss-lsp-linux-x64/nemcss-lsp     artifacts/lsp/nemcss-lsp-linux-x64/nemcss-lsp-linux-x64
+          cp artifacts/lsp/nemcss-lsp-linux-arm64/nemcss-lsp   artifacts/lsp/nemcss-lsp-linux-arm64/nemcss-lsp-linux-arm64
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           body_path: RELEASE_NOTES.md
           files: |
-            artifacts/cli-darwin-arm64/nemcss
-            artifacts/cli-darwin-x64/nemcss
-            artifacts/cli-linux-x64/nemcss
-            artifacts/cli-linux-arm64/nemcss
+            artifacts/cli-darwin-arm64/nemcss-darwin-arm64
+            artifacts/cli-darwin-x64/nemcss-darwin-x64
+            artifacts/cli-linux-x64/nemcss-linux-x64
+            artifacts/cli-linux-arm64/nemcss-linux-arm64
             artifacts/cli-win32-x64/nemcss.exe
-            artifacts/lsp/nemcss-lsp-darwin-arm64/nemcss-lsp
-            artifacts/lsp/nemcss-lsp-darwin-x64/nemcss-lsp
-            artifacts/lsp/nemcss-lsp-linux-x64/nemcss-lsp
-            artifacts/lsp/nemcss-lsp-linux-arm64/nemcss-lsp
+            artifacts/lsp/nemcss-lsp-darwin-arm64/nemcss-lsp-darwin-arm64
+            artifacts/lsp/nemcss-lsp-darwin-x64/nemcss-lsp-darwin-x64
+            artifacts/lsp/nemcss-lsp-linux-x64/nemcss-lsp-linux-x64
+            artifacts/lsp/nemcss-lsp-linux-arm64/nemcss-lsp-linux-arm64
             artifacts/lsp/nemcss-lsp-win32-x64/nemcss-lsp.exe
