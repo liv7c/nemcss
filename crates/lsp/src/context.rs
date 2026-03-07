@@ -297,10 +297,19 @@ pub fn extract_var_property(line: &str, col: usize) -> Option<String> {
 /// # Returns
 /// `Some(TokenRefContext)` with the partial token typed so far, or `None` if
 /// the cursor is not inside a token reference.
+///
+/// # Limitations
+/// Only scans the current line. A JSON value whose key is on the previous line will not be
+/// detected.
 pub fn detect_token_ref_context(line: &str, col: usize) -> Option<TokenRefContext> {
     let before_cursor = line.get(..col)?;
 
     let brace_pos = before_cursor.rfind(TOKEN_REF_OPEN)?;
+
+    // Ensure the `{` is preceded by '"' (to distinguish from a JSON object)
+    if before_cursor.get(brace_pos.saturating_sub(1)..brace_pos) != Some("\"") {
+        return None;
+    }
 
     // Ensure the `{` appears after a JSON key-value separator
     before_cursor.get(..brace_pos)?.rfind(": ")?;
@@ -729,6 +738,12 @@ mod tests {
         #[test]
         fn test_returns_none_when_no_brace() {
             let line = r#"  "color": "bar"#;
+            assert!(extract_token_ref_partial(line, line.len()).is_none());
+        }
+
+        #[test]
+        fn test_returns_none_when_inside_json_object_value() {
+            let line = r#"  "color": {"nested": {"val"}}"#;
             assert!(extract_token_ref_partial(line, line.len()).is_none());
         }
 
