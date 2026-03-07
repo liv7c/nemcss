@@ -7,6 +7,9 @@ use std::path::{Path, PathBuf};
 
 use divan::AllocProfiler;
 
+/// (file_name, css_var_prefix, utilities: [(class_prefix, css_property)])
+type CategoryUtilities<'a> = &'a [(&'a str, &'a str, &'a [(&'a str, &'a str)])];
+
 #[global_allocator]
 static ALLOC: AllocProfiler = AllocProfiler::system();
 
@@ -48,8 +51,12 @@ impl ProjectGenerator {
     /// build never references missing source files.
     fn with_utilities_config(&self, num_categories: usize) -> &Self {
         // (file_name, css_var_prefix, utilities: [(class_prefix, css_property)])
-        let category_utilities: &[(&str, &str, &[(&str, &str)])] = &[
-            ("colors", "color", &[("text", "color"), ("bg", "background-color")]),
+        let category_utilities: CategoryUtilities<'_> = &[
+            (
+                "colors",
+                "color",
+                &[("text", "color"), ("bg", "background-color")],
+            ),
             ("spacings", "spacing", &[("p", "padding"), ("m", "margin")]),
             ("fonts", "font", &[("font", "font-family")]),
             ("font-sizes", "font-size", &[]),
@@ -101,8 +108,12 @@ impl ProjectGenerator {
     /// from the `colors` category. Requires `num_categories >= 1`.
     fn with_semantic_config(&self, num_categories: usize) -> &Self {
         // (file_name, css_var_prefix, utilities: [(class_prefix, css_property)])
-        let category_utilities: &[(&str, &str, &[(&str, &str)])] = &[
-            ("colors", "color", &[("text", "color"), ("bg", "background-color")]),
+        let category_utilities: CategoryUtilities<'_> = &[
+            (
+                "colors",
+                "color",
+                &[("text", "color"), ("bg", "background-color")],
+            ),
             ("spacings", "spacing", &[("p", "padding"), ("m", "margin")]),
             ("fonts", "font", &[("font", "font-family")]),
             ("font-sizes", "font-size", &[]),
