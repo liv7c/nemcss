@@ -162,6 +162,116 @@ async fn test_completion_suggests_custom_properties_in_var_context() {
 }
 
 #[tokio::test]
+async fn test_semantic_utility_appears_in_html_completions() {
+    let fixture = "semantic_project";
+    let mut ctx = init_context(fixture).await;
+    let file_path = fixture_path(fixture).join("src").join("index.html");
+    let uri = file_uri(&file_path);
+
+    ctx.notify(
+        LspNotification::DidOpen,
+        json!({
+            "textDocument": {
+                "uri": uri,
+                "languageId": "html",
+                "version": 1,
+                "text": "<div class=\"text-\"></div>"
+            }
+        }),
+    )
+    .await;
+
+    let result = ctx
+        .request(
+            LspRequest::Completion,
+            json!({
+                "textDocument": {
+                    "uri": uri,
+                },
+                "position": {
+                    "line": 0,
+                    // "<div class=\"text-\">"
+                    //                   ^ col 17
+                    "character": 17,
+                },
+            }),
+        )
+        .await;
+
+    let labels = completion_labels(&result);
+    assert!(
+        labels.contains(&"text-primary"),
+        "should contain semantic utility 'text-primary', got: {:?}",
+        labels
+    );
+    assert!(
+        labels.contains(&"text-secondary"),
+        "should contain semantic utility 'text-secondary', got: {:?}",
+        labels
+    );
+}
+
+#[tokio::test]
+async fn test_completion_suggests_token_refs_when_editing_semantic_config() {
+    let fixture = "semantic_project";
+    let mut ctx = init_context(fixture).await;
+    let file_path = fixture_path(fixture).join("nemcss.config.json");
+    let uri = file_uri(&file_path);
+
+    ctx.notify(
+        LspNotification::DidOpen,
+        json!({
+            "textDocument": {
+                "uri": uri,
+                "languageId": "json",
+                "version": 1,
+                // Simulate typing a new semantic token value referencing a primitive token
+                "text": "{ \"tertiary\": \"{colors.\" }"
+            }
+        }),
+    )
+    .await;
+
+    let result = ctx
+        .request(
+            LspRequest::Completion,
+            json!({
+                "textDocument": {
+                    "uri": uri,
+                },
+                "position": {
+                    "line": 0,
+                    // "{ "tertiary": "{colors." }"
+                    //                        ^ col 23 (after "{colors.")
+                    "character": 23,
+                },
+            }),
+        )
+        .await;
+
+    let labels = completion_labels(&result);
+    assert!(
+        !labels.is_empty(),
+        "should return token reference completions"
+    );
+    assert!(
+        labels.iter().all(|l| l.starts_with("{colors.")),
+        "all completions should be colors token references, got: {:?}",
+        labels
+    );
+    assert!(
+        labels.contains(&"{colors.white}"),
+        "should contain '{{colors.white}}', got: {:?}",
+        labels
+    );
+    assert!(
+        labels.contains(&"{colors.black}"),
+        "should contain '{{colors.black}}', got: {:?}",
+        labels
+    );
+}
+
+#[tokio::test]
 async fn test_responsive_completion_has_text_edit_replacing_prefix() {
     let fixture = "basic_project";
     let mut ctx = init_context(fixture).await;

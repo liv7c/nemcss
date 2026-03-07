@@ -19,6 +19,7 @@ use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer};
 
 use crate::cache::NemCache;
+use crate::context::extract_token_ref_partial;
 use crate::position::lsp_col_to_byte;
 
 #[derive(Debug)]
@@ -83,6 +84,8 @@ impl LanguageServer for Backend {
                         ":".to_string(),
                         // Var prefix
                         "-".to_string(),
+                        // Token reference prefix
+                        "{".to_string(),
                     ]),
                     ..CompletionOptions::default()
                 }),
@@ -166,6 +169,20 @@ impl LanguageServer for Backend {
             Some(resolved_cursor_position) => resolved_cursor_position,
             None => return Ok(None),
         };
+
+        let is_config_file = params
+            .text_document_position
+            .text_document
+            .uri
+            .path()
+            .ends_with(CONFIG_FILE_NAME);
+
+        if is_config_file {
+            if let Some(completions) = self.config_completions(&params).await {
+                return Ok(Some(CompletionResponse::Array(completions)));
+            }
+            return Ok(None);
+        }
 
         // Check for var(--...) context
         let current_line = rope.line(line_idx).to_string();
@@ -457,5 +474,22 @@ impl Backend {
             .map_err(SetupFileWatchersError::RegisterCapability)?;
 
         Ok(())
+    }
+
+    async fn config_completions(&self, params: &CompletionParams) -> Option<Vec<CompletionItem>> {
+        let cache = self.cache.read().await;
+        let cache = cache.as_ref()?;
+
+        let uri = &params.text_document_position.text_document.uri;
+        let document = self.documents.get(uri.as_str())?.value().clone();
+
+        let position = &params.text_document_position.position;
+        let encoding = self.position_encoding.read().await.clone();
+        let col = lsp_col_to_byte(&document, position, &encoding);
+
+        let line_text = document.line(position.line as usize).to_string();
+        let partial = extract_token_ref_partial(&line_text, col)?;
+
+        Some(cache.token_ref_completions(&partial))
     }
 }

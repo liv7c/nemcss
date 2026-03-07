@@ -12,6 +12,7 @@ use tower_lsp::lsp_types::{
 
 /// Cache for the LSP server.
 /// This cache is used to store the generated utilities, viewports, custom properties, and content globs.
+/// It also stores the token references that are used to generate semantic tokens.
 #[derive(Debug)]
 pub struct NemCache {
     pub(crate) utilities: Vec<Utility>,
@@ -19,6 +20,7 @@ pub struct NemCache {
     pub(crate) config: NemCssConfig,
     pub(crate) custom_properties: Vec<CustomProperty>,
     pub(crate) content_globs: GlobSet,
+    pub(crate) token_references: Vec<String>,
 }
 
 /// A parsed CSS custom property with its name and resolved value.
@@ -63,9 +65,6 @@ pub enum BuildCacheError {
     #[error("failed to generate responsive utilities: {0}")]
     #[diagnostic(code(build_cache_error::generate_responsive_utilities_error))]
     GenerateResponsiveUtilities(#[from] engine::GenerateResponsiveUtilitiesError),
-    #[error("failed to resolve the semantic groups: {0}")]
-    #[diagnostic(code(build_cache_error::resolve_semantic))]
-    ResolveSemantic(#[from] config::ResolveSemanticError),
 }
 
 /// File extensions that always get custom property completions
@@ -77,14 +76,28 @@ impl NemCache {
         let config_path = workspace_root.join(CONFIG_FILE_NAME);
         let config = NemCssConfig::from_path(&config_path)?;
 
-        let resolved_tokens = config.resolve_all_tokens()?;
-        let viewports = resolved_tokens.get("viewports");
+        let primitive_tokens = config.resolve_all_tokens()?;
+
+        let token_references: Vec<String> = primitive_tokens
+            .iter()
+            .flat_map(|(group_key, resolved)| {
+                resolved
+                    .tokens
+                    .iter()
+                    .map(|(token_name, _)| format!("{{{}.{}}}", group_key.clone(), token_name))
+            })
+            .collect();
+
+        let viewports = primitive_tokens.get("viewports");
         let resolved_semantic_groups = config
-            .resolve_semantic_groups(&resolved_tokens)
-            .map_err(BuildCacheError::ResolveSemantic)?;
+            .resolve_semantic_groups(&primitive_tokens)
+            .unwrap_or_else(|e| {
+                eprintln!("warning: could not resolve semantic groups, skipping: {e}");
+                Default::default()
+            });
 
         let generated_css = engine::generate_css(
-            resolved_tokens.values(),
+            primitive_tokens.values(),
             resolved_semantic_groups.values(),
             viewports,
             None,
@@ -104,6 +117,7 @@ impl NemCache {
             responsive_utilities,
             config,
             content_globs,
+            token_references,
         })
     }
 
@@ -193,6 +207,24 @@ impl NemCache {
                 ..Default::default()
             })
             .collect()
+    }
+
+    /// Returns completions for token references matching the given partial input.
+    /// Used when editing the semantic tokens section of nemcss.config.json
+    pub fn token_ref_completions(&self, partial_input: &str) -> Vec<CompletionItem> {
+        self.token_references
+            .iter()
+            .filter(|r| partial_input.is_empty() || r.contains(partial_input))
+            .map(|reference| CompletionItem{
+                label: reference.clone(),
+                kind: Some(CompletionItemKind::REFERENCE),
+                detail: Some("primitive token reference".to_string()),
+                documentation: Some(Documentation::MarkupContent(MarkupContent {
+                    kind: MarkupKind::Markdown,
+                    value: format!("References the `{}` primitive token.\n\nGenerates a semantic CSS variable pointing to this value.", reference),
+                })),
+                ..Default::default()
+            }).collect()
     }
 
     /// Returns a hover response for the custom property with the given name
@@ -525,6 +557,40 @@ mod tests {
             let completions = cache.responsive_class_completions("sm:");
             assert!(!completions.is_empty());
             assert!(completions.iter().all(|c| c.label.starts_with("sm:")));
+        }
+
+        #[test]
+        fn test_token_ref_completions_returns_all_when_partial_input_is_empty() {
+            let temp_dir = create_test_project().expect("failed to create test project");
+            let cache = NemCache::build(temp_dir.path()).expect("failed to build cache");
+
+            let completions = cache.token_ref_completions("");
+            assert_eq!(completions.len(), cache.token_references.len());
+        }
+
+        #[test]
+        fn test_token_ref_completions_returns_matching_tokens() {
+            let temp_dir = create_test_project().expect("failed to create test project");
+            let cache = NemCache::build(temp_dir.path()).expect("failed to build cache");
+
+            let completions = cache.token_ref_completions("color");
+            assert!(!completions.is_empty());
+            assert!(
+                completions.iter().all(|c| c.label.starts_with("{colors.")),
+                "all completions should start with {{colors., got {:?}",
+                completions
+            );
+        }
+
+        #[test]
+        fn test_token_ref_completions_returns_matching_tokens_with_partial_input() {
+            let temp_dir = create_test_project().expect("failed to create test project");
+            let cache = NemCache::build(temp_dir.path()).expect("failed to build cache");
+
+            let completions = cache.token_ref_completions("colors.p");
+            assert!(!completions.is_empty());
+            assert_eq!(completions.len(), 1);
+            assert!(completions[0].label.starts_with("{colors.primary"));
         }
     }
 
