@@ -6,6 +6,8 @@ resolver = "3"
 version = "0.1.0"
 authors = ["Olivia Coumans"]
 description = "NemCSS generates CSS utility classes and custom properties based on your design tokens."
+license = "MIT"
+repository = "https://github.com/liv7c/nemcss"
 
 [workspace.dependencies]
 miette = { version = "7.6.0", features = ["fancy"] }
