@@ -1,4 +1,5 @@
 {
+  "$schema": "./node_modules/nemcss/schemas/nemcss.config.schema.json",
   "content": [
     "src/**/*.html",
     "src/**/*.jsx",

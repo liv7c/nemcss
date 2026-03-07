@@ -20,7 +20,7 @@
     "css generator"
   ],
   "engines": { "node": ">=18" },
-  "files": ["bin"],
+  "files": ["bin", "schemas"],
   "optionalDependencies": {
     "@nemcss/cli-darwin-arm64": "workspace:*",
     "@nemcss/cli-darwin-x64": "workspace:*",
