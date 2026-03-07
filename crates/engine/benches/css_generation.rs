@@ -2,7 +2,7 @@ use divan::AllocProfiler;
 use engine::VIEWPORT_TOKEN_PREFIX;
 use std::collections::{HashMap, HashSet};
 
-use config::{ResolvedToken, TokenUtilityConfig, TokenValue};
+use config::{ResolvedSemanticGroup, ResolvedToken, TokenUtilityConfig, TokenValue};
 
 #[global_allocator]
 static ALLOC: AllocProfiler = AllocProfiler::system();
@@ -92,6 +92,7 @@ fn realistic_project(bencher: divan::Bencher) {
     bencher.bench(|| {
         let css = engine::generate_css(
             divan::black_box(tokens.values()),
+            std::iter::empty(),
             divan::black_box(Some(&viewports)),
             None,
         );
@@ -114,6 +115,7 @@ fn small_dataset(bencher: divan::Bencher) {
     bencher.bench(|| {
         let css = engine::generate_css(
             divan::black_box(tokens.values()),
+            std::iter::empty(),
             divan::black_box(Some(&viewport_value)),
             None,
         );
@@ -142,11 +144,37 @@ fn large_design_system(bencher: divan::Bencher) {
     bencher.bench(|| {
         let css = engine::generate_css(
             divan::black_box(tokens.values()),
+            std::iter::empty(),
             divan::black_box(Some(&viewport_value)),
             None,
         );
         divan::black_box(css.to_css());
     });
+}
+
+/// Helper to create semantic groups referencing tokens from `create_tokens()`.
+///
+/// Uses the "colors" group to build a few semantic color aliases.
+fn create_semantic_groups() -> Vec<ResolvedSemanticGroup> {
+    vec![
+        ResolvedSemanticGroup {
+            prefix: "text".to_string(),
+            property: "color".to_string(),
+            tokens: vec![
+                ("primary".to_string(), "var(--color-0)".to_string()),
+                ("secondary".to_string(), "var(--color-1)".to_string()),
+                ("muted".to_string(), "var(--color-2)".to_string()),
+            ],
+        },
+        ResolvedSemanticGroup {
+            prefix: "bg".to_string(),
+            property: "background-color".to_string(),
+            tokens: vec![
+                ("surface".to_string(), "var(--color-3)".to_string()),
+                ("overlay".to_string(), "var(--color-4)".to_string()),
+            ],
+        },
+    ]
 }
 
 /// Helper to derive all possible class names from a token map.
@@ -190,6 +218,7 @@ fn by_category_count(bencher: divan::Bencher, num_categories: usize) {
     bencher.bench(|| {
         let css = engine::generate_css(
             divan::black_box(tokens.values()),
+            std::iter::empty(),
             divan::black_box(Some(&viewport_value)),
             None,
         );
@@ -208,6 +237,7 @@ fn realistic_project_filtered(bencher: divan::Bencher) {
     bencher.bench(|| {
         let css = engine::generate_css(
             divan::black_box(tokens.values()),
+            std::iter::empty(),
             divan::black_box(Some(&viewports)),
             divan::black_box(Some(&half)),
         );
@@ -233,8 +263,58 @@ fn large_design_system_filtered(bencher: divan::Bencher) {
     bencher.bench(|| {
         let css = engine::generate_css(
             divan::black_box(tokens.values()),
+            std::iter::empty(),
             divan::black_box(Some(&viewport_value)),
             divan::black_box(Some(&half)),
+        );
+        divan::black_box(css.to_css());
+    });
+}
+
+/// Benchmark CSS generation combining primitive tokens with semantic groups.
+///
+/// Same token set as `realistic_project` plus 2 semantic groups (text, bg)
+/// with 5 aliases total. Measures the overhead of semantic custom properties
+/// and the extra utility classes they produce.
+#[divan::bench]
+fn realistic_project_with_semantic(bencher: divan::Bencher) {
+    let tokens = create_tokens();
+    let viewports = create_viewports();
+    let semantic_groups = create_semantic_groups();
+
+    bencher.bench(|| {
+        let css = engine::generate_css(
+            divan::black_box(tokens.values()),
+            divan::black_box(semantic_groups.iter()),
+            divan::black_box(Some(&viewports)),
+            None,
+        );
+        divan::black_box(css.to_css());
+    });
+}
+
+/// Benchmark CSS generation for a large design system with semantic groups.
+///
+/// Same token set as `large_design_system` (10 categories, 200 tokens) plus
+/// 2 semantic groups with 5 aliases. Verifies that semantic overhead stays
+/// constant regardless of primitive token count.
+#[divan::bench]
+fn large_design_system_with_semantic(bencher: divan::Bencher) {
+    let mut tokens = HashMap::new();
+    let (_, viewport_value) = create_token_category("viewports", VIEWPORT_TOKEN_PREFIX, 8, 0);
+    for i in 0..10 {
+        let (key, value) =
+            create_token_category(&format!("category-{i}"), &format!("prefix-{i}"), 20, 5);
+        tokens.insert(key, value);
+    }
+    let semantic_groups = create_semantic_groups();
+
+    bencher.bench(|| {
+        let css = engine::generate_css(
+            divan::black_box(tokens.values()),
+            divan::black_box(semantic_groups.iter()),
+            divan::black_box(Some(&viewport_value)),
+            None,
         );
         divan::black_box(css.to_css());
     });
@@ -257,6 +337,7 @@ fn by_category_count_filtered(bencher: divan::Bencher, num_categories: usize) {
     bencher.bench(|| {
         let css = engine::generate_css(
             divan::black_box(tokens.values()),
+            std::iter::empty(),
             divan::black_box(Some(&viewport_value)),
             divan::black_box(Some(&half)),
         );

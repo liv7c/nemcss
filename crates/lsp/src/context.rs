@@ -16,6 +16,9 @@ pub(crate) const MAX_SCAN_LINES: usize = 15;
 /// Marker for the start of a `var(...)` expression.
 const VAR_OPEN: &str = "var(";
 
+/// Marker for the start of a token reference expression.
+const TOKEN_REF_OPEN: &str = "{";
+
 /// Represents information about the cursor's position within a class context.
 /// The "class context" is being used instead of "class name" because
 /// the class can take multiple forms, based on the framework being used.
@@ -46,6 +49,17 @@ pub struct VarContext {
     /// - 'var(--color-|)' -> partial = "--color-"
     /// - 'var(--bg-primary|)' -> partial = "--bg-primary"
     pub partial_property: String,
+}
+
+/// Context when the cursor is inside a token reference `{...}` in a JSON value.
+#[derive(Debug, PartialEq)]
+pub struct TokenRefContext {
+    /// The partial token reference typed so far (everything after `{`).
+    ///
+    /// # Examples
+    /// - `"color": "{|"` → partial = ""
+    /// - `"color": "{colors.pri|"` → partial = "colors.pri"
+    pub partial: String,
 }
 
 /// Check whether the `col` (a byte offset) falls inside the value span of
@@ -273,6 +287,49 @@ pub fn extract_var_property(line: &str, col: usize) -> Option<String> {
     } else {
         None
     }
+}
+
+/// Detects whether the cursor is inside a token reference `{...}` in a JSON value.
+///
+/// Scans backwards to find the `{` opener, then verifies the cursor is not
+/// past a closing `}` and that the `{` appears after a JSON key-value separator.
+///
+/// # Returns
+/// `Some(TokenRefContext)` with the partial token typed so far, or `None` if
+/// the cursor is not inside a token reference.
+///
+/// # Limitations
+/// Only scans the current line. A JSON value whose key is on the previous line will not be
+/// detected.
+pub fn detect_token_ref_context(line: &str, col: usize) -> Option<TokenRefContext> {
+    let before_cursor = line.get(..col)?;
+
+    let brace_pos = before_cursor.rfind(TOKEN_REF_OPEN)?;
+
+    // Ensure the `{` is preceded by '"' (to distinguish from a JSON object)
+    if before_cursor.get(brace_pos.saturating_sub(1)..brace_pos) != Some("\"") {
+        return None;
+    }
+
+    // Ensure the `{` appears after a JSON key-value separator
+    before_cursor.get(..brace_pos)?.rfind(": ")?;
+
+    let after_open = before_cursor.get(brace_pos + TOKEN_REF_OPEN.len()..)?;
+
+    // Cursor must not be past a closing `}`
+    if after_open.contains('}') {
+        return None;
+    }
+
+    Some(TokenRefContext {
+        partial: after_open.to_string(),
+    })
+}
+
+/// Extracts the partial token reference from a JSON value position.
+/// Returns `Some(partial)` if the cursor is inside a token reference, `None` otherwise.
+pub fn extract_token_ref_partial(line: &str, col: usize) -> Option<String> {
+    detect_token_ref_context(line, col).map(|ctx| ctx.partial)
 }
 
 #[cfg(test)]
@@ -672,6 +729,52 @@ mod tests {
             let line = "--bg-primary";
             let col = 4;
             assert!(extract_var_property(line, col).is_none());
+        }
+    }
+
+    mod extract_token_ref_partial {
+        use super::*;
+
+        #[test]
+        fn test_returns_none_when_no_brace() {
+            let line = r#"  "color": "bar"#;
+            assert!(extract_token_ref_partial(line, line.len()).is_none());
+        }
+
+        #[test]
+        fn test_returns_none_when_inside_json_object_value() {
+            let line = r#"  "color": {"nested": {"val"}}"#;
+            assert!(extract_token_ref_partial(line, line.len()).is_none());
+        }
+
+        #[test]
+        fn test_returns_none_when_brace_but_no_json_separator() {
+            let line = "const foo = {colors.primary";
+            assert!(extract_token_ref_partial(line, line.len()).is_none());
+        }
+
+        #[test]
+        fn test_returns_none_when_past_closing_brace() {
+            let line = r#"  "color": "{colors.primary}""#;
+            assert!(extract_token_ref_partial(line, line.len()).is_none());
+        }
+
+        #[test]
+        fn test_returns_empty_partial_when_just_opened() {
+            let line = r#"  "color": "{"#;
+            assert_eq!(
+                extract_token_ref_partial(line, line.len()),
+                Some(String::new())
+            );
+        }
+
+        #[test]
+        fn test_returns_partial_token() {
+            let line = r#"  "color": "{colors.pri"#;
+            assert_eq!(
+                extract_token_ref_partial(line, line.len()),
+                Some("colors.pri".to_string())
+            );
         }
     }
 }

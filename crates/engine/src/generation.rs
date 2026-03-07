@@ -2,6 +2,7 @@
 mod custom_properties;
 mod filters;
 mod responsive;
+mod semantic;
 mod utilities;
 
 pub use responsive::{
@@ -9,7 +10,7 @@ pub use responsive::{
 };
 pub use utilities::{Utility, VIEWPORT_TOKEN_PREFIX};
 
-use config::ResolvedToken;
+use config::{ResolvedSemanticGroup, ResolvedToken};
 use std::collections::HashSet;
 
 /// A struct that contains generated CSS output for utilities and custom properties.
@@ -76,7 +77,7 @@ impl GeneratedCss {
             + self
                 .utilities
                 .iter()
-                .map(|s| s.full_class.len())
+                .map(|s| s.full_class().len())
                 .sum::<usize>()
             + self.custom_properties.len() * INDENT_AND_NEWLINE_PER_PROPERTY
             + self.utilities.len()
@@ -98,7 +99,7 @@ impl GeneratedCss {
         css.push_str("}\n\n");
 
         for utility in &self.utilities {
-            css.push_str(&utility.full_class);
+            css.push_str(utility.full_class());
             css.push('\n');
         }
 
@@ -122,11 +123,17 @@ impl GeneratedCss {
 /// A `GeneratedCss` struct containing custom properties and utility classes.
 pub fn generate_css<'a>(
     resolved_tokens: impl IntoIterator<Item = &'a ResolvedToken>,
+    resolved_semantic_groups: impl IntoIterator<Item = &'a ResolvedSemanticGroup>,
     viewports: Option<&ResolvedToken>,
     used_classes: Option<&HashSet<String>>,
 ) -> GeneratedCss {
     let tokens: Vec<_> = resolved_tokens.into_iter().collect();
-    let custom_properties = custom_properties::generate_custom_properties(&tokens);
+    let semantic_groups: Vec<_> = resolved_semantic_groups.into_iter().collect();
+    let mut custom_properties = custom_properties::generate_custom_properties(&tokens);
+
+    custom_properties.extend(semantic::generate_semantic_custom_properties(
+        &semantic_groups,
+    ));
 
     match used_classes {
         Some(used_classes) => {
@@ -136,11 +143,27 @@ pub fn generate_css<'a>(
 
             let (used_utility_classes, used_responsive_utilities) =
                 filters::parse_used_classes(used_classes);
-            let (utilities, used_responsive_utilities_map) = filters::generate_filtered_utilities(
-                &tokens,
-                &used_utility_classes,
-                &used_responsive_utilities,
-            );
+            let (mut utilities, mut used_responsive_utilities_map) =
+                filters::generate_filtered_utilities(
+                    &tokens,
+                    &used_utility_classes,
+                    &used_responsive_utilities,
+                );
+            let (semantic_utilities, used_responsive_semantic_utilities) =
+                filters::generate_filtered_semantic_utilities(
+                    &semantic_groups,
+                    &used_utility_classes,
+                    &used_responsive_utilities,
+                );
+
+            utilities.extend(semantic_utilities);
+            for (vw, utils) in used_responsive_semantic_utilities {
+                used_responsive_utilities_map
+                    .entry(vw)
+                    .or_default()
+                    .extend(utils);
+            }
+
             let responsive_utilities = filters::generate_filtered_responsive_utilities(
                 &used_responsive_utilities_map,
                 viewports,
@@ -149,7 +172,8 @@ pub fn generate_css<'a>(
             GeneratedCss::new(custom_properties, utilities, responsive_utilities)
         }
         None => {
-            let utilities = utilities::generate_utilities(&tokens);
+            let mut utilities = utilities::generate_utilities(&tokens);
+            utilities.extend(semantic::generate_semantic_utilities(&semantic_groups));
             let responsive_utilities =
                 responsive::generate_responsive_utilities(&utilities, viewports);
             GeneratedCss::new(custom_properties, utilities, responsive_utilities)
@@ -188,12 +212,57 @@ mod tests {
             },
         );
 
-        let css_to_generate = generate_css(resolved_tokens.values(), None, None);
+        let css_to_generate =
+            generate_css(resolved_tokens.values(), std::iter::empty(), None, None);
 
         let result = css_to_generate.to_css();
         let expected_root_css =
             ":root {\n  --color-primary: yellow;\n  --color-secondary: #c1c1c1;\n}\n\n";
         let expected_utilities_css = ".text-primary {\n  color: var(--color-primary);\n}\n.text-secondary {\n  color: var(--color-secondary);\n}\n";
+
+        assert!(
+            result.contains(expected_root_css),
+            "expected: {}, got {result}",
+            expected_root_css
+        );
+        assert!(result.contains(expected_utilities_css));
+    }
+
+    #[test]
+    fn test_to_css_semantic_tokens() {
+        let mut resolved_tokens = HashMap::new();
+        resolved_tokens.insert(
+            "colors".to_string(),
+            ResolvedToken {
+                tokens: vec![
+                    (
+                        "blue-400".to_string(),
+                        TokenValue::Simple("blue".to_string()),
+                    ),
+                    (
+                        "error-600".to_string(),
+                        TokenValue::Simple("red".to_string()),
+                    ),
+                ],
+                utilities: vec![],
+                prefix: "color".to_string(),
+            },
+        );
+
+        let semantic_groups = [ResolvedSemanticGroup {
+            prefix: "text".to_string(),
+            property: "color".to_string(),
+            tokens: vec![
+                ("primary".to_string(), "var(--color-blue-400)".to_string()),
+                ("error".to_string(), "var(--color-error-600)".to_string()),
+            ],
+        }];
+
+        let css_to_generate = generate_css(resolved_tokens.values(), &semantic_groups, None, None);
+
+        let result = css_to_generate.to_css();
+        let expected_root_css = ":root {\n  --color-blue-400: blue;\n  --color-error-600: red;\n  --text-primary: var(--color-blue-400);\n  --text-error: var(--color-error-600);\n}\n\n";
+        let expected_utilities_css = ".text-primary {\n  color: var(--text-primary);\n}\n.text-error {\n  color: var(--text-error);\n}\n";
 
         assert!(
             result.contains(expected_root_css),
@@ -240,6 +309,7 @@ mod tests {
 
         let css_to_generate = generate_css(
             resolved_tokens.values(),
+            std::iter::empty(),
             resolved_tokens.get("viewports"),
             None,
         );

@@ -288,8 +288,8 @@ mod tests {
         assert!(
             result.iter().any(|ru| {
                 ru.responsive_class_name == responsive_class_name
-                    && ru.base_utility.class_name == class_name
-                    && ru.base_utility.class_value == class_value
+                    && ru.base_utility.class_name() == class_name
+                    && ru.base_utility.class_value() == class_value
                     && ru.viewport_name == viewport_name
                     && ru.viewport_value == viewport_value
             }),

@@ -21,6 +21,10 @@ mod config;
 mod tokens;
 
 pub use config::{
-    CONFIG_FILE_NAME, NemCssConfig, NemCssConfigError, ThemeConfig, TokenConfig, TokenUtilityConfig,
+    CONFIG_FILE_NAME, NemCssConfig, NemCssConfigError, SemanticConfig, SemanticGroupConfig,
+    ThemeConfig, TokenConfig, TokenUtilityConfig,
 };
-pub use tokens::{ResolveTokensError, ResolvedToken, TokenValue, resolve_all_tokens};
+pub use tokens::{
+    ResolveSemanticError, ResolveTokensError, ResolvedSemanticGroup, ResolvedToken, TokenValue,
+    resolve_all_tokens,
+};

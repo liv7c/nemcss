@@ -7,6 +7,9 @@ use std::path::{Path, PathBuf};
 
 use divan::AllocProfiler;
 
+/// (file_name, css_var_prefix, utilities: [(class_prefix, css_property)])
+type CategoryUtilities<'a> = &'a [(&'a str, &'a str, &'a [(&'a str, &'a str)])];
+
 #[global_allocator]
 static ALLOC: AllocProfiler = AllocProfiler::system();
 
@@ -40,15 +43,134 @@ impl ProjectGenerator {
         )
     }
 
-    /// Generate configuration file
-    fn with_config(&self, custom_config: Option<&str>) -> &Self {
-        let default_config = r#"{
-            "content": ["src/**/*.html"]
-        }"#;
+    /// Generate configuration file with utilities matching the given token categories.
+    ///
+    /// Categories are taken from the same ordered list as [`with_design_tokens`]:
+    /// colors, spacings, fonts, font-sizes, font-weights, shadows, borders, radii.
+    /// Only categories that are actually generated get utility entries, so the
+    /// build never references missing source files.
+    fn with_utilities_config(&self, num_categories: usize) -> &Self {
+        // (file_name, css_var_prefix, utilities: [(class_prefix, css_property)])
+        let category_utilities: CategoryUtilities<'_> = &[
+            (
+                "colors",
+                "color",
+                &[("text", "color"), ("bg", "background-color")],
+            ),
+            ("spacings", "spacing", &[("p", "padding"), ("m", "margin")]),
+            ("fonts", "font", &[("font", "font-family")]),
+            ("font-sizes", "font-size", &[]),
+            ("font-weights", "font-weight", &[]),
+            ("shadows", "shadow", &[("shadow", "box-shadow")]),
+            ("borders", "border", &[]),
+            ("radii", "radius", &[("rounded", "border-radius")]),
+        ];
+
+        let theme_entries: String = category_utilities
+            .iter()
+            .take(num_categories)
+            .filter(|(_, _, utils)| !utils.is_empty())
+            .map(|(name, prefix, utils)| {
+                let utility_json: String = utils
+                    .iter()
+                    .map(|(p, prop)| {
+                        format!(r#"{{ "prefix": "{p}", "property": "{prop}" }}"#)
+                    })
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                format!(
+                    r#""{name}": {{ "prefix": "{prefix}", "source": "design-tokens/{name}.json", "utilities": [{utility_json}] }}"#,
+                )
+            })
+            .collect::<Vec<_>>()
+            .join(",\n            ");
+
+        let config = format!(
+            r#"{{
+            "content": ["src/**/*.html"],
+            "theme": {{
+                {theme_entries}
+            }}
+        }}"#
+        );
 
         self.temp_dir
             .child(CONFIG_FILE_NAME)
-            .write_str(custom_config.unwrap_or(default_config))
+            .write_str(&config)
+            .expect("Failed to write config file content");
+        self
+    }
+
+    /// Generate configuration file with utilities AND semantic tokens.
+    ///
+    /// Builds on [`with_utilities_config`] by adding a `"semantic"` section with
+    /// two groups (`brand-text`, `brand-bg`) that reference the first five tokens
+    /// from the `colors` category. Requires `num_categories >= 1`.
+    fn with_semantic_config(&self, num_categories: usize) -> &Self {
+        // (file_name, css_var_prefix, utilities: [(class_prefix, css_property)])
+        let category_utilities: CategoryUtilities<'_> = &[
+            (
+                "colors",
+                "color",
+                &[("text", "color"), ("bg", "background-color")],
+            ),
+            ("spacings", "spacing", &[("p", "padding"), ("m", "margin")]),
+            ("fonts", "font", &[("font", "font-family")]),
+            ("font-sizes", "font-size", &[]),
+            ("font-weights", "font-weight", &[]),
+            ("shadows", "shadow", &[("shadow", "box-shadow")]),
+            ("borders", "border", &[]),
+            ("radii", "radius", &[("rounded", "border-radius")]),
+        ];
+
+        let theme_entries: String = category_utilities
+            .iter()
+            .take(num_categories)
+            .filter(|(_, _, utils)| !utils.is_empty())
+            .map(|(name, prefix, utils)| {
+                let utility_json: String = utils
+                    .iter()
+                    .map(|(p, prop)| {
+                        format!(r#"{{ "prefix": "{p}", "property": "{prop}" }}"#)
+                    })
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                format!(
+                    r#""{name}": {{ "prefix": "{prefix}", "source": "design-tokens/{name}.json", "utilities": [{utility_json}] }}"#,
+                )
+            })
+            .collect::<Vec<_>>()
+            .join(",\n            ");
+
+        let config = format!(
+            r#"{{
+            "content": ["src/**/*.html"],
+            "theme": {{
+                {theme_entries}
+            }},
+            "semantic": {{
+                "brand-text": {{
+                    "property": "color",
+                    "tokens": {{
+                        "primary":   "{{colors.token-0}}",
+                        "secondary": "{{colors.token-1}}",
+                        "muted":     "{{colors.token-2}}"
+                    }}
+                }},
+                "brand-bg": {{
+                    "property": "background-color",
+                    "tokens": {{
+                        "surface": "{{colors.token-3}}",
+                        "overlay": "{{colors.token-4}}"
+                    }}
+                }}
+            }}
+        }}"#
+        );
+
+        self.temp_dir
+            .child(CONFIG_FILE_NAME)
+            .write_str(&config)
             .expect("Failed to write config file content");
         self
     }
@@ -336,7 +458,7 @@ fn small_project(bencher: divan::Bencher) {
             project_gen
                 .with_design_tokens(3, 10)
                 .with_content_files(10, 50, false)
-                .with_config(None)
+                .with_utilities_config(3)
                 .with_input_css();
 
             let (input, output) = project_gen.paths();
@@ -367,7 +489,7 @@ fn medium_project(bencher: divan::Bencher) {
             project_gen
                 .with_design_tokens(5, 50)
                 .with_content_files(100, 100, true)
-                .with_config(None)
+                .with_utilities_config(5)
                 .with_input_css();
 
             let (input, output) = project_gen.paths();
@@ -398,7 +520,7 @@ fn large_project(bencher: divan::Bencher) {
             project_gen
                 .with_design_tokens(8, 100)
                 .with_content_files(400, 150, true)
-                .with_config(None)
+                .with_utilities_config(8)
                 .with_input_css();
 
             let (input, output) = project_gen.paths();
@@ -434,7 +556,90 @@ fn extra_large_project(bencher: divan::Bencher) {
             project_gen
                 .with_design_tokens(8, 150)
                 .with_content_files(1000, 100, true)
-                .with_config(None)
+                .with_utilities_config(8)
+                .with_input_css();
+
+            let (input, output) = project_gen.paths();
+            let dir = project_gen.dir().to_path_buf();
+            (project_gen, input, output, dir)
+        })
+        .bench_values(|(project_gen, input, output, dir)| {
+            std::env::set_current_dir(&dir).expect("Failed to set current directory to temp dir");
+            cli::commands::build(input, output, true)
+                .expect("Build command failed during benchmark");
+            drop(project_gen);
+        });
+}
+
+/// Benchmark build command with a small project and semantic tokens.
+///
+/// Same as `small_project` but with a `"semantic"` section defining 5 aliases
+/// (`brand-text`: primary/secondary/muted, `brand-bg`: surface/overlay) that
+/// reference the `colors` category. Measures the overhead of semantic resolution
+/// and the extra custom properties they produce.
+#[divan::bench]
+fn small_project_with_semantic(bencher: divan::Bencher) {
+    bencher
+        .with_inputs(|| {
+            let project_gen = ProjectGenerator::new();
+            project_gen
+                .with_design_tokens(3, 10)
+                .with_content_files(10, 50, false)
+                .with_semantic_config(3)
+                .with_input_css();
+
+            let (input, output) = project_gen.paths();
+            let dir = project_gen.dir().to_path_buf();
+            (project_gen, input, output, dir)
+        })
+        .bench_values(|(project_gen, input, output, dir)| {
+            std::env::set_current_dir(&dir).expect("Failed to set current directory to temp dir");
+            cli::commands::build(input, output, true)
+                .expect("Build command failed during benchmark");
+            drop(project_gen);
+        });
+}
+
+/// Benchmark build command with a medium project and semantic tokens.
+///
+/// Same as `medium_project` with the same 5-alias semantic section.
+#[divan::bench]
+fn medium_project_with_semantic(bencher: divan::Bencher) {
+    bencher
+        .with_inputs(|| {
+            let project_gen = ProjectGenerator::new();
+            project_gen
+                .with_design_tokens(5, 50)
+                .with_content_files(100, 100, true)
+                .with_semantic_config(5)
+                .with_input_css();
+
+            let (input, output) = project_gen.paths();
+            let dir = project_gen.dir().to_path_buf();
+            (project_gen, input, output, dir)
+        })
+        .bench_values(|(project_gen, input, output, dir)| {
+            std::env::set_current_dir(&dir).expect("Failed to set current directory to temp dir");
+            cli::commands::build(input, output, true)
+                .expect("Build command failed during benchmark");
+            drop(project_gen);
+        });
+}
+
+/// Benchmark build command with a large project and semantic tokens.
+///
+/// Same as `large_project` with the same 5-alias semantic section.
+/// Verifies that semantic overhead stays constant regardless of primitive
+/// token count or content file count.
+#[divan::bench]
+fn large_project_with_semantic(bencher: divan::Bencher) {
+    bencher
+        .with_inputs(|| {
+            let project_gen = ProjectGenerator::new();
+            project_gen
+                .with_design_tokens(8, 100)
+                .with_content_files(400, 150, true)
+                .with_semantic_config(8)
                 .with_input_css();
 
             let (input, output) = project_gen.paths();

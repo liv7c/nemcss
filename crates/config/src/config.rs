@@ -6,10 +6,37 @@ use miette::Diagnostic;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::tokens::{ResolveTokensError, ResolvedToken, resolve_all_tokens};
+use crate::tokens::{
+    ResolveTokensError, ResolvedToken, resolve_all_semantic_groups, resolve_all_tokens,
+};
+use crate::{ResolveSemanticError, ResolvedSemanticGroup};
 
 /// The name of the NemCSS configuration file.
 pub const CONFIG_FILE_NAME: &str = "nemcss.config.json";
+
+/// Custom deserializer for non-empty prefixes.
+/// It deserializes a string and returns an error if the string is empty.
+fn deserialize_non_empty_prefix<'de, D: serde::Deserializer<'de>>(
+    d: D,
+) -> Result<String, D::Error> {
+    let s = String::deserialize(d)?;
+    if s.is_empty() {
+        return Err(serde::de::Error::custom("prefix must not be empty"));
+    }
+    Ok(s)
+}
+
+/// Custom deserializer for non-empty properties.
+/// It deserializes a string and returns an error if the string is empty.
+fn deserialize_non_empty_property<'de, D: serde::Deserializer<'de>>(
+    d: D,
+) -> Result<String, D::Error> {
+    let s = String::deserialize(d)?;
+    if s.is_empty() {
+        return Err(serde::de::Error::custom("property must not be empty"));
+    }
+    Ok(s)
+}
 
 /// NemCssConfig represents the configuration of the NemCSS util.
 /// It contains the paths to the content files and the design tokens, as well as the theme configuration.
@@ -25,6 +52,9 @@ pub struct NemCssConfig {
 
     /// Theme configuration.
     pub theme: Option<ThemeConfig>,
+
+    /// Semantic tokens
+    pub semantic: Option<SemanticConfig>,
 
     /// The base directory of the NemCSS project.
     #[serde(skip)]
@@ -93,6 +123,13 @@ impl NemCssConfig {
     /// cannot be loaded.
     pub fn resolve_all_tokens(&self) -> Result<HashMap<String, ResolvedToken>, ResolveTokensError> {
         resolve_all_tokens(self)
+    }
+
+    pub fn resolve_semantic_groups(
+        &self,
+        primitive_tokens: &HashMap<String, ResolvedToken>,
+    ) -> Result<HashMap<String, ResolvedSemanticGroup>, ResolveSemanticError> {
+        resolve_all_semantic_groups(self.semantic.as_ref(), primitive_tokens)
     }
 
     /// Get absolute path to the tokens directory.
@@ -170,9 +207,32 @@ pub struct TokenConfig {
 pub struct TokenUtilityConfig {
     /// The prefix that will be used to generate the utility class.
     /// For example, if the prefix is "bg", the utility class will be "bg-[TOKEN VARIANT]".
+    #[serde(deserialize_with = "deserialize_non_empty_prefix")]
     pub prefix: String,
     /// The CSS property that will use the design token value.
+    #[serde(deserialize_with = "deserialize_non_empty_property")]
     pub property: String,
+}
+
+/// The semantic config enables the creation of groups of semantic tokens (e.g. for "text",
+/// "background") with their own configuration (e.g. the CSS property they target and the tokens
+/// they use)
+#[derive(Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct SemanticConfig {
+    /// Groups of semantic tokens
+    #[serde(flatten)]
+    pub groups: HashMap<String, SemanticGroupConfig>,
+}
+
+/// A single semantic token config
+#[derive(Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct SemanticGroupConfig {
+    /// CSS property this group targets (e.g. "color", "background-color")
+    #[serde(deserialize_with = "deserialize_non_empty_property")]
+    pub property: String,
+    /// Mapping between a semantic name and an existing design token value
+    /// e.g. "primary" -> "{colors.blue-800}"
+    pub tokens: HashMap<String, String>,
 }
 
 #[cfg(test)]
@@ -209,5 +269,82 @@ mod tests {
         let glob_set = config.content_glob_set();
 
         assert!(glob_set.is_err());
+    }
+
+    mod deserialize_non_empty_string {
+        use super::*;
+
+        #[test]
+        fn test_deserialize_fails_on_empty_utility_prefix() {
+            let json = r#"
+            {
+                "content": [],
+                "theme": {
+                    "colors": {
+                        "source": "design-tokens/colors.json",
+                        "utilities": [
+                            { "prefix": "", "property": "background-color" }
+                        ]
+                    }
+                }
+            }
+                "#;
+            assert!(serde_json::from_str::<NemCssConfig>(json).is_err());
+        }
+
+        #[test]
+        fn test_deserialize_fails_on_empty_semantic_property() {
+            let json = r#"
+            {
+                "content": [],
+                "theme": {
+                    "colors": {
+                        "source": "design-tokens/colors.json"
+                    }
+                },
+                "semantic": {
+                    "text": {
+                        "property": "",
+                        "tokens": {
+                            "primary": "{colors.blue-500}"
+                        }
+                    }
+                }
+            }"#;
+            assert!(serde_json::from_str::<NemCssConfig>(json).is_err());
+        }
+    }
+
+    mod semantic_tokens {
+        use super::*;
+
+        #[test]
+        fn test_deserialize_config_with_semantic_tokens() {
+            let json = r#"{
+                "content": [],
+                "semantic": {
+                    "text": {
+                        "property": "color",
+                        "tokens": {
+                            "primary": "{colors.blue-500}",
+                            "error": "{colors.red-700}"
+                        }
+                    }
+                }
+            }"#;
+
+            let config: NemCssConfig = serde_json::from_str(json).unwrap();
+            let semantic = config.semantic.unwrap();
+            let text = semantic.groups.get("text").unwrap();
+            assert_eq!(text.property, "color");
+            assert_eq!(text.tokens.get("primary").unwrap(), "{colors.blue-500}");
+        }
+
+        #[test]
+        fn test_config_without_semantic_is_valid() {
+            let json = r#"{ "content": [] }"#;
+            let config: NemCssConfig = serde_json::from_str(json).unwrap();
+            assert!(config.semantic.is_none());
+        }
     }
 }

@@ -34,7 +34,7 @@
 //!         prefix: "color".to_string(),
 //!     },
 //! );
-//! let generated_css = generate_css(resolved_tokens.values(), resolved_tokens.get("viewports"), None);
+//! let generated_css = generate_css(resolved_tokens.values(), std::iter::empty(), resolved_tokens.get("viewports"), None);
 //! let css = generated_css.to_css();
 //! # assert!(css.contains("--color-primary: yellow;"));
 //! # assert!(css.contains(".text-primary {\n  color: var(--color-primary);\n}"));
