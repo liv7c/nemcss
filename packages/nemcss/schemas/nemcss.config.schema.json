@@ -69,11 +69,13 @@
               "properties": {
                 "prefix": {
                   "type": "string",
-                  "description": "CSS class prefix for this utility"
+                  "description": "CSS class prefix for this utility",
+                  "minLength": 1
                 },
                 "property": {
                   "type": "string",
-                  "description": "CSS property to set"
+                  "description": "CSS property to set",
+                  "minLength": 1
                 }
               },
               "additionalProperties": false
@@ -117,7 +119,8 @@
         "properties": {
           "property": {
             "type": "string",
-            "description": "CSS property for this utility group"
+            "description": "CSS property for this utility group",
+            "minLength": 1
           },
           "tokens": {
             "type": "object",

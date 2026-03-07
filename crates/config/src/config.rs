@@ -14,6 +14,30 @@ use crate::{ResolveSemanticError, ResolvedSemanticGroup};
 /// The name of the NemCSS configuration file.
 pub const CONFIG_FILE_NAME: &str = "nemcss.config.json";
 
+/// Custom deserializer for non-empty prefixes.
+/// It deserializes a string and returns an error if the string is empty.
+fn deserialize_non_empty_prefix<'de, D: serde::Deserializer<'de>>(
+    d: D,
+) -> Result<String, D::Error> {
+    let s = String::deserialize(d)?;
+    if s.is_empty() {
+        return Err(serde::de::Error::custom("prefix must not be empty"));
+    }
+    Ok(s)
+}
+
+/// Custom deserializer for non-empty properties.
+/// It deserializes a string and returns an error if the string is empty.
+fn deserialize_non_empty_property<'de, D: serde::Deserializer<'de>>(
+    d: D,
+) -> Result<String, D::Error> {
+    let s = String::deserialize(d)?;
+    if s.is_empty() {
+        return Err(serde::de::Error::custom("property must not be empty"));
+    }
+    Ok(s)
+}
+
 /// NemCssConfig represents the configuration of the NemCSS util.
 /// It contains the paths to the content files and the design tokens, as well as the theme configuration.
 #[derive(Debug, Default, PartialEq, Serialize, Deserialize)]
@@ -183,8 +207,10 @@ pub struct TokenConfig {
 pub struct TokenUtilityConfig {
     /// The prefix that will be used to generate the utility class.
     /// For example, if the prefix is "bg", the utility class will be "bg-[TOKEN VARIANT]".
+    #[serde(deserialize_with = "deserialize_non_empty_prefix")]
     pub prefix: String,
     /// The CSS property that will use the design token value.
+    #[serde(deserialize_with = "deserialize_non_empty_property")]
     pub property: String,
 }
 
@@ -202,6 +228,7 @@ pub struct SemanticConfig {
 #[derive(Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct SemanticGroupConfig {
     /// CSS property this group targets (e.g. "color", "background-color")
+    #[serde(deserialize_with = "deserialize_non_empty_property")]
     pub property: String,
     /// Mapping between a semantic name and an existing design token value
     /// e.g. "primary" -> "{colors.blue-800}"
@@ -242,6 +269,50 @@ mod tests {
         let glob_set = config.content_glob_set();
 
         assert!(glob_set.is_err());
+    }
+
+    mod deserialize_non_empty_string {
+        use super::*;
+
+        #[test]
+        fn test_deserialize_fails_on_empty_utility_prefix() {
+            let json = r#"
+            {
+                "content": [],
+                "theme": {
+                    "colors": {
+                        "source": "design-tokens/colors.json",
+                        "utilities": [
+                            { "prefix": "", "property": "background-color" }
+                        ]
+                    }
+                }
+            }
+                "#;
+            assert!(serde_json::from_str::<NemCssConfig>(json).is_err());
+        }
+
+        #[test]
+        fn test_deserialize_fails_on_empty_semantic_property() {
+            let json = r#"
+            {
+                "content": [],
+                "theme": {
+                    "colors": {
+                        "source": "design-tokens/colors.json"
+                    }
+                },
+                "semantic": {
+                    "text": {
+                        "property": "",
+                        "tokens": {
+                            "primary": "{colors.blue-500}"
+                        }
+                    }
+                }
+            }"#;
+            assert!(serde_json::from_str::<NemCssConfig>(json).is_err());
+        }
     }
 
     mod semantic_tokens {
