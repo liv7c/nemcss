@@ -2,9 +2,9 @@
 
 NemCSS is a small tool that does one specific thing: take your design tokens and generate CSS custom properties and utility classes from them, using your own naming conventions.
 
-Define your tokens in JSON files. One config file to declare your conventions and which utilities to generate. Add `@nemcss base;` to your CSS, and your custom properties and utilities are available everywhere. No magic defaults, no hidden utilities.
+Define your tokens in JSON files. Declare your naming conventions and which utilities you wish to generate in one config file. Add `@nemcss base;` to your CSS, and your custom properties and utilities are available everywhere.
 
-On top of your primitive tokens, a semantic layer lets you scope tokens to specific roles in your UI. Define which colors are for text, which are for backgrounds, directly from your config. A single source of truth, with explicit control over what gets generated and where.
+On top of your primitive tokens, a semantic layer lets you scope tokens to specific roles in your UI. Define which colors are for text, which are for backgrounds, directly from your config. You have a single source of truth, with explicit control over what gets generated and where.
 
 ## How it works
 
