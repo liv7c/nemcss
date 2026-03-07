@@ -89,7 +89,7 @@ impl NemCache {
                 resolved
                     .tokens
                     .iter()
-                    .map(|(token_name, _)| format!("{{{}.{}}}", group_key.clone(), token_name))
+                    .map(move |(token_name, _)| format!("{{{}.{}}}", group_key, token_name))
             })
             .collect();
 
