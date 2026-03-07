@@ -98,8 +98,8 @@ import './index.css'
 export default function App() {
   return (
     <main className="p-lg">
-      <h1 className="text-primary">Hello NemCSS</h1>
-      <p className="text-secondary">Styled with design tokens.</p>
+      <h1 className="text-default">Hello NemCSS</h1>
+      <p className="text-muted">Styled with design tokens.</p>
     </main>
   )
 }

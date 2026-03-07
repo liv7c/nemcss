@@ -48,7 +48,7 @@ if not configs.nemcss then
   configs.nemcss = {
     default_config = {
       cmd = { '/path/to/nemcss-lsp' },
-      filetypes = { 'css', 'html', 'javascriptreact', 'typescriptreact', 'vue', 'svelte', 'astro' },
+      filetypes = { 'css', 'html', 'javascriptreact', 'typescriptreact', 'vue', 'svelte', 'astro', 'json' },
       root_dir = lspconfig.util.root_pattern('nemcss.config.json'),
     },
   }

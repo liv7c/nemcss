@@ -86,8 +86,8 @@ Create `src/styles.css` and add the directive:
     <link rel="stylesheet" href="dist/styles.css" />
   </head>
   <body>
-    <h1 class="text-primary">Hello NemCSS</h1>
-    <p class="p-md text-secondary">Styled with design tokens.</p>
+    <h1 class="text-default">Hello NemCSS</h1>
+    <p class="p-md text-muted">Styled with design tokens.</p>
   </body>
 </html>
 ```

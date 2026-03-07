@@ -1,6 +1,7 @@
 # Design Tokens
 
-Design tokens are the source of truth for your styles. NemCSS reads token files from your `tokensDir` directory and transforms them into CSS custom properties and utility classes.
+Design token files are your primitives. Colors, spacings, fonts, whatever forms the foundation of your UI. NemCSS reads them and generates CSS custom properties from them. The token files stay simple and focused on one thing: your raw values. All the wiring happens in `nemcss.config.json`.
+
 
 ## Token file format
 
@@ -59,142 +60,101 @@ This generates:
 }
 ```
 
-## Category names and prefixes
+## Using tokens in utilities
 
-Custom property names follow the pattern `--{prefix}-{tokenName}`. The prefix comes from the token's **category name**, which is derived from the filename.
+Utilities are CSS classes generated from your tokens. They are defined in `nemcss.config.json`, not in the token file itself. One utility class is generated per token in the category.
 
-### How it works
-
-**Step 1: filename to category name**
-
-NemCSS strips the `.json` extension to get the category name:
-
-```
-colors.json       →  category: "colors"
-brand-colors.json →  category: "brand-colors"
-font-weights.json →  category: "font-weights"
-```
-
-**Step 2: category name to prefix**
-
-For built-in category names, NemCSS applies a singularization to produce a clean prefix. For anything else, the category name is used as-is:
-
-| Category name | Default prefix        |
-| ------------- | --------------------- |
-| `colors`      | `color`               |
-| `spacings`    | `spacing`             |
-| `fonts`       | `font`                |
-| `shadows`     | `shadow`              |
-| `borders`     | `border`              |
-| `radii`       | `radius`              |
-| `viewports`   | `viewport`            |
-| anything else | same as category name |
-
-So `colors.json` produces `--color-*`, but `brand-colors.json` produces `--brand-colors-*` by default.
-
-### Custom prefix
-
-To use a different prefix, set it explicitly in `nemcss.config.json` under the category name as the key:
+Given a token file:
 
 ```json
 {
-  "theme": {
-    "brand-colors": {
-      "source": "design-tokens/brand-colors.json",
-      "prefix": "brand"
-    }
-  }
+  "title": "Spacings",
+  "items": [
+    { "name": "xs", "value": "0.25rem" },
+    { "name": "sm", "value": "0.5rem" },
+    { "name": "md", "value": "1rem" }
+  ]
 }
 ```
 
-With a `primary` token in `brand-colors.json`, this produces `--brand-primary` instead of `--brand-colors-primary`.
-
-The same applies to built-in categories if you want to rename their prefix:
+You define which utilities to generate in your config:
 
 ```json
 {
   "theme": {
-    "colors": {
-      "source": "design-tokens/colors.json",
-      "prefix": "c"
-    }
-  }
-}
-```
-
-This produces `--c-primary` instead of `--color-primary`.
-
-## Utilities
-
-Utilities are CSS classes generated from your tokens. Each utility has a `prefix` (the class name prefix) and a `property` (the CSS declaration to generate).
-
-```json
-{
-  "theme": {
-    "colors": {
-      "source": "design-tokens/colors.json",
+    "spacings": {
+      "source": "design-tokens/spacings.json",
+      "prefix": "spacing",
       "utilities": [
-        { "prefix": "text", "property": "color" },
-        { "prefix": "bg", "property": "background-color" }
+        { "prefix": "p", "property": "padding" },
+        { "prefix": "m", "property": "margin" }
       ]
     }
   }
 }
 ```
 
-For a `primary` token this generates:
+This generates:
 
 ```css
-.text-primary {
-  color: var(--color-primary);
+:root {
+  --spacing-xs: 0.25rem;
+  --spacing-sm: 0.5rem;
+  --spacing-md: 1rem;
 }
-.bg-primary {
-  background-color: var(--color-primary);
-}
+
+.p-xs { padding: var(--spacing-xs); }
+.p-sm { padding: var(--spacing-sm); }
+.p-md { padding: var(--spacing-md); }
+.m-xs { margin: var(--spacing-xs); }
+.m-sm { margin: var(--spacing-sm); }
+.m-md { margin: var(--spacing-md); }
 ```
 
-### The `property` field
+## Using tokens in semantic groups
 
-The `property` field accepts any valid CSS property. The possibilities are as wide as CSS itself:
+Semantic groups let you scope a subset of your tokens to a specific role in your UI. Token values reference your primitive tokens using the `{category.tokenName}` syntax, where `category` is the key used in your `theme` config.
 
-```json
-{ "prefix": "text", "property": "color" }
-{ "prefix": "bg", "property": "background-color" }
-{ "prefix": "border", "property": "border-color" }
-{ "prefix": "outline", "property": "outline-color" }
-{ "prefix": "fill", "property": "fill" }
-{ "prefix": "stroke", "property": "stroke" }
-```
-
-You can also use a **CSS custom property** as the target. This lets you feed a token's value into another custom property, which is useful for theming.
-
-```json
-{ "prefix": "surface", "property": "--surface-color" }
-```
-
-For a `primary` token this generates:
-
-```css
-.surface-primary {
-  --surface-color: var(--color-primary);
-}
-```
-
-This way, components that reference `--surface-color` can be restyled just by changing which utility class you apply.
-
-### Merging with defaults
-
-Custom utilities are merged with the built-in defaults for that category, not replaced. To replace a default utility, reuse its prefix:
+Given the same color tokens:
 
 ```json
 {
-  "theme": {
-    "colors": {
-      "source": "design-tokens/colors.json",
-      "utilities": [{ "prefix": "text", "property": "color" }]
+  "title": "Colors",
+  "items": [
+    { "name": "primary", "value": "#2563eb" },
+    { "name": "muted", "value": "#64748b" }
+  ]
+}
+```
+
+You can define a semantic group in your config:
+
+```json
+{
+  "semantic": {
+    "text": {
+      "property": "color",
+      "tokens": {
+        "primary": "{colors.primary}",
+        "muted": "{colors.muted}"
+      }
     }
   }
 }
 ```
 
-This replaces the default `text` utility while keeping any others (like `bg`) intact.
+This generates:
+
+```css
+:root {
+  --text-primary: var(--color-primary);
+  --text-muted: var(--color-muted);
+}
+
+.text-primary { color: var(--text-primary); }
+.text-muted { color: var(--text-muted); }
+```
+
+Your primitive color custom properties remain available. The semantic group adds a second layer with explicit intent.
+
+See [Configuration](/guide/configuration) for the full reference.

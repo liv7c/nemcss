@@ -67,6 +67,7 @@ This generates the following files:
 **`nemcss.config.json`**
 ```json
 {
+  "$schema": "./node_modules/nemcss/schemas/nemcss.config.schema.json",
   "content": [
     "src/**/*.html",
     "src/**/*.jsx",
@@ -79,11 +80,31 @@ This generates the following files:
   "theme": {
     "colors": {
       "prefix": "color",
-      "source": "design-tokens/colors.json",
+      "source": "design-tokens/colors.json"
+    },
+    "spacings": {
+      "prefix": "spacing",
+      "source": "design-tokens/spacings.json",
       "utilities": [
-        { "prefix": "text", "property": "color" },
-        { "prefix": "bg", "property": "background-color" }
+        { "prefix": "p", "property": "padding" },
+        { "prefix": "m", "property": "margin" }
       ]
+    }
+  },
+  "semantic": {
+    "text": {
+      "property": "color",
+      "tokens": {
+        "default": "{colors.black}",
+        "muted": "{colors.white}"
+      }
+    },
+    "bg": {
+      "property": "background-color",
+      "tokens": {
+        "page": "{colors.white}",
+        "surface": "{colors.black}"
+      }
     }
   }
 }
@@ -118,6 +139,8 @@ This generates the following files:
   ]
 }
 ```
+
+The config gives you a starting point: color tokens with no utilities (custom properties only), spacing tokens with padding and margin utilities, and a semantic layer with `text` and `bg` groups scoped to your colors. Adjust to fit your project.
 
 ## Step 2: Point `content` at your source files
 
