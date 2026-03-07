@@ -209,15 +209,7 @@ fn resolve_semantic_reference(
 
     let resolved = primitive_tokens.get(group_key)?;
 
-    let mut token_exist = false;
-    for (primitive_token_name, _) in resolved.tokens.iter() {
-        if token_name == primitive_token_name {
-            token_exist = true;
-            break;
-        }
-    }
-
-    if !token_exist {
+    if !resolved.tokens.iter().any(|(name, _)| name == token_name) {
         return None;
     }
 
