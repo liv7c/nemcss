@@ -221,7 +221,6 @@ pub fn resolve_all_semantic_groups(
         return Ok(HashMap::new());
     };
 
-    // TODO: check if needs to give base capacity to HashMap
     let mut result = HashMap::new();
 
     for (group_name, group_cfg) in &semantic.groups {
