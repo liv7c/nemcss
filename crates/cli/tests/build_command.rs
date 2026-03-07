@@ -204,8 +204,6 @@ fn test_build_generates_css_with_semantic_classes() {
 
         "#,
         )
-        .unwrap()
-        .with_semantic_tokens()
         .unwrap();
 
     test_setup.run_build_command().success();

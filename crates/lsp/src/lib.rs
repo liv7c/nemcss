@@ -18,7 +18,7 @@ use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer};
 
-use crate::cache::NemCache;
+use crate::cache::{BuildResult, NemCache};
 use crate::context::extract_token_ref_partial;
 use crate::position::lsp_col_to_byte;
 
@@ -421,9 +421,13 @@ impl Backend {
             .cloned()
             .or_else(|| std::env::current_dir().ok())
             .ok_or(RebuildCacheError::WorkspaceRoot)?;
-        let cache = NemCache::build(&workspace_root)?;
+        let BuildResult { cache, warnings } = NemCache::build(&workspace_root)?;
 
+        for warning in warnings {
+            self.client.log_message(MessageType::WARNING, warning).await;
+        }
         self.cache.write().await.replace(cache);
+
         Ok(())
     }
 

@@ -71,8 +71,13 @@ pub enum BuildCacheError {
 /// regardless of the content globs in the config
 const CSS_EXTENSIONS: &[&str] = &["css", "scss", "sass", "less"];
 
+pub struct BuildResult {
+    pub cache: NemCache,
+    pub warnings: Vec<String>,
+}
+
 impl NemCache {
-    pub fn build(workspace_root: &Path) -> miette::Result<Self, BuildCacheError> {
+    pub fn build(workspace_root: &Path) -> miette::Result<BuildResult, BuildCacheError> {
         let config_path = workspace_root.join(CONFIG_FILE_NAME);
         let config = NemCssConfig::from_path(&config_path)?;
 
@@ -89,12 +94,12 @@ impl NemCache {
             .collect();
 
         let viewports = primitive_tokens.get("viewports");
-        let resolved_semantic_groups = config
+        let (resolved_semantic_groups, semantic_warnings) = config
             .resolve_semantic_groups(&primitive_tokens)
-            .unwrap_or_else(|e| {
-                eprintln!("warning: could not resolve semantic groups, skipping: {e}");
-                Default::default()
-            });
+            .map(|groups| (groups, None))
+            // Permissive: if semantic groups cannot be resolved, fall back to empty rather
+            // than breaking the entire cache (the user might be editing a semantic config file)
+            .unwrap_or_else(|e| (Default::default(), Some(e.to_string())));
 
         let generated_css = engine::generate_css(
             primitive_tokens.values(),
@@ -107,17 +112,20 @@ impl NemCache {
 
         let content_globs = config.content_glob_set()?;
 
-        Ok(Self {
-            utilities: generated_css.utilities,
-            custom_properties: generated_css
-                .custom_properties
-                .iter()
-                .filter_map(|raw| CustomProperty::parse(raw))
-                .collect(),
-            responsive_utilities,
-            config,
-            content_globs,
-            token_references,
+        Ok(BuildResult {
+            cache: Self {
+                utilities: generated_css.utilities,
+                custom_properties: generated_css
+                    .custom_properties
+                    .iter()
+                    .filter_map(|raw| CustomProperty::parse(raw))
+                    .collect(),
+                responsive_utilities,
+                config,
+                content_globs,
+                token_references,
+            },
+            warnings: semantic_warnings.into_iter().collect(),
         })
     }
 
@@ -329,7 +337,8 @@ mod tests {
         fn test_build_cache_successfully() {
             let temp_dir = create_test_project().expect("failed to create test project");
 
-            let cache = NemCache::build(temp_dir.path()).expect("failed to build cache");
+            let BuildResult { cache, .. } =
+                NemCache::build(temp_dir.path()).expect("failed to build cache");
 
             assert!(
                 !cache.utilities.is_empty(),
@@ -372,7 +381,8 @@ mod tests {
                 )
                 .expect("failed to write viewports.json");
 
-            let cache = NemCache::build(temp_dir.path()).expect("failed to build cache");
+            let BuildResult { cache, .. } =
+                NemCache::build(temp_dir.path()).expect("failed to build cache");
             assert!(
                 !cache.responsive_utilities.is_empty(),
                 "should have responsive utilities"
@@ -428,7 +438,8 @@ mod tests {
         #[test]
         fn test_cache_custom_properties_are_structured() {
             let temp_dir = create_test_project().expect("failed to create test project");
-            let cache = NemCache::build(temp_dir.path()).expect("failed to build cache");
+            let BuildResult { cache, .. } =
+                NemCache::build(temp_dir.path()).expect("failed to build cache");
 
             assert!(!cache.custom_properties.is_empty());
 
@@ -445,6 +456,51 @@ mod tests {
                 .find(|p| p.name == "--spacing-sm")
                 .expect("should have --spacing-sm");
             assert_eq!(spacing_sm.value, "0.5rem");
+        }
+
+        #[test]
+        fn test_build_cache_with_unresolvable_semantic_groups_returns_warning() {
+            let temp_dir = create_test_project().expect("failed to create test project");
+            temp_dir
+                .child(CONFIG_FILE_NAME)
+                .write_str(
+                    r#"
+                {
+                    "content": ["src/**/*.html"],
+                    "theme": {
+                        "colors": {
+                            "source": "design-tokens/colors.json",
+                            "utilities": [
+                                { "prefix": "bg", "property": "background-color" }
+                            ]
+                        }
+                    },
+                    "semantic": {
+                        "text": {
+                            "property": "color",
+                            "tokens": {
+                                "primary": "{colors.does-not-exist}"
+                            }
+                        }
+                    }
+                }
+                "#,
+                )
+                .expect("failed to write config");
+
+            let BuildResult { cache, warnings } = NemCache::build(temp_dir.path())
+                .expect("build should succeed despite bad semantic ref");
+            assert!(!warnings.is_empty(), "should have warnings");
+            assert!(
+                warnings[0].contains("does-not-exist"),
+                "warning should mention the bad reference, got: {}",
+                warnings[0]
+            );
+
+            assert!(
+                !cache.utilities.is_empty(),
+                "should have generated utilities"
+            );
         }
     }
 
@@ -479,7 +535,8 @@ mod tests {
         #[test]
         fn test_var_completions_returns_empty_when_no_matching_properties() {
             let temp_dir = create_test_project().expect("failed to create test project");
-            let cache = NemCache::build(temp_dir.path()).expect("failed to build cache");
+            let BuildResult { cache, .. } =
+                NemCache::build(temp_dir.path()).expect("failed to build cache");
 
             let completions = cache.var_completions("foo");
             assert!(completions.is_empty());
@@ -488,7 +545,8 @@ mod tests {
         #[test]
         fn test_var_completions_returns_matching_properties() {
             let temp_dir = create_test_project().expect("failed to create test project");
-            let cache = NemCache::build(temp_dir.path()).expect("failed to build cache");
+            let BuildResult { cache, .. } =
+                NemCache::build(temp_dir.path()).expect("failed to build cache");
 
             let completions = cache.var_completions("--color");
             assert_eq!(completions.len(), 2);
@@ -500,7 +558,8 @@ mod tests {
         #[test]
         fn test_class_completions_returns_all_when_partial_name_is_empty() {
             let temp_dir = create_test_project().expect("failed to create test project");
-            let cache = NemCache::build(temp_dir.path()).expect("failed to build cache");
+            let BuildResult { cache, .. } =
+                NemCache::build(temp_dir.path()).expect("failed to build cache");
 
             let completions = cache.class_completions("");
             assert_eq!(completions.len(), cache.utilities.len());
@@ -509,7 +568,8 @@ mod tests {
         #[test]
         fn test_class_completions_returns_matching_classes() {
             let temp_dir = create_test_project().expect("failed to create test project");
-            let cache = NemCache::build(temp_dir.path()).expect("failed to build cache");
+            let BuildResult { cache, .. } =
+                NemCache::build(temp_dir.path()).expect("failed to build cache");
 
             let completions = cache.class_completions("bg-");
             assert!(!completions.is_empty());
@@ -531,7 +591,8 @@ mod tests {
               }"##,
                 )
                 .expect("failed to write viewports.json");
-            let cache = NemCache::build(temp_dir.path()).expect("failed to build cache");
+            let BuildResult { cache, .. } =
+                NemCache::build(temp_dir.path()).expect("failed to build cache");
 
             let completions = cache.responsive_class_completions("");
             assert_eq!(completions.len(), cache.responsive_utilities.len());
@@ -552,7 +613,8 @@ mod tests {
               }"##,
                 )
                 .expect("failed to write viewports.json");
-            let cache = NemCache::build(temp_dir.path()).expect("failed to build cache");
+            let BuildResult { cache, .. } =
+                NemCache::build(temp_dir.path()).expect("failed to build cache");
 
             let completions = cache.responsive_class_completions("sm:");
             assert!(!completions.is_empty());
@@ -562,7 +624,8 @@ mod tests {
         #[test]
         fn test_token_ref_completions_returns_all_when_partial_input_is_empty() {
             let temp_dir = create_test_project().expect("failed to create test project");
-            let cache = NemCache::build(temp_dir.path()).expect("failed to build cache");
+            let BuildResult { cache, .. } =
+                NemCache::build(temp_dir.path()).expect("failed to build cache");
 
             let completions = cache.token_ref_completions("");
             assert_eq!(completions.len(), cache.token_references.len());
@@ -571,7 +634,8 @@ mod tests {
         #[test]
         fn test_token_ref_completions_returns_matching_tokens() {
             let temp_dir = create_test_project().expect("failed to create test project");
-            let cache = NemCache::build(temp_dir.path()).expect("failed to build cache");
+            let BuildResult { cache, .. } =
+                NemCache::build(temp_dir.path()).expect("failed to build cache");
 
             let completions = cache.token_ref_completions("color");
             assert!(!completions.is_empty());
@@ -585,7 +649,8 @@ mod tests {
         #[test]
         fn test_token_ref_completions_returns_matching_tokens_with_partial_input() {
             let temp_dir = create_test_project().expect("failed to create test project");
-            let cache = NemCache::build(temp_dir.path()).expect("failed to build cache");
+            let BuildResult { cache, .. } =
+                NemCache::build(temp_dir.path()).expect("failed to build cache");
 
             let completions = cache.token_ref_completions("colors.p");
             assert!(!completions.is_empty());
@@ -600,7 +665,8 @@ mod tests {
         #[test]
         fn test_hover_for_custom_property_returns_none_when_property_not_found() {
             let temp_dir = create_test_project().expect("failed to create test project");
-            let cache = NemCache::build(temp_dir.path()).expect("failed to build cache");
+            let BuildResult { cache, .. } =
+                NemCache::build(temp_dir.path()).expect("failed to build cache");
 
             let hover = cache.hover_for_custom_property("foo");
             assert!(hover.is_none());
@@ -609,7 +675,8 @@ mod tests {
         #[test]
         fn test_hover_for_custom_property_returns_hover() {
             let temp_dir = create_test_project().expect("failed to create test project");
-            let cache = NemCache::build(temp_dir.path()).expect("failed to build cache");
+            let BuildResult { cache, .. } =
+                NemCache::build(temp_dir.path()).expect("failed to build cache");
 
             let hover = cache.hover_for_custom_property("--color-primary");
             assert!(hover.is_some());
@@ -625,7 +692,8 @@ mod tests {
         #[test]
         fn test_hover_for_class_returns_none_when_class_not_found() {
             let temp_dir = create_test_project().expect("failed to create test project");
-            let cache = NemCache::build(temp_dir.path()).expect("failed to build cache");
+            let BuildResult { cache, .. } =
+                NemCache::build(temp_dir.path()).expect("failed to build cache");
 
             let hover = cache.hover_for_class("foo");
             assert!(hover.is_none());
@@ -634,7 +702,8 @@ mod tests {
         #[test]
         fn test_hover_for_class_returns_hover() {
             let temp_dir = create_test_project().expect("failed to create test project");
-            let cache = NemCache::build(temp_dir.path()).expect("failed to build cache");
+            let BuildResult { cache, .. } =
+                NemCache::build(temp_dir.path()).expect("failed to build cache");
 
             let hover = cache.hover_for_class("bg-primary");
             assert!(hover.is_some());
@@ -666,7 +735,8 @@ mod tests {
               }"##,
                 )
                 .expect("failed to write viewports.json");
-            let cache = NemCache::build(temp_dir.path()).expect("failed to build cache");
+            let BuildResult { cache, .. } =
+                NemCache::build(temp_dir.path()).expect("failed to build cache");
 
             let hover = cache.hover_for_class("sm:bg-primary");
             assert!(hover.is_some());
