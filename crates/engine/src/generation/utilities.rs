@@ -33,11 +33,11 @@ pub const VIEWPORT_TOKEN_PREFIX: &str = "viewport";
 #[derive(Debug, Clone, PartialEq)]
 pub struct Utility {
     /// The complete CSS class definition (e.g., ".text-primary {\n  color: var(--color-primary);\n}")
-    pub full_class: String,
+    full_class: String,
     /// The class name without the leading dot (e.g., "text-primary")
-    pub class_name: String,
+    class_name: String,
     /// The class property and value (e.g., "color: var(--color-primary)")
-    pub class_value: String,
+    class_value: String,
 }
 
 impl Utility {

@@ -60,7 +60,7 @@ mod tests {
     }
 
     #[test]
-    fn test_returns_empty_whe_no_utilities_configured() {
+    fn test_returns_empty_when_no_utilities_configured() {
         let mock_theme = ThemeConfig {
             tokens: HashMap::from([(
                 "colors".to_string(),

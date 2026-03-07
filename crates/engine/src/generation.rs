@@ -77,7 +77,7 @@ impl GeneratedCss {
             + self
                 .utilities
                 .iter()
-                .map(|s| s.full_class.len())
+                .map(|s| s.full_class().len())
                 .sum::<usize>()
             + self.custom_properties.len() * INDENT_AND_NEWLINE_PER_PROPERTY
             + self.utilities.len()
@@ -99,7 +99,7 @@ impl GeneratedCss {
         css.push_str("}\n\n");
 
         for utility in &self.utilities {
-            css.push_str(&utility.full_class);
+            css.push_str(utility.full_class());
             css.push('\n');
         }
 
