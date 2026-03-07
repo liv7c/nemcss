@@ -4,7 +4,8 @@ import { defineConfig } from "vitepress";
 export default defineConfig({
   title: "NemCSS",
   description: "A design-token-driven CSS utility generator",
-  head: [["link", { rel: "icon", href: "/favicon.ico" }]],
+  base: "/nemcss/",
+  head: [["link", { rel: "icon", href: "/nemcss/favicon.ico" }]],
   themeConfig: {
     nav: [
       { text: "Guide", link: "/guide/introduction" },
