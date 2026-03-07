@@ -27,16 +27,6 @@ pub enum ScanTokensDirError {
 fn scan_tokens_dir(path: &Path) -> Result<HashMap<String, PathBuf>, ScanTokensDirError> {
     let mut tokens = HashMap::new();
 
-    if !path.exists() || !path.is_dir() {
-        return Err(ScanTokensDirError::ReadDirError(std::io::Error::new(
-            std::io::ErrorKind::NotFound,
-            format!(
-                "tokens directory {:?} does not exist or is not a directory",
-                path
-            ),
-        )));
-    }
-
     let entries = fs::read_dir(path).map_err(ScanTokensDirError::ReadDirError)?;
 
     for entry in entries {
