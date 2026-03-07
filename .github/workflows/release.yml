@@ -138,10 +138,12 @@ jobs:
           cp lsp-artifacts/nemcss-lsp-darwin-arm64/nemcss-lsp  editors/vscode/bin/lsp-darwin-arm64
           cp lsp-artifacts/nemcss-lsp-darwin-x64/nemcss-lsp    editors/vscode/bin/lsp-darwin-x64
           cp lsp-artifacts/nemcss-lsp-linux-x64/nemcss-lsp     editors/vscode/bin/lsp-linux-x64
+          cp lsp-artifacts/nemcss-lsp-linux-arm64/nemcss-lsp   editors/vscode/bin/lsp-linux-arm64
           cp lsp-artifacts/nemcss-lsp-win32-x64/nemcss-lsp.exe editors/vscode/bin/lsp-win32-x64.exe
           chmod +x editors/vscode/bin/lsp-darwin-arm64 \
                     editors/vscode/bin/lsp-darwin-x64 \
-                    editors/vscode/bin/lsp-linux-x64
+                    editors/vscode/bin/lsp-linux-x64 \
+                    editors/vscode/bin/lsp-linux-arm64
 
       - uses: pnpm/action-setup@v4
 
