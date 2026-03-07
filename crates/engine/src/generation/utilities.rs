@@ -121,15 +121,17 @@ pub fn create_utility(
     utility: &TokenUtilityConfig,
     token_name: &str,
 ) -> Utility {
-    let custom_property_name = format!("var(--{}-{})", resolved_token.prefix, token_name);
-    let utility_class_value = format!("{}: {}", utility.property, custom_property_name);
-    let utility_class_name = format!("{}-{}", utility.prefix, token_name);
-    let utility_full_class = format!(".{} {{\n  {};\n}}", utility_class_name, utility_class_value);
-    Utility::new(
-        &utility_full_class,
-        &utility_class_name,
-        &utility_class_value,
-    )
+    let class_name = format!("{}-{}", utility.prefix, token_name);
+    let class_value = format!(
+        "{}: var(--{}-{})",
+        utility.property, resolved_token.prefix, token_name
+    );
+    let full_class = format!(".{} {{\n  {};\n}}", class_name, class_value);
+    Utility {
+        full_class,
+        class_name,
+        class_value,
+    }
 }
 
 #[cfg(test)]
