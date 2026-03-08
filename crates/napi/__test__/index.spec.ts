@@ -43,26 +43,37 @@ test('extractClasses returns an empty array for content with no classes', (t) =>
 })
 
 // --- generateCss ---
-test('generateCss returns CSS from all tokens when no filter is applied', (t) => {
-  const css = generateCss(FIXTURE_CONFIG_PATH, null)
+test('generateCss returns an object that contains the baseCSS with the :root custom properties block', (t) => {
+  const { baseCss } = generateCss(FIXTURE_CONFIG_PATH, null)
 
-  t.is(typeof css, 'string')
+  t.is(typeof baseCss, 'string')
+  t.true(baseCss.includes(':root {'))
+  t.true(baseCss.includes('--color-primary: #fccd26;'))
+  t.true(baseCss.includes('--color-secondary: #171406;'))
+  t.true(baseCss.includes('--spacing-sm: 0.5rem;'))
+  t.true(baseCss.includes('--spacing-md: 1rem;'))
+})
 
-  t.true(css.includes('.text-primary'))
-  t.true(css.includes('.text-secondary'))
-  t.true(css.includes('.bg-primary'))
-  t.true(css.includes('.bg-secondary'))
-  t.true(css.includes('.p-sm'))
-  t.true(css.includes('.p-md'))
+test('generateCss returns all utilities when no filter is applied', (t) => {
+  const { utilitiesCss } = generateCss(FIXTURE_CONFIG_PATH, null)
+
+  t.is(typeof utilitiesCss, 'string')
+
+  t.true(utilitiesCss.includes('.text-primary'))
+  t.true(utilitiesCss.includes('.text-secondary'))
+  t.true(utilitiesCss.includes('.bg-primary'))
+  t.true(utilitiesCss.includes('.bg-secondary'))
+  t.true(utilitiesCss.includes('.p-sm'))
+  t.true(utilitiesCss.includes('.p-md'))
 })
 
 test('generateCss only outputs rules for the requested classes', (t) => {
-  const css = generateCss(FIXTURE_CONFIG_PATH, ['text-primary'])
+  const { utilitiesCss } = generateCss(FIXTURE_CONFIG_PATH, ['text-primary'])
 
-  t.true(css.includes('.text-primary'))
-  t.false(css.includes('.text-secondary'))
-  t.false(css.includes('.bg-primary'))
-  t.false(css.includes('.bg-secondary'))
-  t.false(css.includes('.p-sm'))
-  t.false(css.includes('.p-md'))
+  t.true(utilitiesCss.includes('.text-primary'))
+  t.false(utilitiesCss.includes('.text-secondary'))
+  t.false(utilitiesCss.includes('.bg-primary'))
+  t.false(utilitiesCss.includes('.bg-secondary'))
+  t.false(utilitiesCss.includes('.p-sm'))
+  t.false(utilitiesCss.includes('.p-md'))
 })
