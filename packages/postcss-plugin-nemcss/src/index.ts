@@ -31,7 +31,7 @@ export const nemcss: PluginCreator<NemcssPluginOptions> = function (
         }
       });
 
-      if (!baseDirective || !utilitiesDirective) return;
+      if (!baseDirective && !utilitiesDirective) return;
 
       let config;
       try {

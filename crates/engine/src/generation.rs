@@ -15,7 +15,7 @@ use std::collections::HashSet;
 
 /// A struct that contains generated CSS output for utilities and custom properties.
 ///
-/// Use the `to_css` method to get the generated CSS as a string.
+/// Use `base_to_css` to get the CSS custom properties block and `utilities_to_css` to get the utility classes.
 ///
 /// # Output format
 ///
@@ -433,7 +433,7 @@ mod tests {
         );
         assert!(
             css.contains(".text-secondary"),
-            "should not contain text-secondary utility class"
+            "should contain text-secondary utility class"
         );
 
         assert!(!css.contains(":root {"), "should not open root block");

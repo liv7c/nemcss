@@ -43,7 +43,7 @@ export function nemcss(options: NemcssPluginOptions = {}): Plugin {
   let viteConfig: ResolvedConfig;
   let contentGlobs: string[] = [];
   let tokensDirAbs: string = "";
-  let generatedCss: GeneratedCss;
+  let generatedCss: GeneratedCss = { baseCss: "", utilitiesCss: "" };
   let isContentFile: (id: string) => boolean = () => false;
   let server: ViteDevServer | undefined;
 
