@@ -2,6 +2,8 @@
 
 > A design-token-driven CSS utility and custom properties generator
 
+> **Pre-v1 notice**: NemCSS is under active development. The API and directives may change between minor versions until 1.0. Check the [CHANGELOG](./CHANGELOG.md) when upgrading.
+
 <a href="https://github.com/liv7c/nemcss/actions"><img src="https://img.shields.io/github/actions/workflow/status/liv7c/nemcss/ci.yml?branch=main" alt="CI Status"></a>
 <a href="https://github.com/liv7c/nemcss/blob/main/LICENSE"><img src="https://img.shields.io/github/license/liv7c/nemcss" alt="License"></a>
 <a href="https://www.npmjs.com/package/nemcss"><img src="https://img.shields.io/npm/v/nemcss" alt="Latest Release"></a>
@@ -20,12 +22,12 @@ Check out the full documentation with examples and guides at **[liv7c.github.io/
 
 ## Packages
 
-| Package | Description |
-| --- | --- |
-| [`nemcss`](packages/nemcss) | CLI with standalone `build`, `watch`, and `init` commands |
-| [`@nemcss/vite`](packages/vite-plugin-nemcss) | Vite plugin with HMR support |
-| [`@nemcss/postcss`](packages/postcss-plugin-nemcss) | PostCSS plugin |
-| [VS Code extension](editors/vscode) | Autocomplete and hover docs via LSP |
+| Package                                             | Description                                               |
+| --------------------------------------------------- | --------------------------------------------------------- |
+| [`nemcss`](packages/nemcss)                         | CLI with standalone `build`, `watch`, and `init` commands |
+| [`@nemcss/vite`](packages/vite-plugin-nemcss)       | Vite plugin with HMR support                              |
+| [`@nemcss/postcss`](packages/postcss-plugin-nemcss) | PostCSS plugin                                            |
+| [VS Code extension](editors/vscode)                 | Autocomplete and hover docs via LSP                       |
 
 ## Contributing
 
