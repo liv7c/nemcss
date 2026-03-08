@@ -20,9 +20,10 @@ export default {
 ```css
 /* your CSS input file */
 @nemcss base;
+@nemcss utilities;
 ```
 
-`@nemcss base;` is replaced at build time with the CSS custom properties and utility classes generated from your design tokens.
+`@nemcss base;` is replaced with a `:root {}` block of CSS custom properties. `@nemcss utilities;` is replaced with the utility classes used in your content files. The `utilities` directive is optional.
 
 ## Options
 

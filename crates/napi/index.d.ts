@@ -10,9 +10,14 @@ export declare function extractClasses(content: string): Array<string>
 
 /**
  * Generates the CSS from a given configuration file and outputs the CSS that will be used
- * to replace the `@nemcss;` directives.
+ * to replace the `@nemcss base;` and `@nemcss utilities;` directives.
  */
-export declare function generateCss(configPath: string, usedClasses?: Array<string> | undefined | null): string
+export declare function generateCss(configPath: string, usedClasses?: Array<string> | undefined | null): GeneratedCss
+
+export interface GeneratedCss {
+  baseCss: string
+  utilitiesCss: string
+}
 
 /**
  * JsResolvedToken is the configuration of a resolved token.

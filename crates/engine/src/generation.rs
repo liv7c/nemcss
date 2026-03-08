@@ -15,7 +15,7 @@ use std::collections::HashSet;
 
 /// A struct that contains generated CSS output for utilities and custom properties.
 ///
-/// Use the `to_css` method to get the generated CSS as a string.
+/// Use `base_to_css` to get the CSS custom properties block and `utilities_to_css` to get the utility classes.
 ///
 /// # Output format
 ///
@@ -66,27 +66,16 @@ impl GeneratedCss {
         }
     }
 
-    /// Combines the custom properties and utilities into a single CSS string.
-    pub fn to_css(&self) -> String {
+    /// Takes the custom properties and formats them into a CSS string that can be included in a stylesheet.
+    /// It wraps the custom properties in a `:root` block and formats them with proper indentation.
+    pub fn base_to_css(&self) -> String {
         // Estimate the capacity of the string to avoid reallocations.
         let estimated_capacity = self
             .custom_properties
             .iter()
             .map(|s| s.len())
             .sum::<usize>()
-            + self
-                .utilities
-                .iter()
-                .map(|s| s.full_class().len())
-                .sum::<usize>()
             + self.custom_properties.len() * INDENT_AND_NEWLINE_PER_PROPERTY
-            + self.utilities.len()
-            + self.responsive_utilities.len()
-            + self
-                .responsive_utilities
-                .iter()
-                .map(|s| s.len())
-                .sum::<usize>()
             + ROOT_BLOCK_OVERHEAD;
         let mut css = String::with_capacity(estimated_capacity);
         css.push_str(":root {\n");
@@ -98,6 +87,27 @@ impl GeneratedCss {
         }
         css.push_str("}\n\n");
 
+        css
+    }
+
+    /// Takes the utilities and formats them into a CSS string that can be included in a stylesheet.
+    /// It handles regular utilities, semantic utilities, and responsive utilities.
+    pub fn utilities_to_css(&self) -> String {
+        // Estimate the capacity of the string to avoid reallocations.
+        let estimated_capacity = self
+            .utilities
+            .iter()
+            .map(|s| s.full_class().len())
+            .sum::<usize>()
+            + self.utilities.len()
+            + self.responsive_utilities.len()
+            + self
+                .responsive_utilities
+                .iter()
+                .map(|s| s.len())
+                .sum::<usize>();
+        let mut css = String::with_capacity(estimated_capacity);
+
         for utility in &self.utilities {
             css.push_str(utility.full_class());
             css.push('\n');
@@ -107,7 +117,6 @@ impl GeneratedCss {
             css.push_str(responsive_utility);
             css.push('\n');
         }
-
         css
     }
 }
@@ -189,7 +198,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_to_css() {
+    fn test_base_and_utilities_to_css() {
         let mut resolved_tokens = HashMap::new();
         resolved_tokens.insert(
             "colors".to_string(),
@@ -215,21 +224,23 @@ mod tests {
         let css_to_generate =
             generate_css(resolved_tokens.values(), std::iter::empty(), None, None);
 
-        let result = css_to_generate.to_css();
+        let base = css_to_generate.base_to_css();
         let expected_root_css =
             ":root {\n  --color-primary: yellow;\n  --color-secondary: #c1c1c1;\n}\n\n";
-        let expected_utilities_css = ".text-primary {\n  color: var(--color-primary);\n}\n.text-secondary {\n  color: var(--color-secondary);\n}\n";
-
         assert!(
-            result.contains(expected_root_css),
-            "expected: {}, got {result}",
+            base.contains(expected_root_css),
+            "expected: {}, got {base}",
             expected_root_css
         );
-        assert!(result.contains(expected_utilities_css));
+
+        let utilities = css_to_generate.utilities_to_css();
+        let expected_utilities_css = ".text-primary {\n  color: var(--color-primary);\n}\n.text-secondary {\n  color: var(--color-secondary);\n}\n";
+
+        assert!(utilities.contains(expected_utilities_css));
     }
 
     #[test]
-    fn test_to_css_semantic_tokens() {
+    fn test_base_and_utilities_to_css_semantic_tokens() {
         let mut resolved_tokens = HashMap::new();
         resolved_tokens.insert(
             "colors".to_string(),
@@ -260,20 +271,25 @@ mod tests {
 
         let css_to_generate = generate_css(resolved_tokens.values(), &semantic_groups, None, None);
 
-        let result = css_to_generate.to_css();
+        let base = css_to_generate.base_to_css();
         let expected_root_css = ":root {\n  --color-blue-400: blue;\n  --color-error-600: red;\n  --text-primary: var(--color-blue-400);\n  --text-error: var(--color-error-600);\n}\n\n";
-        let expected_utilities_css = ".text-primary {\n  color: var(--text-primary);\n}\n.text-error {\n  color: var(--text-error);\n}\n";
-
         assert!(
-            result.contains(expected_root_css),
-            "expected: {}, got {result}",
+            base.contains(expected_root_css),
+            "expected: {}, got {base}",
             expected_root_css
         );
-        assert!(result.contains(expected_utilities_css));
+
+        let utilities = css_to_generate.utilities_to_css();
+        let expected_utilities_css = ".text-primary {\n  color: var(--text-primary);\n}\n.text-error {\n  color: var(--text-error);\n}\n";
+        assert!(
+            utilities.contains(expected_utilities_css),
+            "expected: {}, got {utilities}",
+            expected_utilities_css
+        );
     }
 
     #[test]
-    fn test_to_css_with_responsive_utilities() {
+    fn test_base_and_utilities_to_css_with_responsive_utilities() {
         let mut resolved_tokens = HashMap::new();
         resolved_tokens.insert(
             "colors".to_string(),
@@ -314,26 +330,120 @@ mod tests {
             None,
         );
 
-        let result = css_to_generate.to_css();
-
+        let base = css_to_generate.base_to_css();
         // Check for individual custom properties (order is not guaranteed due to HashMap)
-        assert!(result.contains("--color-primary: yellow;"));
-        assert!(result.contains("--color-secondary: #c1c1c1;"));
-        assert!(result.contains("--viewport-sm: 320px;"));
-        assert!(result.contains("--viewport-md: 768px;"));
+        assert!(base.contains("--color-primary: yellow;"));
+        assert!(base.contains("--color-secondary: #c1c1c1;"));
+        assert!(base.contains("--viewport-sm: 320px;"));
+        assert!(base.contains("--viewport-md: 768px;"));
 
+        let utilities = css_to_generate.utilities_to_css();
         let expected_utilities_css = ".text-primary {\n  color: var(--color-primary);\n}\n.text-secondary {\n  color: var(--color-secondary);\n}\n";
         let expected_responsive_utilities_sm = "@media (min-width: 320px) {\n.sm\\:text-primary {\n  color: var(--color-primary);\n}\n.sm\\:text-secondary {\n  color: var(--color-secondary);\n}\n}";
         let expected_responsive_utilities_md = "@media (min-width: 768px) {\n.md\\:text-primary {\n  color: var(--color-primary);\n}\n.md\\:text-secondary {\n  color: var(--color-secondary);\n}\n}";
 
-        assert!(result.contains(expected_utilities_css));
+        assert!(utilities.contains(expected_utilities_css));
         assert!(
-            result.contains(expected_responsive_utilities_sm),
-            "expected sm media query, got {result}",
+            utilities.contains(expected_responsive_utilities_sm),
+            "expected sm media query, got {utilities}",
         );
         assert!(
-            result.contains(expected_responsive_utilities_md),
-            "expected md media query, got {result}",
+            utilities.contains(expected_responsive_utilities_md),
+            "expected md media query, got {utilities}",
+        );
+    }
+
+    #[test]
+    fn test_base_to_css_returns_only_root_block() {
+        let mut resolved_tokens = HashMap::new();
+        resolved_tokens.insert(
+            "colors".to_string(),
+            ResolvedToken {
+                prefix: "color".to_string(),
+                tokens: vec![
+                    (
+                        "primary".to_string(),
+                        TokenValue::Simple("yellow".to_string()),
+                    ),
+                    (
+                        "secondary".to_string(),
+                        TokenValue::Simple("#c1c1c1".to_string()),
+                    ),
+                ],
+                utilities: vec![TokenUtilityConfig {
+                    prefix: "text".to_string(),
+                    property: "color".to_string(),
+                }],
+            },
+        );
+
+        let generated = generate_css(resolved_tokens.values(), std::iter::empty(), None, None);
+        let css = generated.base_to_css();
+
+        assert!(css.contains(":root {"), "should open root block");
+        assert!(
+            css.contains("--color-primary: yellow;"),
+            "should include primary color custom property"
+        );
+        assert!(
+            css.contains("--color-secondary: #c1c1c1;"),
+            "should include secondary color custom property"
+        );
+
+        assert!(
+            !css.contains(".text-primary"),
+            "should not contain utility classes"
+        );
+        assert!(
+            !css.contains(".text-secondary"),
+            "should not contain utility classes"
+        );
+    }
+
+    #[test]
+    fn test_utilities_to_css_returns_only_utility_classes() {
+        let mut resolved_tokens = HashMap::new();
+        resolved_tokens.insert(
+            "colors".to_string(),
+            ResolvedToken {
+                prefix: "color".to_string(),
+                tokens: vec![
+                    (
+                        "primary".to_string(),
+                        TokenValue::Simple("yellow".to_string()),
+                    ),
+                    (
+                        "secondary".to_string(),
+                        TokenValue::Simple("#c1c1c1".to_string()),
+                    ),
+                ],
+                utilities: vec![TokenUtilityConfig {
+                    prefix: "text".to_string(),
+                    property: "color".to_string(),
+                }],
+            },
+        );
+
+        let generated = generate_css(resolved_tokens.values(), std::iter::empty(), None, None);
+        let css = generated.utilities_to_css();
+
+        assert!(
+            css.contains(".text-primary"),
+            "should contain text-primary utility class"
+        );
+        assert!(
+            css.contains(".text-secondary"),
+            "should contain text-secondary utility class"
+        );
+
+        assert!(!css.contains(":root {"), "should not open root block");
+        assert!(
+            !css.contains("--color-primary: yellow;"),
+            "should not include custom properties"
+        );
+        assert!(
+            !css.contains("--color-secondary: #c1c1c1;"),
+            "should not include custom properties"
         );
     }
 }

@@ -57,10 +57,19 @@ pub fn extract_classes(content: String) -> Vec<String> {
     extractor::extract_classes(&content).into_iter().collect()
 }
 
+#[napi(object)]
+pub struct GeneratedCss {
+    pub base_css: String,
+    pub utilities_css: String,
+}
+
 /// Generates the CSS from a given configuration file and outputs the CSS that will be used
-/// to replace the `@nemcss;` directives.
+/// to replace the `@nemcss base;` and `@nemcss utilities;` directives.
 #[napi]
-pub fn generate_css(config_path: String, used_classes: Option<Vec<String>>) -> Result<String> {
+pub fn generate_css(
+    config_path: String,
+    used_classes: Option<Vec<String>>,
+) -> Result<GeneratedCss> {
     let config = config::NemCssConfig::from_path(&config_path)
         .map_err(|e| Error::from_reason(format!("{e}")))?;
 
@@ -82,5 +91,8 @@ pub fn generate_css(config_path: String, used_classes: Option<Vec<String>>) -> R
         used_set.as_ref(),
     );
 
-    Ok(generated.to_css())
+    Ok(GeneratedCss {
+        base_css: generated.base_to_css(),
+        utilities_css: generated.utilities_to_css(),
+    })
 }

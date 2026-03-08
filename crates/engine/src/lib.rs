@@ -35,10 +35,11 @@
 //!     },
 //! );
 //! let generated_css = generate_css(resolved_tokens.values(), std::iter::empty(), resolved_tokens.get("viewports"), None);
-//! let css = generated_css.to_css();
-//! # assert!(css.contains("--color-primary: yellow;"));
-//! # assert!(css.contains(".text-primary {\n  color: var(--color-primary);\n}"));
-//! # assert!(css.contains(".bg-primary {\n  background-color: var(--color-primary);\n}"));
+//! let base_css = generated_css.base_to_css();
+//! let utilities_css = generated_css.utilities_to_css();
+//! # assert!(base_css.contains("--color-primary: yellow;"));
+//! # assert!(utilities_css.contains(".text-primary {\n  color: var(--color-primary);\n}"));
+//! # assert!(utilities_css.contains(".bg-primary {\n  background-color: var(--color-primary);\n}"));
 //! ```
 
 mod generation;

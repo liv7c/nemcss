@@ -7,35 +7,45 @@ The quickest way to get started is with the `nemcss` CLI. If you're using Vite o
 Install nemcss as a local dev dependency:
 
 ::: code-group
+
 ```sh [npm]
 npm install -D nemcss
 ```
+
 ```sh [pnpm]
 pnpm add -D nemcss
 ```
+
 ```sh [yarn]
 yarn add -D nemcss
 ```
+
 ```sh [bun]
 bun add -D nemcss
 ```
+
 :::
 
 Or install it globally to use `nemcss` anywhere on your machine:
 
 ::: code-group
+
 ```sh [npm]
 npm install -g nemcss
 ```
+
 ```sh [pnpm]
 pnpm add -g nemcss
 ```
+
 ```sh [yarn]
 yarn global add nemcss
 ```
+
 ```sh [bun]
 bun add -g nemcss
 ```
+
 :::
 
 ## Step 1: Initialize nemcss in your project
@@ -65,6 +75,7 @@ nemcss init
 This generates the following files:
 
 **`nemcss.config.json`**
+
 ```json
 {
   "$schema": "./node_modules/nemcss/schemas/nemcss.config.schema.json",
@@ -111,6 +122,7 @@ This generates the following files:
 ```
 
 **`design-tokens/colors.json`**
+
 ```json
 {
   "title": "Color Tokens",
@@ -123,6 +135,7 @@ This generates the following files:
 ```
 
 **`design-tokens/spacings.json`**
+
 ```json
 {
   "title": "Spacing Tokens",
@@ -160,12 +173,20 @@ Edit the `content` field in `nemcss.config.json` to match your project's source 
 
 ## Step 3: Add `@nemcss base;` to your CSS
 
-Add the directive to your CSS file. NemCSS replaces it in-place at build time with the generated custom properties and utility classes. Any other CSS in the file is preserved.
+NemCSS uses two directives that it replaces at build time:
+
+| Directive            | What it generates                                                               |
+| -------------------- | ------------------------------------------------------------------------------- |
+| `@nemcss base;`      | `:root { }` block with all CSS custom properties                                |
+| `@nemcss utilities;` | Utility classes and responsive variants (only those used in your content files) |
+
+Add one or both to your CSS entry file. Any other CSS in the file is preserved.
 
 ```css
 /* other CSS can appear before */
 
 @nemcss base;
+@nemcss utilities;
 
 /* or after */
 body {
@@ -173,7 +194,22 @@ body {
 }
 ```
 
+You can easily scope the directives to separate cascade layers:
+
+```css
+@layer global, utilities;
+
+@layer global {
+  @nemcss base;
+}
+
+@layer utilities {
+  @nemcss utilities;
+}
+```
+
 A few things to keep in mind:
+
 - Place the directive in your CSS entry file, or high enough in your CSS so the generated custom properties are available to the rest of your styles
 - Use it once per file
 - With the CLI, the directive must be in the file passed via `-i`. With the Vite and PostCSS plugins it can be in any CSS file processed by the pipeline
@@ -185,7 +221,7 @@ A few things to keep in mind:
 nemcss build -i src/styles.css -o dist/styles.css
 ```
 
-The output file will have `@nemcss base;` replaced with the generated CSS. Only the utility classes found in your content files are included.
+The output file will have each directive replaced with its generated CSS. Only the utility classes found in your content files are included.
 
 For watch mode during development:
 

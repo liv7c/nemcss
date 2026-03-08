@@ -15,21 +15,25 @@ Provides IDE support via the NemCSS Language Server for the utility classes and 
 The extension bundles the `nemcss-lsp` binary for the following platforms:
 
 | Platform | Architecture |
-|----------|-------------|
-| macOS    | arm64, x64  |
-| Linux    | x64         |
-| Windows  | x64         |
+| -------- | ------------ |
+| macOS    | arm64, x64   |
+| Linux    | arm64, x64   |
+| Windows  | x64          |
 
 No separate installation is required — the binary is included in the extension package.
 
 ## Extension Settings
 
-| Setting | Type | Description |
-|---------|------|-------------|
+| Setting          | Type     | Description                                                                                                                 |
+| ---------------- | -------- | --------------------------------------------------------------------------------------------------------------------------- |
 | `nemcss.lspPath` | `string` | Path to a custom `nemcss-lsp` binary. Useful if you want to use a locally compiled version. Defaults to the bundled binary. |
 
 ## Release Notes
 
-### 0.0.1
+### 0.2.0
+
+- Support `@nemcss base;` and `@nemcss utilities;` as separate directives.
+
+### 0.1.0
 
 Initial release.

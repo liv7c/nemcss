@@ -5,9 +5,12 @@ import { resolve, sep } from "node:path";
 import { readFileSync } from "node:fs";
 import fg from "fast-glob";
 
-import { extractClasses, generateCss } from "@nemcss/napi";
+import { extractClasses, generateCss, GeneratedCss } from "@nemcss/napi";
 
-const DIRECTIVE_RE = /@nemcss base;/g;
+const BASE_DIRECTIVE_RE = /@nemcss base;/g;
+const BASE_DIRECTIVE = "@nemcss base;";
+const UTILITIES_DIRECTIVE_RE = /@nemcss utilities;/g;
+const UTILITIES_DIRECTIVE = "@nemcss utilities;";
 
 /**
  * Extracts the non-glob prefix directory from a glob pattern so we can
@@ -40,7 +43,7 @@ export function nemcss(options: NemcssPluginOptions = {}): Plugin {
   let viteConfig: ResolvedConfig;
   let contentGlobs: string[] = [];
   let tokensDirAbs: string = "";
-  let generatedCss = "";
+  let generatedCss: GeneratedCss = { baseCss: "", utilitiesCss: "" };
   let isContentFile: (id: string) => boolean = () => false;
   let server: ViteDevServer | undefined;
 
@@ -105,7 +108,6 @@ export function nemcss(options: NemcssPluginOptions = {}): Plugin {
       generatedCss = generateCss(configPath, [...allClasses]);
     } catch (e) {
       viteConfig.logger.error(`Error generating CSS: ${e}`);
-      generatedCss = "/* nemcss: CSS generation error, check your config */";
     }
   }
 
@@ -174,14 +176,26 @@ export function nemcss(options: NemcssPluginOptions = {}): Plugin {
     },
     transform(this: void, code: string, id: string) {
       if (!id.endsWith(".css")) return;
-      if (!code.includes("@nemcss base;")) {
+
+      const hasBaseDirective = code.includes("@nemcss base;");
+      const hasUtilitiesDirective = code.includes("@nemcss utilities;");
+      if (!hasBaseDirective && !hasUtilitiesDirective) {
         nemcssStylesheets.delete(id);
         return;
       }
 
       nemcssStylesheets.add(id);
 
-      const result = code.replace(DIRECTIVE_RE, () => generatedCss);
+      let result = code;
+      if (hasBaseDirective) {
+        result = result.replace(BASE_DIRECTIVE_RE, () => generatedCss.baseCss);
+      }
+      if (hasUtilitiesDirective) {
+        result = result.replace(
+          UTILITIES_DIRECTIVE_RE,
+          () => generatedCss.utilitiesCss,
+        );
+      }
 
       return {
         code: result,
