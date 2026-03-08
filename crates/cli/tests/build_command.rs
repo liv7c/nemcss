@@ -179,6 +179,114 @@ impl TestCmdHelper {
 }
 
 #[test]
+fn test_build_base_directive_only_contains_custom_properties() {
+    let mut test_setup = TestCmdHelper::new()
+        .unwrap()
+        .with_standard_design_tokens()
+        .unwrap()
+        .with_content_file(
+            "src/index.html",
+            r#"
+            <div class="text-primary">Primary</div>
+            <div class="p-sm">Margin</div>
+            "#,
+        )
+        .unwrap()
+        .with_input_css_file(
+            r#"
+            @nemcss base;
+            "#,
+        )
+        .unwrap();
+
+    test_setup.run_build_command().success();
+
+    let css_content = test_setup.output_css();
+
+    // Assert base CSS contains only custom properties
+    assert!(
+        css_content.contains(":root {"),
+        "Base CSS should contain :root block"
+    );
+    assert!(
+        css_content.contains("--color-primary: #ff0000;"),
+        "Base CSS should contain --color-primary custom property"
+    );
+    assert!(
+        css_content.contains("--color-secondary: #00ff00;"),
+        "Base CSS should contain --color-secondary custom property"
+    );
+    assert!(
+        css_content.contains("--spacing-sm: 0.5rem;"),
+        "Base CSS should contain --spacing-sm custom property"
+    );
+    assert!(
+        css_content.contains("--spacing-md: 1rem;"),
+        "Base CSS should contain --spacing-md custom property"
+    );
+
+    assert!(
+        !css_content.contains(".text-primary"),
+        "Base CSS should not contain .text-primary class"
+    );
+    assert!(
+        !css_content.contains(".p-sm"),
+        "Base CSS should not contain .p-sm class"
+    );
+}
+
+#[test]
+fn test_build_utilities_directive_gets_replaced_with_utility_classes() {
+    let mut test_setup = TestCmdHelper::new()
+        .unwrap()
+        .with_standard_design_tokens()
+        .unwrap()
+        .with_explicit_utilities_for_colors_spacings()
+        .unwrap()
+        .with_content_file(
+            "src/index.html",
+            r#"
+            <div class="text-primary">Primary</div>
+            <div class="p-sm">Margin</div>
+            "#,
+        )
+        .unwrap()
+        .with_input_css_file(
+            r#"
+            @nemcss base;
+            @nemcss utilities;
+            "#,
+        )
+        .unwrap();
+
+    test_setup.run_build_command().success();
+
+    let css_content = test_setup.output_css();
+
+    // Assert utilities CSS contains only utility classes
+    assert!(
+        css_content.contains(".text-primary"),
+        "Utilities CSS should contain .text-primary class, got {}",
+        css_content
+    );
+    assert!(
+        css_content.contains(".p-sm"),
+        "Utilities CSS should contain .p-sm class"
+    );
+
+    assert_eq!(
+        css_content.matches(".text-primary").count(),
+        1,
+        "Should only generate .text-primary once"
+    );
+    assert_eq!(
+        css_content.matches(".p-sm").count(),
+        1,
+        "Should only generate .p-sm once"
+    );
+}
+
+#[test]
 fn test_build_generates_css_with_semantic_classes() {
     let mut test_setup = TestCmdHelper::new()
         .unwrap()
@@ -197,6 +305,7 @@ fn test_build_generates_css_with_semantic_classes() {
         .with_input_css_file(
             r#"
         @nemcss base;
+        @nemcss utilities;
 
         .custom-class {
             color: red;
@@ -256,6 +365,7 @@ fn test_build_generates_css_with_only_used_classes() {
         .with_input_css_file(
             r#"
         @nemcss base;
+        @nemcss utilities;
 
         .custom-class {
             color: red;
@@ -326,6 +436,7 @@ fn test_build_generate_only_used_responsive_utilities() {
         .with_input_css_file(
             r#"
             @nemcss base;
+            @nemcss utilities;
             "#,
         )
         .unwrap()

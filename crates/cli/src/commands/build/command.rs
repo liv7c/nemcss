@@ -11,8 +11,11 @@ use config::{CONFIG_FILE_NAME, NemCssConfig};
 use crate::commands::build::glob::{GetContentFilesError, get_content_files};
 
 /// Directive the command will look for in the input file to replace it
-/// with generated CSS
+/// with generated base CSS
 const NEMCSS_BASE_DIRECTIVE: &str = "@nemcss base;";
+/// Directive the command will look for in the input file to replace it
+/// with generated utilities
+const NEMCSS_UTILITIES_DIRECTIVE: &str = "@nemcss utilities;";
 
 /// Errors that can occur while building the CSS
 #[derive(Debug, Error, Diagnostic)]
@@ -121,28 +124,40 @@ pub fn build(
         );
     }
 
+    let has_utilities_directive = input_content.contains(NEMCSS_UTILITIES_DIRECTIVE);
+    if !has_utilities_directive && !quiet {
+        eprintln!(
+            " {} No `@nemcss utilities;` directive found in your input CSS file. Only base styles will be generated.",
+            "⚠".yellow()
+        );
+    }
+
     // Generate the css via css_extractor
     // With try_fold, each thread maintains its own HashSet (no lock, mutex needed)
     // Then, each HashSet result gets merged together with try_reduce
-    let used_classes = files_to_scan
-        .par_iter()
-        .try_fold(HashSet::new, |mut acc, file| {
-            let content =
-                std::fs::read_to_string(file).map_err(|e| BuildError::ReadFileContent {
-                    path: file.to_path_buf(),
-                    source: e,
-                })?;
-            let css = extractor::extract_classes(&content);
-            acc.extend(css);
-            Ok(acc)
-        })
-        .try_reduce(
-            HashSet::new,
-            |mut set1, set2| -> Result<HashSet<String>, BuildError> {
-                set1.extend(set2);
-                Ok(set1)
-            },
-        )?;
+    let used_classes = if has_utilities_directive {
+        files_to_scan
+            .par_iter()
+            .try_fold(HashSet::new, |mut acc, file| {
+                let content =
+                    std::fs::read_to_string(file).map_err(|e| BuildError::ReadFileContent {
+                        path: file.to_path_buf(),
+                        source: e,
+                    })?;
+                let css = extractor::extract_classes(&content);
+                acc.extend(css);
+                Ok(acc)
+            })
+            .try_reduce(
+                HashSet::new,
+                |mut set1, set2| -> Result<HashSet<String>, BuildError> {
+                    set1.extend(set2);
+                    Ok(set1)
+                },
+            )?
+    } else {
+        HashSet::new()
+    };
 
     // write the css to the output directory
     let resolved_semantic_groups = config
@@ -155,7 +170,12 @@ pub fn build(
         Some(&used_classes),
     );
 
-    let output_css = input_content.replace(NEMCSS_BASE_DIRECTIVE, &generated_css.to_css());
+    let output_css = input_content
+        .replace(NEMCSS_BASE_DIRECTIVE, &generated_css.base_to_css())
+        .replace(
+            NEMCSS_UTILITIES_DIRECTIVE,
+            &generated_css.utilities_to_css(),
+        );
 
     if let Some(parent) = output.parent()
         && !parent.as_os_str().is_empty()
