@@ -119,51 +119,6 @@ impl GeneratedCss {
         }
         css
     }
-
-    /// Combines the custom properties and utilities into a single CSS string.
-    pub fn to_css(&self) -> String {
-        // Estimate the capacity of the string to avoid reallocations.
-        let estimated_capacity = self
-            .custom_properties
-            .iter()
-            .map(|s| s.len())
-            .sum::<usize>()
-            + self
-                .utilities
-                .iter()
-                .map(|s| s.full_class().len())
-                .sum::<usize>()
-            + self.custom_properties.len() * INDENT_AND_NEWLINE_PER_PROPERTY
-            + self.utilities.len()
-            + self.responsive_utilities.len()
-            + self
-                .responsive_utilities
-                .iter()
-                .map(|s| s.len())
-                .sum::<usize>()
-            + ROOT_BLOCK_OVERHEAD;
-        let mut css = String::with_capacity(estimated_capacity);
-        css.push_str(":root {\n");
-
-        for custom_property in &self.custom_properties {
-            css.push_str("  "); // 2-space indentation
-            css.push_str(custom_property);
-            css.push('\n');
-        }
-        css.push_str("}\n\n");
-
-        for utility in &self.utilities {
-            css.push_str(utility.full_class());
-            css.push('\n');
-        }
-
-        for responsive_utility in &self.responsive_utilities {
-            css.push_str(responsive_utility);
-            css.push('\n');
-        }
-
-        css
-    }
 }
 
 /// Generates CSS custom properties and utilities from resolved design tokens.

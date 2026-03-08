@@ -96,7 +96,8 @@ fn realistic_project(bencher: divan::Bencher) {
             divan::black_box(Some(&viewports)),
             None,
         );
-        divan::black_box(css.to_css());
+        divan::black_box(css.base_to_css());
+        divan::black_box(css.utilities_to_css());
     });
 }
 
@@ -119,7 +120,8 @@ fn small_dataset(bencher: divan::Bencher) {
             divan::black_box(Some(&viewport_value)),
             None,
         );
-        divan::black_box(css.to_css());
+        divan::black_box(css.base_to_css());
+        divan::black_box(css.utilities_to_css());
     });
 }
 
@@ -148,7 +150,8 @@ fn large_design_system(bencher: divan::Bencher) {
             divan::black_box(Some(&viewport_value)),
             None,
         );
-        divan::black_box(css.to_css());
+        divan::black_box(css.base_to_css());
+        divan::black_box(css.utilities_to_css());
     });
 }
 
@@ -222,7 +225,8 @@ fn by_category_count(bencher: divan::Bencher, num_categories: usize) {
             divan::black_box(Some(&viewport_value)),
             None,
         );
-        divan::black_box(css.to_css());
+        divan::black_box(css.base_to_css());
+        divan::black_box(css.utilities_to_css());
     });
 }
 
@@ -241,7 +245,8 @@ fn realistic_project_filtered(bencher: divan::Bencher) {
             divan::black_box(Some(&viewports)),
             divan::black_box(Some(&half)),
         );
-        divan::black_box(css.to_css());
+        divan::black_box(css.base_to_css());
+        divan::black_box(css.utilities_to_css());
     });
 }
 
@@ -267,7 +272,8 @@ fn large_design_system_filtered(bencher: divan::Bencher) {
             divan::black_box(Some(&viewport_value)),
             divan::black_box(Some(&half)),
         );
-        divan::black_box(css.to_css());
+        divan::black_box(css.base_to_css());
+        divan::black_box(css.utilities_to_css());
     });
 }
 
@@ -289,7 +295,8 @@ fn realistic_project_with_semantic(bencher: divan::Bencher) {
             divan::black_box(Some(&viewports)),
             None,
         );
-        divan::black_box(css.to_css());
+        divan::black_box(css.base_to_css());
+        divan::black_box(css.utilities_to_css());
     });
 }
 
@@ -316,7 +323,8 @@ fn large_design_system_with_semantic(bencher: divan::Bencher) {
             divan::black_box(Some(&viewport_value)),
             None,
         );
-        divan::black_box(css.to_css());
+        divan::black_box(css.base_to_css());
+        divan::black_box(css.utilities_to_css());
     });
 }
 
@@ -341,6 +349,7 @@ fn by_category_count_filtered(bencher: divan::Bencher, num_categories: usize) {
             divan::black_box(Some(&viewport_value)),
             divan::black_box(Some(&half)),
         );
-        divan::black_box(css.to_css());
+        divan::black_box(css.base_to_css());
+        divan::black_box(css.utilities_to_css());
     });
 }
