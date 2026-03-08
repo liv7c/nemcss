@@ -4,7 +4,7 @@ import fg from "fast-glob";
 import postcss from "postcss";
 import type { AtRule, Plugin, PluginCreator } from "postcss";
 import type { NemcssPluginOptions } from "./types";
-import { extractClasses, generateCss } from "@nemcss/napi";
+import { extractClasses, generateCss, GeneratedCss } from "@nemcss/napi";
 
 const NEMCSS_CONFIG_FILE = `nemcss.config.json`;
 const DEFAULT_IGNORE = ["**/node_modules/**", "**/dist/**"];
@@ -20,15 +20,18 @@ export const nemcss: PluginCreator<NemcssPluginOptions> = function (
         options.configPath ?? NEMCSS_CONFIG_FILE,
       );
 
-      let directive: AtRule | undefined;
+      let baseDirective: AtRule | undefined;
+      let utilitiesDirective: AtRule | undefined;
+
       root.walkAtRules("nemcss", (rule) => {
         if (rule.params === "base") {
-          directive = rule;
-          return false;
+          baseDirective = rule;
+        } else if (rule.params === "utilities") {
+          utilitiesDirective = rule;
         }
       });
 
-      if (!directive) return;
+      if (!baseDirective || !utilitiesDirective) return;
 
       let config;
       try {
@@ -56,7 +59,7 @@ export const nemcss: PluginCreator<NemcssPluginOptions> = function (
         }
       }
 
-      let css: string;
+      let css: GeneratedCss;
       try {
         css = generateCss(configPath, [...allClasses]);
       } catch (err) {
@@ -64,8 +67,19 @@ export const nemcss: PluginCreator<NemcssPluginOptions> = function (
         return;
       }
 
-      const newNodes = postcss.parse(css, { from: result.opts.from });
-      directive.replaceWith(newNodes);
+      if (baseDirective) {
+        const newNodes = postcss.parse(css.baseCss, {
+          from: result.opts.from,
+        });
+        baseDirective.replaceWith(newNodes);
+      }
+
+      if (utilitiesDirective) {
+        const newNodes = postcss.parse(css.utilitiesCss, {
+          from: result.opts.from,
+        });
+        utilitiesDirective.replaceWith(newNodes);
+      }
     },
   };
 };
