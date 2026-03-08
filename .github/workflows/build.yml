@@ -1,15 +1,6 @@
 name: Build
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/build.yml'
-      - 'crates/**'
-      - 'packages/**'
-      - 'editors/vscode/**'
-      - 'Cargo.toml'
-      - 'Cargo.lock'
   pull_request:
     branches: [main]
     paths:
