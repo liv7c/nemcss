@@ -1,6 +1,6 @@
 # nemcss
 
-> A design-token-driven CSS utility generator
+> A design-token-driven CSS custom properties and utility class generator
 
 ```sh
 # global
@@ -12,9 +12,19 @@ npm install -D nemcss
 
 When installed locally, run commands via `npx nemcss <command>` or add them as scripts in your `package.json`.
 
-`nemcss` reads your design tokens and a `nemcss.config.json` file, then generates CSS custom properties and utility classes. Add `@nemcss base;` to your CSS input file. `nemcss` replaces it at build time with the generated output.
+`nemcss` reads your design tokens and a `nemcss.config.json` file, then generates CSS custom properties and utility classes. Add the following directives to your CSS input file:
+
+```css
+/* your CSS input file */
+@nemcss base;
+@nemcss utilities;
+```
+
+`@nemcss base;` is replaced with a `:root {}` block of CSS custom properties. `@nemcss utilities;` is replaced with the utility classes used in your content files. The `utilities` directive is optional.
 
 ## CLI commands
+
+Run `nemcss init` to scaffold a `nemcss.config.json` and example token files, then use `build` or `watch` to generate your CSS.
 
 | Command                               | Description                                                                    |
 | ------------------------------------- | ------------------------------------------------------------------------------ |
@@ -42,4 +52,17 @@ A minimal `nemcss.config.json`:
 }
 ```
 
-For the full configuration reference, see the [root README](../../README.md).
+For the full configuration reference, see the [documentation](https://liv7c.github.io/nemcss).
+
+## Integrations
+
+If you use Vite or PostCSS, you can use a plugin instead of the standalone CLI:
+
+- [`@nemcss/vite`](https://www.npmjs.com/package/@nemcss/vite): Vite plugin with HMR support
+- [`@nemcss/postcss`](https://www.npmjs.com/package/@nemcss/postcss): PostCSS plugin
+
+See the [integrations documentation](https://liv7c.github.io/nemcss/integrations/cli.html) for setup guides.
+
+## Editor support
+
+The [NemCSS VS Code extension](https://marketplace.visualstudio.com/items?itemName=liv7c.nemcss) provides autocomplete and hover docs for your tokens and utility classes via the built-in LSP.
