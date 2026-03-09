@@ -1,6 +1,6 @@
 # NemCSS
 
-> A design-token-driven CSS utility and custom properties generator
+NemCSS is a design-token-driven CSS utility and custom properties generator.
 
 > **Pre-v1 notice**: NemCSS is under active development. The API and directives may change between minor versions until 1.0. Check the [CHANGELOG](./CHANGELOG.md) when upgrading.
 
@@ -10,11 +10,15 @@
 
 NemCSS is a small tool that takes your design tokens and generates CSS custom properties and utility classes from them, using your own naming conventions.
 
-Define your tokens in JSON files. Declare your naming conventions and which utilities you wish to generate in one config file. Add `@nemcss base;` to your CSS, and your custom properties and utilities are available everywhere.
+Here's an overview of how `nemcss` works:
 
-On top of your primitive tokens, a semantic layer lets you scope tokens to specific roles in your UI. Define which colors are for text, which are for backgrounds, directly from your config. You have a single source of truth, with explicit control over what gets generated and where.
+1. You define your design tokens in JSON files (e.g. all your colors in a `design-tokens/colors.json`)
+2. You configure your naming conventions and which utilities you wish to generate in a `nemcss.config.json` file.
+   On top of your primitive tokens, a semantic layer lets you scope tokens to specific roles in your UI. Define which colors are for text, which are for backgrounds, directly from your config. You have a single source of truth, with explicit control over what gets generated and where.
+3. You add a `@nemcss base;` to your CSS that gets replaced by all the generated custom properties at build time. You can also add a `@nemcss utilities;` to do the same for the generated utilities.
+4. You can use the `nemcss` standalone CLI, or the Vite/PostCSS plugin to build the project. Check out the [currently supported integrations](https://liv7c.github.io/nemcss/integrations/cli.html).
 
-NemCSS ships with an LSP for autocomplete and hover docs in your editor. It also has plugins for PostCSS and Vite.
+NemCSS ships with an **LSP for autocomplete and hover docs** in your editor. It also has plugins for PostCSS and Vite.
 
 ## Documentation
 
