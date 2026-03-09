@@ -1,12 +1,14 @@
 # @nemcss/vite
 
-> Vite plugin for [nemcss](../../README.md), a design-token-driven CSS utility generator
+> Vite plugin for [nemcss](../../README.md), a design-token-driven CSS custom properties and utility class generator
 
 ```sh
 npm install -D @nemcss/vite
 ```
 
 ## Setup
+
+This plugin reads your `nemcss.config.json`. Run `npx nemcss init` to scaffold one, or see the [nemcss package](https://www.npmjs.com/package/nemcss) for configuration details.
 
 ```js
 // vite.config.js
@@ -36,4 +38,8 @@ export default {
 
 When `hmr` is enabled, the plugin watches the `tokensDir` directory and all `content` glob base directories defined in your `nemcss.config.json`. Any change triggers a rebuild and invalidates the CSS module without a full page reload.
 
-For the full configuration reference, see the [root README](../../README.md).
+For the full configuration reference, see the [documentation](https://liv7c.github.io/nemcss).
+
+## Editor support
+
+The [NemCSS VS Code extension](https://marketplace.visualstudio.com/items?itemName=liv7c.nemcss) provides autocomplete and hover docs for your tokens and utility classes via the built-in LSP.
