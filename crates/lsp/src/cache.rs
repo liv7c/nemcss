@@ -61,7 +61,9 @@ fn extract_var_name(value: &str) -> Option<&str> {
 /// following var() references one level deep.
 ///
 /// # Examples
-///     --text-primary: var(--color-blue-800) -> "--text-primary": "#1a356d"
+/// ```text
+/// --text-primary: var(--color-blue-800) -> "--text-primary": "#1a356d"
+/// ```
 fn resolve_all_var_values(props: &[CustomProperty]) -> HashMap<String, String> {
     let raw_token_values: HashMap<&str, &str> = props
         .iter()
