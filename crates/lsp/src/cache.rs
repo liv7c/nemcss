@@ -232,15 +232,27 @@ impl NemCache {
         self.utilities
             .iter()
             .filter(|u| u.class_name().starts_with(partial_name))
-            .map(|u| CompletionItem {
-                label: u.class_name().to_string(),
-                kind: Some(CompletionItemKind::VALUE),
-                detail: Some(u.class_value().to_string()),
-                documentation: Some(Documentation::MarkupContent(MarkupContent {
-                    kind: MarkupKind::Markdown,
-                    value: format!("```css\n{}\n```", u.full_class()),
-                })),
-                ..Default::default()
+            .map(|u| {
+                let detail = u
+                    .class_value()
+                    .split_once(": ")
+                    .and_then(|(prop, val)| {
+                        let resolved = extract_var_name(val)
+                            .and_then(|var_name| self.resolved_values.get(var_name))?;
+                        Some(format!("{}: {}", prop, resolved))
+                    })
+                    .unwrap_or(u.class_value().to_string());
+
+                CompletionItem {
+                    label: u.class_name().to_string(),
+                    kind: Some(CompletionItemKind::VALUE),
+                    detail: Some(detail),
+                    documentation: Some(Documentation::MarkupContent(MarkupContent {
+                        kind: MarkupKind::Markdown,
+                        value: format!("```css\n{}\n```", u.full_class()),
+                    })),
+                    ..Default::default()
+                }
             })
             .collect()
     }
