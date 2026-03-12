@@ -327,12 +327,17 @@ impl NemCache {
             .utilities
             .iter()
             .find(|u| u.class_name() == token)
-            .map(|u| u.full_class().to_string())
+            .map(|u| self.annotate_class_css(u.full_class(), u.class_value()))
             .or_else(|| {
                 self.responsive_utilities
                     .iter()
                     .find(|u| u.responsive_class_name == token)
-                    .map(|u| u.full_css_definition.to_string())
+                    .map(|u| {
+                        self.annotate_class_css(
+                            &u.full_css_definition,
+                            u.base_utility.class_value(),
+                        )
+                    })
             })?;
 
         Some(Hover {
@@ -342,6 +347,24 @@ impl NemCache {
             }),
             range: None,
         })
+    }
+
+    /// Annotates a CSS string with the resolved value of a `var()` reference if one is found
+    /// in `class_value`. e.g. `color: var(--color-primary)` → `color: var(--color-primary) /* #000000 */`
+    fn annotate_class_css(&self, full_css: &str, class_value: &str) -> String {
+        let Some((_, val)) = class_value.split_once(": ") else {
+            return full_css.to_string();
+        };
+
+        let Some(var_name) = extract_var_name(val) else {
+            return full_css.to_string();
+        };
+
+        let Some(resolved) = self.resolved_values.get(var_name) else {
+            return full_css.to_string();
+        };
+
+        full_css.replacen(val, &format!("{} /* {} */", val, resolved), 1)
     }
 }
 
