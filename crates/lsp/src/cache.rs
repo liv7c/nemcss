@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::{collections::HashMap, path::Path};
 
 use config::{CONFIG_FILE_NAME, NemCssConfig, NemCssConfigError, ResolveTokensError};
 use engine::{ResponsiveUtility, Utility};
@@ -19,6 +19,7 @@ pub struct NemCache {
     pub(crate) responsive_utilities: Vec<ResponsiveUtility>,
     pub(crate) config: NemCssConfig,
     pub(crate) custom_properties: Vec<CustomProperty>,
+    pub(crate) resolved_values: HashMap<String, String>,
     pub(crate) content_globs: GlobSet,
     pub(crate) token_references: Vec<String>,
 }
@@ -49,6 +50,38 @@ impl CustomProperty {
             value: value.to_string(),
         })
     }
+}
+
+/// Extract the property name from a `var(--name)` expression
+fn extract_var_name(value: &str) -> Option<&str> {
+    value.strip_prefix("var(")?.strip_suffix(")")
+}
+
+/// Build a name to resolved value map for all custom properties,
+/// following var() references one level deep.
+///
+/// # Examples
+///     --text-primary: var(--color-blue-800) -> "--text-primary": "#1a356d"
+fn resolve_all_var_values(props: &[CustomProperty]) -> HashMap<String, String> {
+    let raw_token_values: HashMap<&str, &str> = props
+        .iter()
+        .filter(|p| !p.value.starts_with("var("))
+        .map(|p| (p.name.as_str(), p.value.as_str()))
+        .collect();
+
+    props
+        .iter()
+        .filter_map(|p| {
+            let resolved_val = if p.value.starts_with("var(") {
+                let referenced = extract_var_name(&p.value)?;
+                let value = raw_token_values.get(referenced)?;
+                value.to_string()
+            } else {
+                p.value.clone()
+            };
+            Some((p.name.clone(), resolved_val))
+        })
+        .collect()
 }
 
 #[derive(Debug, Error, Diagnostic)]
@@ -110,16 +143,21 @@ impl NemCache {
         let responsive_utilities =
             engine::generate_all_responsive_utilities(&generated_css.utilities, viewports)?;
 
+        let custom_properties: Vec<CustomProperty> = generated_css
+            .custom_properties
+            .iter()
+            .filter_map(|raw| CustomProperty::parse(raw))
+            .collect();
+
+        let resolved_values = resolve_all_var_values(&custom_properties);
+
         let content_globs = config.content_glob_set()?;
 
         Ok(BuildResult {
             cache: Self {
                 utilities: generated_css.utilities,
-                custom_properties: generated_css
-                    .custom_properties
-                    .iter()
-                    .filter_map(|raw| CustomProperty::parse(raw))
-                    .collect(),
+                custom_properties,
+                resolved_values,
                 responsive_utilities,
                 config,
                 content_globs,
@@ -168,15 +206,23 @@ impl NemCache {
         self.custom_properties
             .iter()
             .filter(|prop| partial_name.is_empty() || prop.name.starts_with(partial_name))
-            .map(|prop| CompletionItem {
-                label: prop.name.to_string(),
-                kind: Some(CompletionItemKind::PROPERTY),
-                detail: Some(prop.value.to_string()),
-                documentation: Some(Documentation::MarkupContent(MarkupContent {
-                    kind: MarkupKind::Markdown,
-                    value: format!("```css\n{}: {};\n```", prop.name, prop.value),
-                })),
-                ..Default::default()
+            .map(|prop| {
+                let detail = self
+                    .resolved_values
+                    .get(&prop.name)
+                    .cloned()
+                    .unwrap_or(prop.value.clone());
+
+                CompletionItem {
+                    label: prop.name.to_string(),
+                    kind: Some(CompletionItemKind::PROPERTY),
+                    detail: Some(detail),
+                    documentation: Some(Documentation::MarkupContent(MarkupContent {
+                        kind: MarkupKind::Markdown,
+                        value: format!("```css\n{}: {};\n```", prop.name, prop.value),
+                    })),
+                    ..Default::default()
+                }
             })
             .collect()
     }
@@ -242,10 +288,21 @@ impl NemCache {
             .iter()
             .find(|p| p.name == prop_name)?;
 
+        let resolved_val = if prop.value.starts_with("var(")
+            && let Some(resolved) = self.resolved_values.get(prop_name)
+        {
+            format!(" /* {} */", resolved)
+        } else {
+            String::new()
+        };
+
         Some(Hover {
             contents: HoverContents::Markup(MarkupContent {
                 kind: MarkupKind::Markdown,
-                value: format!("```css\n{}: {};\n```", prop.name, prop.value),
+                value: format!(
+                    "```css\n{}: {};{}\n```",
+                    prop.name, prop.value, resolved_val
+                ),
             }),
             range: None,
         })
@@ -748,6 +805,84 @@ mod tests {
                 }
                 _ => panic!("invalid hover contents"),
             }
+        }
+    }
+
+    mod resolved_values {
+        use super::*;
+
+        #[test]
+        fn test_extract_var_name_returns_the_var_name() {
+            assert_eq!(
+                extract_var_name("var(--text-primary)",),
+                Some("--text-primary")
+            );
+            assert_eq!(
+                extract_var_name("var(--color-blue-800)",),
+                Some("--color-blue-800")
+            );
+        }
+
+        #[test]
+        fn test_extract_var_name_returns_none_when_invalid_format_or_not_a_var() {
+            assert_eq!(extract_var_name("--text-primary",), None);
+            assert_eq!(extract_var_name("var(--color-blue-800);",), None);
+        }
+
+        #[test]
+        fn test_resolve_value_chain_returns_correct_resolved_values_mapping() {
+            let props = vec![
+                CustomProperty {
+                    name: "--color-blue-800".to_string(),
+                    value: "#1a365d".to_string(),
+                },
+                CustomProperty {
+                    name: "--spacing-sm".to_string(),
+                    value: "0.5rem".to_string(),
+                },
+                CustomProperty {
+                    name: "--text-primary".to_string(),
+                    value: "var(--color-blue-800)".to_string(),
+                },
+                CustomProperty {
+                    name: "--gap-sm".to_string(),
+                    value: "var(--spacing-sm)".to_string(),
+                },
+            ];
+
+            let result = resolve_all_var_values(&props);
+
+            assert_eq!(
+                result.len(),
+                4,
+                "expected a hashmap with all resolved values, got {:?} instead",
+                result
+            );
+
+            assert_eq!(
+                result
+                    .get("--color-blue-800")
+                    .expect("expect --color-blue-800 to exist in result hashmap"),
+                "#1a365d"
+            );
+            assert_eq!(
+                result
+                    .get("--spacing-sm")
+                    .expect("expect --spacing-sm to exist in result hashmap"),
+                "0.5rem"
+            );
+            assert_eq!(
+                result
+                    .get("--text-primary")
+                    .expect("expect --text-primary to exist in result hashmap"),
+                "#1a365d"
+            );
+            assert_eq!(
+                result
+                    .get("--gap-sm")
+                    .expect("expect --gap-sm to exist in result hashmap"),
+                "0.5rem"
+            );
         }
     }
 }
