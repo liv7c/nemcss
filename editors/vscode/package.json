@@ -28,7 +28,8 @@
     "onLanguage:typescriptreact",
     "onLanguage:vue",
     "onLanguage:svelte",
-    "onLanguage:astro"
+    "onLanguage:astro",
+    "workspaceContains:**/nemcss.config.json"
   ],
   "main": "./dist/extension.js",
   "contributes": {
