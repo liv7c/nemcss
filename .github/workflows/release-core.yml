@@ -55,7 +55,7 @@ jobs:
         run: |
           VERSION="${{ github.ref_name }}"
           VERSION="${VERSION#v}"
-          sed -i "s/^version = \".*\"/version = \"$VERSION\"/" Cargo.toml
+          sed -i.bak "s/^version = \".*\"/version = \"$VERSION\"/" Cargo.toml && rm Cargo.toml.bak
 
       - name: Build CLI and LSP
         run: cargo build --release --target ${{ matrix.arch }} --bin nemcss --bin nemcss-lsp
