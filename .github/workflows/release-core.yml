@@ -271,3 +271,4 @@ jobs:
             artifacts/lsp/nemcss-lsp-win32-x64/nemcss-lsp.exe
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
