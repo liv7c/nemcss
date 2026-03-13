@@ -133,8 +133,7 @@ jobs:
           for target in darwin-arm64 darwin-x64 linux-x64 linux-arm64 win32-x64; do
             npx @vscode/vsce publish \
               --pat "${{ secrets.VSCE_PAT }}" \
-              --packagePath "artifacts/nemcss-vscode-${target}/nemcss-${target}.vsix" \
-              --target "${target}"
+              --packagePath "artifacts/nemcss-vscode-${target}/nemcss-${target}.vsix"
           done
 
       - name: Upload vsix files to GitHub Release
