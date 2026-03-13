@@ -311,8 +311,12 @@ async fn test_config_token_ref_completion_has_text_edit_replacing_brace_and_part
     assert!(!items.is_empty(), "should return completion items");
 
     for item in items {
-        let text_edit = item.get("textEdit").expect("completion item should have a textEdit");
-        let range = text_edit.get("range").expect("textEdit should have a range");
+        let text_edit = item
+            .get("textEdit")
+            .expect("completion item should have a textEdit");
+        let range = text_edit
+            .get("range")
+            .expect("textEdit should have a range");
 
         let start_char = range
             .get("start")
@@ -324,8 +328,14 @@ async fn test_config_token_ref_completion_has_text_edit_replacing_brace_and_part
             .and_then(|e| e.get("character"))
             .and_then(|c| c.as_u64())
             .expect("should have an end character");
-        let new_text = text_edit.get("newText").and_then(|t| t.as_str()).expect("should have newText");
-        let label = item.get("label").and_then(|l| l.as_str()).expect("should have a label");
+        let new_text = text_edit
+            .get("newText")
+            .and_then(|t| t.as_str())
+            .expect("should have newText");
+        let label = item
+            .get("label")
+            .and_then(|l| l.as_str())
+            .expect("should have a label");
 
         // `{colors.` is 8 chars; range should start at the `{` (col 15)
         assert_eq!(
@@ -387,8 +397,12 @@ async fn test_config_token_ref_completion_text_edit_consumes_auto_inserted_closi
     assert!(!items.is_empty(), "should return completion items");
 
     for item in items {
-        let text_edit = item.get("textEdit").expect("completion item should have a textEdit");
-        let range = text_edit.get("range").expect("textEdit should have a range");
+        let text_edit = item
+            .get("textEdit")
+            .expect("completion item should have a textEdit");
+        let range = text_edit
+            .get("range")
+            .expect("textEdit should have a range");
 
         let end_char = range
             .get("end")
