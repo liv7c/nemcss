@@ -51,6 +51,12 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      - name: Patch Cargo workspace version
+        run: |
+          VERSION="${{ github.ref_name }}"
+          VERSION="${VERSION#v}"
+          sed -i "s/^version = \".*\"/version = \"$VERSION\"/" Cargo.toml
+
       - name: Build CLI and LSP
         run: cargo build --release --target ${{ matrix.arch }} --bin nemcss --bin nemcss-lsp
 

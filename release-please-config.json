@@ -2,7 +2,6 @@
   "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
   "linked-versions": [
     [
-      ".",
       "crates/napi",
       "packages/nemcss",
       "packages/vite-plugin-nemcss",
@@ -15,10 +14,6 @@
     ]
   ],
   "packages": {
-    ".": {
-      "release-type": "rust",
-      "component": "core"
-    },
     "crates/napi": {
       "release-type": "node",
       "component": "core"
