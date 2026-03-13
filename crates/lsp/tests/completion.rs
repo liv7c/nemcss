@@ -272,6 +272,139 @@ async fn test_completion_suggests_token_refs_when_editing_semantic_config() {
 }
 
 #[tokio::test]
+async fn test_config_token_ref_completion_has_text_edit_replacing_brace_and_partial() {
+    let fixture = "semantic_project";
+    let mut ctx = init_context(fixture).await;
+    let file_path = fixture_path(fixture).join("nemcss.config.json");
+    let uri = file_uri(&file_path);
+
+    ctx.notify(
+        LspNotification::DidOpen,
+        json!({
+            "textDocument": {
+                "uri": uri,
+                "languageId": "json",
+                "version": 1,
+                // Cursor is after `{colors.`
+                "text": "{ \"tertiary\": \"{colors.\" }"
+            }
+        }),
+    )
+    .await;
+
+    let result = ctx
+        .request(
+            LspRequest::Completion,
+            json!({
+                "textDocument": { "uri": uri },
+                "position": {
+                    "line": 0,
+                    // "{ "tertiary": "{colors." }"
+                    //                        ^ col 23
+                    "character": 23,
+                },
+            }),
+        )
+        .await;
+
+    let items = result.as_array().expect("should return an array");
+    assert!(!items.is_empty(), "should return completion items");
+
+    for item in items {
+        let text_edit = item.get("textEdit").expect("completion item should have a textEdit");
+        let range = text_edit.get("range").expect("textEdit should have a range");
+
+        let start_char = range
+            .get("start")
+            .and_then(|s| s.get("character"))
+            .and_then(|c| c.as_u64())
+            .expect("should have a start character");
+        let end_char = range
+            .get("end")
+            .and_then(|e| e.get("character"))
+            .and_then(|c| c.as_u64())
+            .expect("should have an end character");
+        let new_text = text_edit.get("newText").and_then(|t| t.as_str()).expect("should have newText");
+        let label = item.get("label").and_then(|l| l.as_str()).expect("should have a label");
+
+        // `{colors.` is 8 chars; range should start at the `{` (col 15)
+        assert_eq!(
+            start_char, 15,
+            "range should start at the opening `{{` of the token reference"
+        );
+        assert_eq!(end_char, 23, "range should end at the cursor");
+        assert_eq!(new_text, label, "newText should equal the label");
+        assert!(
+            label.starts_with('{') && label.ends_with('}'),
+            "label should be wrapped in braces, got `{}`",
+            label
+        );
+    }
+}
+
+#[tokio::test]
+async fn test_config_token_ref_completion_text_edit_consumes_auto_inserted_closing_brace() {
+    // Simulates Neovim's auto-bracket insertion: when the user types `{`,
+    // the editor inserts `{}` and places the cursor between the braces.
+    // After typing a partial, the buffer looks like `"{colors.wh}"` with the
+    // cursor before the closing `}`. The text_edit must cover that `}` so
+    // the accepted completion doesn't leave a stray `}` behind.
+    let fixture = "semantic_project";
+    let mut ctx = init_context(fixture).await;
+    let file_path = fixture_path(fixture).join("nemcss.config.json");
+    let uri = file_uri(&file_path);
+
+    ctx.notify(
+        LspNotification::DidOpen,
+        json!({
+            "textDocument": {
+                "uri": uri,
+                "languageId": "json",
+                "version": 1,
+                // `}` already present right after the partial (auto-inserted by editor)
+                "text": "{ \"tertiary\": \"{colors.}\" }"
+            }
+        }),
+    )
+    .await;
+
+    let result = ctx
+        .request(
+            LspRequest::Completion,
+            json!({
+                "textDocument": { "uri": uri },
+                "position": {
+                    "line": 0,
+                    // "{ "tertiary": "{colors.}" }"
+                    //                        ^ col 23 (cursor before `}`)
+                    "character": 23,
+                },
+            }),
+        )
+        .await;
+
+    let items = result.as_array().expect("should return an array");
+    assert!(!items.is_empty(), "should return completion items");
+
+    for item in items {
+        let text_edit = item.get("textEdit").expect("completion item should have a textEdit");
+        let range = text_edit.get("range").expect("textEdit should have a range");
+
+        let end_char = range
+            .get("end")
+            .and_then(|e| e.get("character"))
+            .and_then(|c| c.as_u64())
+            .expect("should have an end character");
+
+        // Range end must be 24 (one past the `}`) so the auto-inserted brace is consumed
+        assert_eq!(
+            end_char, 24,
+            "range end should extend past the auto-inserted `}}` (col 24)"
+        );
+    }
+}
+
+#[tokio::test]
 async fn test_responsive_completion_has_text_edit_replacing_prefix() {
     let fixture = "basic_project";
     let mut ctx = init_context(fixture).await;
