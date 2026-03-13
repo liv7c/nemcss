@@ -6,7 +6,7 @@
     "type": "git",
     "url": "https://github.com/liv7c/nemcss"
   },
-  "version": "0.2.1",
+  "version": "0.3.0",
   "engines": {
     "vscode": "^1.109.0"
   },
