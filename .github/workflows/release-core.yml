@@ -1,8 +1,9 @@
-name: Release
+name: Release Core
 
 on:
   push:
-    tags: ['v*']
+    # Matches v0.3.0 etc. — does not match editor-v* (different prefix)
+    tags: ['v[0-9]*']
 
 env:
   CARGO_TERM_COLOR: always
@@ -119,69 +120,12 @@ jobs:
           name: postcss-plugin
           path: packages/postcss-plugin-nemcss/dist/
 
-  build-vscode:
-    name: Package VS Code extension
-    needs: [build]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Download LSP artifacts
-        uses: actions/download-artifact@v8
-        with:
-          pattern: nemcss-lsp-*
-          path: lsp-artifacts
-
-      - name: Copy LSP binaries
-        run: |
-          mkdir -p editors/vscode/bin
-          cp lsp-artifacts/nemcss-lsp-darwin-arm64/nemcss-lsp  editors/vscode/bin/lsp-darwin-arm64
-          cp lsp-artifacts/nemcss-lsp-darwin-x64/nemcss-lsp    editors/vscode/bin/lsp-darwin-x64
-          cp lsp-artifacts/nemcss-lsp-linux-x64/nemcss-lsp     editors/vscode/bin/lsp-linux-x64
-          cp lsp-artifacts/nemcss-lsp-linux-arm64/nemcss-lsp   editors/vscode/bin/lsp-linux-arm64
-          cp lsp-artifacts/nemcss-lsp-win32-x64/nemcss-lsp.exe editors/vscode/bin/lsp-win32-x64.exe
-          chmod +x editors/vscode/bin/lsp-darwin-arm64 \
-                    editors/vscode/bin/lsp-darwin-x64 \
-                    editors/vscode/bin/lsp-linux-x64 \
-                    editors/vscode/bin/lsp-linux-arm64
-
-      - uses: pnpm/action-setup@v4
-
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 22
-          cache: pnpm
-
-      - run: pnpm install --frozen-lockfile
-
-      - name: Set VS Code extension version
-        run: |
-          node -e "
-            const fs = require('fs');
-            const version = process.env.VERSION.replace(/^v/, '');
-            const json = JSON.parse(fs.readFileSync('editors/vscode/package.json', 'utf8'));
-            json.version = version;
-            fs.writeFileSync('editors/vscode/package.json', JSON.stringify(json, null, 2) + '\n');
-          "
-        env:
-          VERSION: ${{ github.ref_name }}
-
-      - name: Package extension
-        working-directory: editors/vscode
-        run: pnpm exec vsce package --no-dependencies --out nemcss.vsix
-
-      - uses: actions/upload-artifact@v7
-        with:
-          name: nemcss-vscode
-          path: editors/vscode/nemcss.vsix
-
   publish:
-    name: Publish to npm
-    needs: [build, build-plugins, build-vscode]
+    name: Publish to npm + GitHub Release
+    needs: [build, build-plugins]
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      pull-requests: read
     steps:
       - uses: actions/checkout@v6
 
@@ -195,7 +139,7 @@ jobs:
         with:
           path: artifacts
 
-      - name: Set version from tag
+      - name: Resolve workspace dependencies
         run: |
           node -e "
             const fs = require('fs');
@@ -210,11 +154,9 @@ jobs:
               'npm/@nemcss/cli-win32-x64',
               'packages/vite-plugin-nemcss',
               'packages/postcss-plugin-nemcss',
-              'editors/vscode',
             ];
             pkgs.forEach(p => {
               const json = JSON.parse(fs.readFileSync(p + '/package.json', 'utf8'));
-              json.version = version;
               for (const field of ['dependencies', 'optionalDependencies']) {
                 if (!json[field]) continue;
                 for (const [k, v] of Object.entries(json[field])) {
@@ -287,52 +229,37 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      - name: Generate release notes
-        uses: orhun/git-cliff-action@v4
-        with:
-          config: cliff.toml
-          args: --latest --strip all
-        env:
-          OUTPUT: RELEASE_NOTES.md
-          GITHUB_REPO: ${{ github.repository }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Publish VS Code extension
-        uses: HaaLeo/publish-vscode-extension@v2
-        with:
-          pat: ${{ secrets.VSCE_PAT }}
-          registryUrl: https://marketplace.visualstudio.com
-          extensionFile: ./artifacts/nemcss-vscode/nemcss.vsix
-
-      - name: Download LSP artifacts for GitHub Release
-        uses: actions/download-artifact@v8
-        with:
-          pattern: nemcss-lsp-*
-          path: artifacts/lsp/
-
-      - name: Rename release assets to unique names
+      - name: Rename release assets
         run: |
-          cp artifacts/cli-darwin-arm64/nemcss     artifacts/cli-darwin-arm64/nemcss-darwin-arm64
-          cp artifacts/cli-darwin-x64/nemcss       artifacts/cli-darwin-x64/nemcss-darwin-x64
-          cp artifacts/cli-linux-x64/nemcss        artifacts/cli-linux-x64/nemcss-linux-x64
-          cp artifacts/cli-linux-arm64/nemcss      artifacts/cli-linux-arm64/nemcss-linux-arm64
+          cp artifacts/cli-darwin-arm64/nemcss       artifacts/cli-darwin-arm64/nemcss-darwin-arm64
+          cp artifacts/cli-darwin-x64/nemcss         artifacts/cli-darwin-x64/nemcss-darwin-x64
+          cp artifacts/cli-linux-x64/nemcss          artifacts/cli-linux-x64/nemcss-linux-x64
+          cp artifacts/cli-linux-arm64/nemcss        artifacts/cli-linux-arm64/nemcss-linux-arm64
+
+          mkdir -p artifacts/lsp
+          cp -r artifacts/nemcss-lsp-darwin-arm64 artifacts/lsp/
+          cp -r artifacts/nemcss-lsp-darwin-x64   artifacts/lsp/
+          cp -r artifacts/nemcss-lsp-linux-x64    artifacts/lsp/
+          cp -r artifacts/nemcss-lsp-linux-arm64  artifacts/lsp/
+          cp -r artifacts/nemcss-lsp-win32-x64    artifacts/lsp/
+
           cp artifacts/lsp/nemcss-lsp-darwin-arm64/nemcss-lsp  artifacts/lsp/nemcss-lsp-darwin-arm64/nemcss-lsp-darwin-arm64
           cp artifacts/lsp/nemcss-lsp-darwin-x64/nemcss-lsp    artifacts/lsp/nemcss-lsp-darwin-x64/nemcss-lsp-darwin-x64
           cp artifacts/lsp/nemcss-lsp-linux-x64/nemcss-lsp     artifacts/lsp/nemcss-lsp-linux-x64/nemcss-lsp-linux-x64
           cp artifacts/lsp/nemcss-lsp-linux-arm64/nemcss-lsp   artifacts/lsp/nemcss-lsp-linux-arm64/nemcss-lsp-linux-arm64
 
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          body_path: RELEASE_NOTES.md
-          files: |
-            artifacts/cli-darwin-arm64/nemcss-darwin-arm64
-            artifacts/cli-darwin-x64/nemcss-darwin-x64
-            artifacts/cli-linux-x64/nemcss-linux-x64
-            artifacts/cli-linux-arm64/nemcss-linux-arm64
-            artifacts/cli-win32-x64/nemcss.exe
-            artifacts/lsp/nemcss-lsp-darwin-arm64/nemcss-lsp-darwin-arm64
-            artifacts/lsp/nemcss-lsp-darwin-x64/nemcss-lsp-darwin-x64
-            artifacts/lsp/nemcss-lsp-linux-x64/nemcss-lsp-linux-x64
-            artifacts/lsp/nemcss-lsp-linux-arm64/nemcss-lsp-linux-arm64
+      - name: Upload assets to GitHub Release
+        run: |
+          gh release upload ${{ github.ref_name }} \
+            artifacts/cli-darwin-arm64/nemcss-darwin-arm64 \
+            artifacts/cli-darwin-x64/nemcss-darwin-x64 \
+            artifacts/cli-linux-x64/nemcss-linux-x64 \
+            artifacts/cli-linux-arm64/nemcss-linux-arm64 \
+            artifacts/cli-win32-x64/nemcss.exe \
+            artifacts/lsp/nemcss-lsp-darwin-arm64/nemcss-lsp-darwin-arm64 \
+            artifacts/lsp/nemcss-lsp-darwin-x64/nemcss-lsp-darwin-x64 \
+            artifacts/lsp/nemcss-lsp-linux-x64/nemcss-lsp-linux-x64 \
+            artifacts/lsp/nemcss-lsp-linux-arm64/nemcss-lsp-linux-arm64 \
             artifacts/lsp/nemcss-lsp-win32-x64/nemcss-lsp.exe
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

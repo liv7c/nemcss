@@ -1,0 +1,64 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "linked-versions": [
+    [
+      ".",
+      "crates/napi",
+      "packages/nemcss",
+      "packages/vite-plugin-nemcss",
+      "packages/postcss-plugin-nemcss",
+      "npm/@nemcss/cli-darwin-arm64",
+      "npm/@nemcss/cli-darwin-x64",
+      "npm/@nemcss/cli-linux-x64",
+      "npm/@nemcss/cli-linux-arm64",
+      "npm/@nemcss/cli-win32-x64"
+    ]
+  ],
+  "packages": {
+    ".": {
+      "release-type": "rust",
+      "component": "core"
+    },
+    "crates/napi": {
+      "release-type": "node",
+      "component": "core"
+    },
+    "packages/nemcss": {
+      "release-type": "node",
+      "component": "core"
+    },
+    "packages/vite-plugin-nemcss": {
+      "release-type": "node",
+      "component": "core"
+    },
+    "packages/postcss-plugin-nemcss": {
+      "release-type": "node",
+      "component": "core"
+    },
+    "npm/@nemcss/cli-darwin-arm64": {
+      "release-type": "node",
+      "component": "core"
+    },
+    "npm/@nemcss/cli-darwin-x64": {
+      "release-type": "node",
+      "component": "core"
+    },
+    "npm/@nemcss/cli-linux-x64": {
+      "release-type": "node",
+      "component": "core"
+    },
+    "npm/@nemcss/cli-linux-arm64": {
+      "release-type": "node",
+      "component": "core"
+    },
+    "npm/@nemcss/cli-win32-x64": {
+      "release-type": "node",
+      "component": "core"
+    },
+    "editors/vscode": {
+      "release-type": "node",
+      "component": "editor",
+      "tag-prefix": "editor-v"
+    }
+  }
+}
