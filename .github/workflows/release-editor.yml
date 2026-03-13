@@ -131,9 +131,15 @@ jobs:
       - name: Publish platform-specific extensions to marketplace
         run: |
           for target in darwin-arm64 darwin-x64 linux-x64 linux-arm64 win32-x64; do
-            npx @vscode/vsce publish \
+            out=$(npx @vscode/vsce publish \
               --pat "${{ secrets.VSCE_PAT }}" \
-              --packagePath "artifacts/nemcss-vscode-${target}/nemcss-${target}.vsix"
+              --packagePath "artifacts/nemcss-vscode-${target}/nemcss-${target}.vsix" 2>&1) && echo "$out" || {
+              if echo "$out" | grep -q "already exists"; then
+                echo "Skipping $target (already published at this version)"
+              else
+                echo "$out" >&2; exit 1
+              fi
+            }
           done
 
       - name: Upload vsix files to GitHub Release
