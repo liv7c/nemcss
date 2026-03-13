@@ -52,6 +52,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       - name: Patch Cargo workspace version
+        shell: bash
         run: |
           VERSION="${{ github.ref_name }}"
           VERSION="${VERSION#v}"
