@@ -163,6 +163,7 @@ jobs:
             ];
             pkgs.forEach(p => {
               const json = JSON.parse(fs.readFileSync(p + '/package.json', 'utf8'));
+              json.version = version;
               for (const field of ['dependencies', 'optionalDependencies']) {
                 if (!json[field]) continue;
                 for (const [k, v] of Object.entries(json[field])) {

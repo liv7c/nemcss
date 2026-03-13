@@ -2,30 +2,11 @@
   "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
   "pull-request-title-pattern": "chore: release ${component} v${version}",
   "pull-request-header": ":package: Automated release",
-  "linked-versions": [
-    [
-      "packages/nemcss",
-      "crates/napi",
-      "packages/vite-plugin-nemcss",
-      "packages/postcss-plugin-nemcss"
-    ]
-  ],
   "packages": {
     "packages/nemcss": {
       "release-type": "node",
-      "component": "nemcss"
-    },
-    "crates/napi": {
-      "release-type": "node",
-      "component": "napi"
-    },
-    "packages/vite-plugin-nemcss": {
-      "release-type": "node",
-      "component": "vite-plugin"
-    },
-    "packages/postcss-plugin-nemcss": {
-      "release-type": "node",
-      "component": "postcss-plugin"
+      "component": "nemcss",
+      "tag-prefix": "v"
     },
     "editors/vscode": {
       "release-type": "node",
