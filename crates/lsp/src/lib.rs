@@ -494,6 +494,38 @@ impl Backend {
         let line_text = document.line(position.line as usize).to_string();
         let partial = extract_token_ref_partial(&line_text, col)?;
 
-        Some(cache.token_ref_completions(&partial))
+        // Replace from `{` (1 char before the partial) up to the cursor.
+        // partial is ASCII token-ref content, so len() == char count.
+        let start_char = position.character.saturating_sub(partial.len() as u32 + 1);
+
+        // If a `}` sits right at the cursor (Neovim auto-bracket), include it in the
+        // replacement range so the completed token doesn't gain an extra `}`.
+        let has_closing_brace = line_text.as_bytes().get(col) == Some(&b'}');
+        let end_char = if has_closing_brace {
+            position.character + 1
+        } else {
+            position.character
+        };
+
+        let edit_range = Range {
+            start: Position {
+                line: position.line,
+                character: start_char,
+            },
+            end: Position {
+                line: position.line,
+                character: end_char,
+            },
+        };
+
+        let mut items = cache.token_ref_completions(&partial);
+        for item in &mut items {
+            item.text_edit = Some(CompletionTextEdit::Edit(TextEdit {
+                range: edit_range,
+                new_text: item.label.clone(),
+            }));
+        }
+
+        Some(items)
     }
 }

@@ -4,6 +4,6 @@ expression: hover_text
 ---
 ```css
 .bg-special {
-  background-color: var(--color-special);
+  background-color: var(--color-special) /* hsl(0, 0%, 100%) */;
 }
 ```
