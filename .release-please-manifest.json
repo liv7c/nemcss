@@ -1,7 +1,7 @@
 {
-  "crates/napi": "0.2.1",
-  "packages/nemcss": "0.2.1",
-  "packages/vite-plugin-nemcss": "0.2.1",
-  "packages/postcss-plugin-nemcss": "0.2.1",
-  "editors/vscode": "0.2.1"
+  "crates/napi": "0.3.0",
+  "packages/nemcss": "0.3.0",
+  "packages/vite-plugin-nemcss": "0.3.0",
+  "packages/postcss-plugin-nemcss": "0.3.0",
+  "editors/vscode": "0.3.0"
 }
