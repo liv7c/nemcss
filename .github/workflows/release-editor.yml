@@ -1,0 +1,147 @@
+name: Release Editor
+
+on:
+  push:
+    tags: ['editor-v*']
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build-lsp:
+    name: Build LSP - ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            target: darwin-arm64
+            arch: aarch64-apple-darwin
+          - os: macos-15-intel
+            target: darwin-x64
+            arch: x86_64-apple-darwin
+          - os: ubuntu-latest
+            target: linux-x64
+            arch: x86_64-unknown-linux-gnu
+          - os: ubuntu-24.04-arm
+            target: linux-arm64
+            arch: aarch64-unknown-linux-gnu
+          - os: windows-latest
+            target: win32-x64
+            arch: x86_64-pc-windows-msvc
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.arch }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: release-editor-${{ matrix.target }}
+
+      - name: Build LSP
+        run: cargo build --release --target ${{ matrix.arch }} --bin nemcss-lsp
+
+      - name: Stage LSP artifact
+        shell: bash
+        run: |
+          mkdir -p dist/lsp
+          if [ -f "target/${{ matrix.arch }}/release/nemcss-lsp" ]; then
+            cp "target/${{ matrix.arch }}/release/nemcss-lsp" dist/lsp/
+          fi
+          if [ -f "target/${{ matrix.arch }}/release/nemcss-lsp.exe" ]; then
+            cp "target/${{ matrix.arch }}/release/nemcss-lsp.exe" dist/lsp/
+          fi
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: nemcss-lsp-${{ matrix.target }}
+          path: dist/lsp/
+
+  build-vscode:
+    name: Package VS Code extension - ${{ matrix.target }}
+    needs: [build-lsp]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: darwin-arm64
+          - target: darwin-x64
+          - target: linux-x64
+          - target: linux-arm64
+          - target: win32-x64
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Download LSP artifact for ${{ matrix.target }}
+        uses: actions/download-artifact@v8
+        with:
+          name: nemcss-lsp-${{ matrix.target }}
+          path: lsp-artifact
+
+      - name: Copy LSP binary
+        shell: bash
+        run: |
+          mkdir -p editors/vscode/bin
+          if [ "${{ matrix.target }}" = "win32-x64" ]; then
+            cp lsp-artifact/nemcss-lsp.exe editors/vscode/bin/lsp-win32-x64.exe
+          else
+            cp lsp-artifact/nemcss-lsp editors/vscode/bin/lsp-${{ matrix.target }}
+            chmod +x editors/vscode/bin/lsp-${{ matrix.target }}
+          fi
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Package extension for ${{ matrix.target }}
+        working-directory: editors/vscode
+        run: pnpm exec vsce package --target ${{ matrix.target }} --no-dependencies --out nemcss-${{ matrix.target }}.vsix
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: nemcss-vscode-${{ matrix.target }}
+          path: editors/vscode/nemcss-${{ matrix.target }}.vsix
+
+  publish:
+    name: Publish VS Code extension
+    needs: [build-vscode]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download all VS Code extension artifacts
+        uses: actions/download-artifact@v8
+        with:
+          pattern: nemcss-vscode-*
+          path: artifacts
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - name: Publish platform-specific extensions to marketplace
+        run: |
+          for target in darwin-arm64 darwin-x64 linux-x64 linux-arm64 win32-x64; do
+            npx @vscode/vsce publish \
+              --pat "${{ secrets.VSCE_PAT }}" \
+              --packagePath "artifacts/nemcss-vscode-${target}/nemcss-${target}.vsix" \
+              --target "${target}"
+          done
+
+      - name: Upload vsix files to GitHub Release
+        run: |
+          for target in darwin-arm64 darwin-x64 linux-x64 linux-arm64 win32-x64; do
+            gh release upload ${{ github.ref_name }} \
+              "artifacts/nemcss-vscode-${target}/nemcss-${target}.vsix"
+          done
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
