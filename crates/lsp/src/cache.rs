@@ -250,6 +250,7 @@ impl NemCache {
                     label: prop.name.to_string(),
                     kind: Some(CompletionItemKind::PROPERTY),
                     detail: Some(detail),
+                    sort_text: Some(format!("!{}", prop.name)),
                     documentation: Some(Documentation::MarkupContent(MarkupContent {
                         kind: MarkupKind::Markdown,
                         value: format!("```css\n{}: {};\n```", prop.name, prop.value),
