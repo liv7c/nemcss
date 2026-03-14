@@ -22,6 +22,7 @@ use tower_lsp::{Client, LanguageServer};
 
 use crate::cache::{BuildResult, NemCache};
 use crate::context::extract_token_ref_partial;
+use crate::doc_context::DocLangBoundary;
 use crate::file::is_dedicated_css_file;
 use crate::position::lsp_col_to_byte;
 
@@ -34,6 +35,8 @@ pub struct Backend {
     /// Cache to keep track of open documents and their content.
     /// Rope is a wrapper around a String that provides helpers for working with text.
     documents: DashMap<String, Rope>,
+    /// Cached language boundaries for non-CSS documents (e.g. HTML, Astro, Svelte, Vue)
+    document_boundaries: DashMap<String, Vec<DocLangBoundary>>,
     /// Workspace root directory
     workspace_root: RwLock<Option<PathBuf>>,
     /// Encoding used to calculate the character positions.
@@ -138,6 +141,11 @@ impl LanguageServer for Backend {
         let uri = params.text_document.uri;
         let text = params.text_document.text;
 
+        if !is_dedicated_css_file(&uri) {
+            let boundaries = doc_context::get_doc_language_boundaries(&text);
+            self.document_boundaries.insert(uri.to_string(), boundaries);
+        }
+
         self.documents.insert(uri.to_string(), Rope::from(text));
     }
 
@@ -147,13 +155,20 @@ impl LanguageServer for Backend {
         // Because we use TextDocumentSyncKind::FULL, the content_changes array will always
         // contain one single change, which is the entire updated document.
         if let Some(content) = params.content_changes.into_iter().last() {
+            if !is_dedicated_css_file(&uri) {
+                let boundaries = doc_context::get_doc_language_boundaries(&content.text);
+                self.document_boundaries.insert(uri.to_string(), boundaries);
+            }
+
             self.documents
                 .insert(uri.to_string(), Rope::from(content.text));
         }
     }
 
     async fn did_close(&self, params: DidCloseTextDocumentParams) {
-        self.documents.remove(&params.text_document.uri.to_string());
+        let uri = params.text_document.uri.to_string();
+        self.documents.remove(&uri);
+        self.document_boundaries.remove(&uri);
     }
 
     async fn shutdown(&self) -> Result<()> {
@@ -209,12 +224,14 @@ impl LanguageServer for Backend {
         let in_css_region = if is_dedicated_css_file(uri) {
             true
         } else {
-            let doc_text = rope.to_string();
             let line_byte_to_start = rope.line_to_byte(line_idx);
             let cursor_doc_offset = line_byte_to_start + col;
-            let boundaries = doc_context::get_doc_language_boundaries(&doc_text);
-            doc_context::get_doc_language_at_offset(&boundaries, cursor_doc_offset)
-                == doc_context::DocLang::Css
+            self.document_boundaries
+                .get(&uri.to_string())
+                .is_some_and(|boundaries| {
+                    doc_context::get_doc_language_at_offset(&boundaries, cursor_doc_offset)
+                        == doc_context::DocLang::Css
+                })
         };
 
         if in_css_region
@@ -449,6 +466,7 @@ impl Backend {
             cache: RwLock::new(None),
             workspace_root: RwLock::new(None),
             documents: DashMap::new(),
+            document_boundaries: DashMap::new(),
             position_encoding: RwLock::new(PositionEncodingKind::UTF16),
         }
     }
