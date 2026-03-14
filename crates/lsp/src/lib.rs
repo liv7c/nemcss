@@ -199,6 +199,10 @@ impl LanguageServer for Backend {
             let partial_property = &var_ctx.partial_property;
             let items: Vec<CompletionItem> = cache.var_completions(partial_property);
 
+            if items.is_empty() {
+                return Ok(None);
+            }
+
             return Ok(Some(CompletionResponse::Array(items)));
         }
 
@@ -230,6 +234,7 @@ impl LanguageServer for Backend {
                 return Ok(None);
             }
 
+            // custom property names are ASCII-only, so .len() == char count
             let start_char = position
                 .character
                 .saturating_sub(decl_ctx.partial_name.len() as u32);

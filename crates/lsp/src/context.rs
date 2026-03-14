@@ -64,6 +64,7 @@ pub struct TokenRefContext {
 
 /// Context when the cursor is at the left-hand side of a CSS custom property declaration.
 /// This is used to trigger custom property name completion when a user is overriding a custom property (e.g. overriding a semantic alias like `--text-primary` in a selector)
+#[derive(Debug, PartialEq)]
 pub struct CssPropertyDeclarationContext {
     /// The partial custom property name typed so far
     ///
@@ -229,7 +230,13 @@ pub fn detect_css_property_declaration_context(
     let before_cursor = &line.get(..col)?;
 
     let after_boundary = match before_cursor.rfind(['{', ';']) {
-        Some(pos) => before_cursor.get(pos + 1..).unwrap_or(""),
+        Some(pos) => {
+            let txt_before_cursor = before_cursor.get(pos + 1..).unwrap_or("");
+            if txt_before_cursor.contains(':') {
+                return None;
+            }
+            txt_before_cursor
+        }
         None => before_cursor,
     };
 
@@ -827,6 +834,11 @@ mod tests {
         fn test_detects_bare_double_dash_at_line_start() {
             let ctx = detect("--|").expect("should detect");
             assert_eq!(ctx.partial_name, "--");
+        }
+
+        #[test]
+        fn test_does_not_detect_at_property_value_when_rule_is_inline() {
+            assert!(detect("body { --text-primary: --|}").is_none());
         }
 
         #[test]

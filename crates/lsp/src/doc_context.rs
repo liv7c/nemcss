@@ -13,7 +13,7 @@ pub enum DocLang {
 /// Boundaries are stored in ascending order. To find the language at a given position, we can do a binary search to find the last boundary before that position.
 #[derive(Debug, PartialEq, Clone)]
 pub struct DocLangBoundary {
-    /// Byte offset in the dcoument where this language starts.
+    /// Byte offset in the document where this language starts.
     /// We'll use Rope's byte offsets for this, so that we can easily compare with the offsets in the syntax tree.
     pub offset: usize,
     /// The language in effect starting from this position.
