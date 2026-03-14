@@ -39,15 +39,21 @@ pub struct CustomProperty {
     pub name: String,
     /// The resolved value from the design tokens
     pub value: String,
+    /// Indicates whether the property is an alias
+    /// e.g. `--text-primary: var(--color-primary);` would be an alias, while `--color-primary: #000000;` would not
+    pub is_alias: bool,
 }
 
 impl CustomProperty {
     fn parse(raw: &str) -> Option<Self> {
         let raw = raw.strip_suffix(';').unwrap_or(raw);
         let (name, value) = raw.split_once(": ")?;
+        let is_alias = value.starts_with("var(");
+
         Some(Self {
             name: name.to_string(),
             value: value.to_string(),
+            is_alias,
         })
     }
 }
@@ -621,6 +627,20 @@ mod tests {
             assert!(CustomProperty::parse("--property_with_no_value").is_none());
             assert!(CustomProperty::parse("").is_none());
         }
+
+        #[test]
+        fn test_parse_primitive_property_is_not_an_alias() {
+            let prop = CustomProperty::parse("--color-primary: #000000;")
+                .expect("valid property should parse");
+            assert!(!prop.is_alias, "primitive property should not be an alias");
+        }
+
+        #[test]
+        fn test_parse_alias_property_is_marked_as_alias() {
+            let prop = CustomProperty::parse("--text-primary: var(--color-primary);")
+                .expect("valid property should parse");
+            assert!(prop.is_alias, "alias property should be marked as alias");
+        }
     }
 
     mod completions {
@@ -872,18 +892,22 @@ mod tests {
                 CustomProperty {
                     name: "--color-blue-800".to_string(),
                     value: "#1a365d".to_string(),
+                    is_alias: false,
                 },
                 CustomProperty {
                     name: "--spacing-sm".to_string(),
                     value: "0.5rem".to_string(),
+                    is_alias: false,
                 },
                 CustomProperty {
                     name: "--text-primary".to_string(),
                     value: "var(--color-blue-800)".to_string(),
+                    is_alias: true,
                 },
                 CustomProperty {
                     name: "--gap-sm".to_string(),
                     value: "var(--spacing-sm)".to_string(),
+                    is_alias: true,
                 },
             ];
 
