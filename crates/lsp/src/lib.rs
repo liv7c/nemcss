@@ -4,6 +4,7 @@
 //! utilities.
 mod cache;
 mod context;
+mod doc_context;
 mod position;
 
 use std::path::PathBuf;
