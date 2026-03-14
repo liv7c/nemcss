@@ -62,6 +62,17 @@ pub struct TokenRefContext {
     pub partial: String,
 }
 
+/// Context when the cursor is at the left-hand side of a CSS custom property declaration.
+/// This is used to trigger custom property name completion when a user is overriding a custom property (e.g. overriding a semantic alias like `--text-primary` in a selector)
+pub struct CssPropertyDeclarationContext {
+    /// The partial custom property name typed so far
+    ///
+    /// # Examples
+    /// - `--|` -> partial_name = "--"
+    /// - `--bg-|` -> partial_name = "--bg-"
+    pub partial_name: String,
+}
+
 /// Check whether the `col` (a byte offset) falls inside the value span of
 /// a class-related regex match on `line`.
 /// The column `col` is the character number. You can think of it as the cursor position.
@@ -203,6 +214,32 @@ pub fn detect_var_context(line: &str, col: usize) -> Option<VarContext> {
 
     Some(VarContext {
         partial_property: partial_property.to_string(),
+    })
+}
+
+/// Detects whether the cursor is at the left-hand side of a CSS custom property declaration.
+pub fn detect_css_property_declaration_context(
+    line: &str,
+    col: usize,
+) -> Option<CssPropertyDeclarationContext> {
+    if detect_var_context(line, col).is_some() {
+        return None;
+    }
+
+    let before_cursor = &line.get(..col)?;
+
+    let after_boundary = match before_cursor.rfind(['{', ';']) {
+        Some(pos) => before_cursor.get(pos + 1..).unwrap_or(""),
+        None => before_cursor,
+    };
+
+    let trimmed = after_boundary.trim_start();
+    if !trimmed.starts_with("--") {
+        return None;
+    }
+
+    Some(CssPropertyDeclarationContext {
+        partial_name: trimmed.to_string(),
     })
 }
 
@@ -775,6 +812,54 @@ mod tests {
                 extract_token_ref_partial(line, line.len()),
                 Some("colors.pri".to_string())
             );
+        }
+    }
+
+    mod detect_css_property_declaration_context {
+        use super::*;
+
+        fn detect(input: &str) -> Option<CssPropertyDeclarationContext> {
+            let (line, col) = parse_cursor(input);
+            detect_css_property_declaration_context(&line, col)
+        }
+
+        #[test]
+        fn test_detects_bare_double_dash_at_line_start() {
+            let ctx = detect("--|").expect("should detect");
+            assert_eq!(ctx.partial_name, "--");
+        }
+
+        #[test]
+        fn test_detects_indented_double_dash() {
+            let ctx = detect("    --|").expect("should detect");
+            assert_eq!(ctx.partial_name, "--");
+        }
+
+        #[test]
+        fn test_detects_partial_property_name() {
+            let ctx = detect("--bg-|").expect("should detect");
+            assert_eq!(ctx.partial_name, "--bg-");
+        }
+
+        #[test]
+        fn test_detects_after_opening_brace_on_same_line() {
+            let ctx = detect("{ --bg-|").expect("should detect");
+            assert_eq!(ctx.partial_name, "--bg-");
+        }
+
+        #[test]
+        fn test_does_not_detect_inside_var_expression() {
+            assert!(detect("color: var(--bg-|);").is_none());
+        }
+
+        #[test]
+        fn test_does_not_detect_at_property_value_position() {
+            assert!(detect("color: --|;").is_none());
+        }
+
+        #[test]
+        fn test_does_not_detect_at_standard_property_name() {
+            assert!(detect("body { color|").is_none());
         }
     }
 }
