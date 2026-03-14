@@ -10,6 +10,8 @@ use tower_lsp::lsp_types::{
     MarkupKind, Url,
 };
 
+use crate::file::CSS_EXTENSIONS;
+
 /// Cache for the LSP server.
 /// This cache is used to store the generated utilities, viewports, custom properties, and content globs.
 /// It also stores the token references that are used to generate semantic tokens.
@@ -107,10 +109,6 @@ pub enum BuildCacheError {
     #[diagnostic(code(build_cache_error::generate_responsive_utilities_error))]
     GenerateResponsiveUtilities(#[from] engine::GenerateResponsiveUtilitiesError),
 }
-
-/// File extensions that always get custom property completions
-/// regardless of the content globs in the config
-const CSS_EXTENSIONS: &[&str] = &["css", "scss", "sass", "less"];
 
 pub struct BuildResult {
     pub cache: NemCache,
