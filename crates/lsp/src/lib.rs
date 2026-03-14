@@ -4,6 +4,8 @@
 //! utilities.
 mod cache;
 mod context;
+mod doc_context;
+mod file;
 mod position;
 
 use std::path::PathBuf;
@@ -20,6 +22,8 @@ use tower_lsp::{Client, LanguageServer};
 
 use crate::cache::{BuildResult, NemCache};
 use crate::context::extract_token_ref_partial;
+use crate::doc_context::DocLangBoundary;
+use crate::file::is_dedicated_css_file;
 use crate::position::lsp_col_to_byte;
 
 #[derive(Debug)]
@@ -31,6 +35,8 @@ pub struct Backend {
     /// Cache to keep track of open documents and their content.
     /// Rope is a wrapper around a String that provides helpers for working with text.
     documents: DashMap<String, Rope>,
+    /// Cached language boundaries for non-CSS documents (e.g. HTML, Astro, Svelte, Vue)
+    document_boundaries: DashMap<String, Vec<DocLangBoundary>>,
     /// Workspace root directory
     workspace_root: RwLock<Option<PathBuf>>,
     /// Encoding used to calculate the character positions.
@@ -135,6 +141,11 @@ impl LanguageServer for Backend {
         let uri = params.text_document.uri;
         let text = params.text_document.text;
 
+        if !is_dedicated_css_file(&uri) {
+            let boundaries = doc_context::get_doc_language_boundaries(&text);
+            self.document_boundaries.insert(uri.to_string(), boundaries);
+        }
+
         self.documents.insert(uri.to_string(), Rope::from(text));
     }
 
@@ -144,13 +155,20 @@ impl LanguageServer for Backend {
         // Because we use TextDocumentSyncKind::FULL, the content_changes array will always
         // contain one single change, which is the entire updated document.
         if let Some(content) = params.content_changes.into_iter().last() {
+            if !is_dedicated_css_file(&uri) {
+                let boundaries = doc_context::get_doc_language_boundaries(&content.text);
+                self.document_boundaries.insert(uri.to_string(), boundaries);
+            }
+
             self.documents
                 .insert(uri.to_string(), Rope::from(content.text));
         }
     }
 
     async fn did_close(&self, params: DidCloseTextDocumentParams) {
-        self.documents.remove(&params.text_document.uri.to_string());
+        let uri = params.text_document.uri.to_string();
+        self.documents.remove(&uri);
+        self.document_boundaries.remove(&uri);
     }
 
     async fn shutdown(&self) -> Result<()> {
@@ -195,6 +213,66 @@ impl LanguageServer for Backend {
 
             let partial_property = &var_ctx.partial_property;
             let items: Vec<CompletionItem> = cache.var_completions(partial_property);
+
+            if items.is_empty() {
+                return Ok(None);
+            }
+
+            return Ok(Some(CompletionResponse::Array(items)));
+        }
+
+        let in_css_region = if is_dedicated_css_file(uri) {
+            true
+        } else {
+            let line_byte_to_start = rope.line_to_byte(line_idx);
+            let cursor_doc_offset = line_byte_to_start + col;
+            self.document_boundaries
+                .get(&uri.to_string())
+                .is_some_and(|boundaries| {
+                    doc_context::get_doc_language_at_offset(&boundaries, cursor_doc_offset)
+                        == doc_context::DocLang::Css
+                })
+        };
+
+        if in_css_region
+            && let Some(decl_ctx) =
+                context::detect_css_property_declaration_context(&current_line, col)
+        {
+            let cache_guard = self.cache.read().await;
+            let cache = match cache_guard.as_ref() {
+                Some(cache) if cache.is_relevant_file(uri) => cache,
+                _ => return Ok(None),
+            };
+
+            let items: Vec<CompletionItem> =
+                cache.semantic_property_completions(&decl_ctx.partial_name);
+
+            if items.is_empty() {
+                return Ok(None);
+            }
+
+            // custom property names are ASCII-only, so .len() == char count
+            let start_char = position
+                .character
+                .saturating_sub(decl_ctx.partial_name.len() as u32);
+            let edit_range = Range {
+                start: Position {
+                    line: position.line,
+                    character: start_char,
+                },
+                end: *position,
+            };
+
+            let items = items
+                .into_iter()
+                .map(|mut item| {
+                    item.text_edit = Some(CompletionTextEdit::Edit(TextEdit {
+                        range: edit_range,
+                        new_text: item.label.clone(),
+                    }));
+                    item
+                })
+                .collect();
 
             return Ok(Some(CompletionResponse::Array(items)));
         }
@@ -388,6 +466,7 @@ impl Backend {
             cache: RwLock::new(None),
             workspace_root: RwLock::new(None),
             documents: DashMap::new(),
+            document_boundaries: DashMap::new(),
             position_encoding: RwLock::new(PositionEncodingKind::UTF16),
         }
     }

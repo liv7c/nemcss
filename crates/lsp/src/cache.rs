@@ -10,6 +10,8 @@ use tower_lsp::lsp_types::{
     MarkupKind, Url,
 };
 
+use crate::file::CSS_EXTENSIONS;
+
 /// Cache for the LSP server.
 /// This cache is used to store the generated utilities, viewports, custom properties, and content globs.
 /// It also stores the token references that are used to generate semantic tokens.
@@ -39,15 +41,21 @@ pub struct CustomProperty {
     pub name: String,
     /// The resolved value from the design tokens
     pub value: String,
+    /// Indicates whether the property is an alias
+    /// e.g. `--text-primary: var(--color-primary);` would be an alias, while `--color-primary: #000000;` would not
+    pub is_alias: bool,
 }
 
 impl CustomProperty {
     fn parse(raw: &str) -> Option<Self> {
         let raw = raw.strip_suffix(';').unwrap_or(raw);
         let (name, value) = raw.split_once(": ")?;
+        let is_alias = value.starts_with("var(");
+
         Some(Self {
             name: name.to_string(),
             value: value.to_string(),
+            is_alias,
         })
     }
 }
@@ -101,10 +109,6 @@ pub enum BuildCacheError {
     #[diagnostic(code(build_cache_error::generate_responsive_utilities_error))]
     GenerateResponsiveUtilities(#[from] engine::GenerateResponsiveUtilitiesError),
 }
-
-/// File extensions that always get custom property completions
-/// regardless of the content globs in the config
-const CSS_EXTENSIONS: &[&str] = &["css", "scss", "sass", "less"];
 
 pub struct BuildResult {
     pub cache: NemCache,
@@ -219,6 +223,34 @@ impl NemCache {
                     label: prop.name.to_string(),
                     kind: Some(CompletionItemKind::PROPERTY),
                     detail: Some(detail),
+                    documentation: Some(Documentation::MarkupContent(MarkupContent {
+                        kind: MarkupKind::Markdown,
+                        value: format!("```css\n{}: {};\n```", prop.name, prop.value),
+                    })),
+                    ..Default::default()
+                }
+            })
+            .collect()
+    }
+
+    /// Returns completion items for semantic custom properties matching the given partial name.
+    pub fn semantic_property_completions(&self, partial_name: &str) -> Vec<CompletionItem> {
+        self.custom_properties
+            .iter()
+            .filter(|prop| prop.is_alias)
+            .filter(|prop| partial_name.is_empty() || prop.name.starts_with(partial_name))
+            .map(|prop| {
+                let detail = self
+                    .resolved_values
+                    .get(&prop.name)
+                    .cloned()
+                    .unwrap_or(prop.value.clone());
+
+                CompletionItem {
+                    label: prop.name.to_string(),
+                    kind: Some(CompletionItemKind::PROPERTY),
+                    detail: Some(detail),
+                    sort_text: Some(format!("!{}", prop.name)),
                     documentation: Some(Documentation::MarkupContent(MarkupContent {
                         kind: MarkupKind::Markdown,
                         value: format!("```css\n{}: {};\n```", prop.name, prop.value),
@@ -424,6 +456,45 @@ mod tests {
         Ok(temp_dir)
     }
 
+    fn create_semantic_test_project() -> Result<TempDir, Box<dyn std::error::Error>> {
+        let temp_dir = TempDir::new()?;
+        temp_dir.child(CONFIG_FILE_NAME).write_str(
+            r#"{
+            "content": ["src/**/*.html"],
+            "theme": {
+                "colors": {
+                    "source": "design-tokens/colors.json",
+                    "utilities": [
+                        { "prefix": "bg", "property": "background-color" }
+                    ]
+                }
+            },
+            "semantic": {
+                "text": {
+                    "property": "color",
+                    "tokens": {
+                        "primary":   "{colors.white}",
+                        "secondary": "{colors.black}"
+                    }
+                }
+            }
+        }"#,
+        )?;
+
+        temp_dir.child("design-tokens").create_dir_all()?;
+        temp_dir.child("design-tokens/colors.json").write_str(
+            r#"{
+            "title": "Color Tokens",
+            "items": [
+                { "name": "white", "value": "hsl(0, 0%, 100%)" },
+                { "name": "black", "value": "hsl(0, 0%, 0%)" }
+            ]
+        }"#,
+        )?;
+
+        Ok(temp_dir)
+    }
+
     mod build_cache {
         use super::*;
 
@@ -621,6 +692,20 @@ mod tests {
             assert!(CustomProperty::parse("--property_with_no_value").is_none());
             assert!(CustomProperty::parse("").is_none());
         }
+
+        #[test]
+        fn test_parse_primitive_property_is_not_an_alias() {
+            let prop = CustomProperty::parse("--color-primary: #000000;")
+                .expect("valid property should parse");
+            assert!(!prop.is_alias, "primitive property should not be an alias");
+        }
+
+        #[test]
+        fn test_parse_alias_property_is_marked_as_alias() {
+            let prop = CustomProperty::parse("--text-primary: var(--color-primary);")
+                .expect("valid property should parse");
+            assert!(prop.is_alias, "alias property should be marked as alias");
+        }
     }
 
     mod completions {
@@ -751,6 +836,61 @@ mod tests {
             assert_eq!(completions.len(), 1);
             assert!(completions[0].label.starts_with("{colors.primary"));
         }
+
+        #[test]
+        fn test_semantic_property_completions_returns_only_semantic_properties() {
+            let temp_dir = create_semantic_test_project().expect("failed to create test project");
+            let BuildResult { cache, .. } =
+                NemCache::build(temp_dir.path()).expect("failed to build cache");
+
+            let completions = cache.semantic_property_completions("--");
+            assert!(
+                !completions.is_empty(),
+                "should return completions for semantic properties, got none"
+            );
+
+            assert!(
+                completions.iter().all(|c| c.label.starts_with("--text-")),
+                "all completions should be for semantic properties, got: {:?}",
+                completions.iter().map(|c| &c.label).collect::<Vec<_>>()
+            );
+
+            assert!(
+                !completions.iter().any(|c| c.label.starts_with("--color-")),
+                "should not return completions for primitive properties, got: {:?}",
+                completions.iter().map(|c| &c.label).collect::<Vec<_>>()
+            );
+        }
+
+        #[test]
+        fn test_semantic_property_completions_filters_by_partial_name() {
+            let temp_dir = create_semantic_test_project().expect("failed to create test project");
+            let BuildResult { cache, .. } =
+                NemCache::build(temp_dir.path()).expect("failed to build cache");
+
+            let completions = cache.semantic_property_completions("--text-p");
+            assert!(
+                !completions.is_empty(),
+                "should return completions for matching semantic properties, got none"
+            );
+
+            assert_eq!(completions.len(), 1, "only --text-primaru should match");
+            assert_eq!(completions[0].label, "--text-primary");
+        }
+
+        #[test]
+        fn test_semantic_property_completions_returns_empty_when_no_matches() {
+            let temp_dir = create_semantic_test_project().expect("failed to create test project");
+            let BuildResult { cache, .. } =
+                NemCache::build(temp_dir.path()).expect("failed to build cache");
+
+            let completions = cache.semantic_property_completions("--nonexistent");
+            assert!(
+                completions.is_empty(),
+                "should return no completions when no matches, got: {:?}",
+                completions
+            );
+        }
     }
 
     mod hover {
@@ -872,18 +1012,22 @@ mod tests {
                 CustomProperty {
                     name: "--color-blue-800".to_string(),
                     value: "#1a365d".to_string(),
+                    is_alias: false,
                 },
                 CustomProperty {
                     name: "--spacing-sm".to_string(),
                     value: "0.5rem".to_string(),
+                    is_alias: false,
                 },
                 CustomProperty {
                     name: "--text-primary".to_string(),
                     value: "var(--color-blue-800)".to_string(),
+                    is_alias: true,
                 },
                 CustomProperty {
                     name: "--gap-sm".to_string(),
                     value: "var(--spacing-sm)".to_string(),
+                    is_alias: true,
                 },
             ];
 

@@ -489,3 +489,185 @@ async fn test_responsive_completion_has_text_edit_replacing_prefix() {
         );
     }
 }
+
+#[tokio::test]
+async fn test_completion_suggests_semantic_properties_at_declaration_position() {
+    let fixture = "semantic_project";
+    let mut ctx = init_context(fixture).await;
+    let file_path = fixture_path(fixture).join("src").join("index.css");
+    let uri = file_uri(&file_path);
+
+    ctx.notify(
+        LspNotification::DidOpen,
+        json!({
+            "textDocument": {
+                "uri": uri,
+                "languageId": "css",
+                "version": 1,
+                "text": "body[data-theme=\"dark\"] {\n  --\n}"
+            }
+        }),
+    )
+    .await;
+
+    let result = ctx
+        .request(
+            LspRequest::Completion,
+            json!({
+                "textDocument": { "uri": uri },
+                "position": {
+                    "line": 1,
+                    "character": 4,
+                },
+            }),
+        )
+        .await;
+
+    let labels = completion_labels(&result);
+    assert!(
+        labels.contains(&"--text-primary"),
+        "should contain semantic property '--text-primary', got: {:?}",
+        labels
+    );
+    assert!(
+        labels.contains(&"--text-secondary"),
+        "should contain semantic property '--text-secondary', got: {:?}",
+        labels
+    );
+    assert!(
+        !labels.contains(&"--color-white"),
+        "should not suggest primitive '--color-white', got: {:?}",
+        labels
+    );
+}
+
+#[tokio::test]
+async fn test_completion_filters_semantic_properties_by_partial_name() {
+    let fixture = "semantic_project";
+    let mut ctx = init_context(fixture).await;
+    let file_path = fixture_path(fixture).join("src").join("index.css");
+    let uri = file_uri(&file_path);
+
+    ctx.notify(
+        LspNotification::DidOpen,
+        json!({
+            "textDocument": {
+                "uri": uri,
+                "languageId": "css",
+                "version": 1,
+                "text": "body { --text-p }"
+            }
+        }),
+    )
+    .await;
+
+    let result = ctx
+        .request(
+            LspRequest::Completion,
+            json!({
+                "textDocument": { "uri": uri },
+                "position": {
+                    "line": 0,
+                    "character": 15,
+                },
+            }),
+        )
+        .await;
+
+    let labels = completion_labels(&result);
+    assert!(
+        labels.contains(&"--text-primary"),
+        "should contain semantic property '--text-primary', got: {:?}",
+        labels
+    );
+    assert!(
+        !labels.contains(&"--text-secondary"),
+        "should not suggest semantic property '--text-secondary', got: {:?}",
+        labels
+    );
+}
+
+#[tokio::test]
+async fn test_completion_fires_inside_html_style_block() {
+    let fixture = "semantic_project";
+    let mut ctx = init_context(fixture).await;
+    let file_path = fixture_path(fixture).join("src").join("index.html");
+    let uri = file_uri(&file_path);
+
+    ctx.notify(
+        LspNotification::DidOpen,
+        json!({
+            "textDocument": {
+                "uri": uri,
+                "languageId": "html",
+                "version": 1,
+                "text": "<html><head><style>\nbody {\n  --\n}\n</style></head><body></body></html>"
+            }
+        }),
+    )
+    .await;
+
+    let result = ctx
+        .request(
+            LspRequest::Completion,
+            json!({
+                "textDocument": { "uri": uri },
+                "position": {
+                    "line": 2,
+                    "character": 4,
+                },
+            }),
+        )
+        .await;
+
+    let labels = completion_labels(&result);
+    assert!(
+        labels.contains(&"--text-primary"),
+        "should contain semantic property '--text-primary', got: {:?}",
+        labels
+    );
+    assert!(
+        labels.contains(&"--text-secondary"),
+        "should contain semantic property '--text-secondary', got: {:?}",
+        labels
+    );
+}
+
+#[tokio::test]
+async fn test_completion_does_not_fire_outside_html_style_block() {
+    let fixture = "semantic_project";
+    let mut ctx = init_context(fixture).await;
+    let file_path = fixture_path(fixture).join("src").join("index.html");
+    let uri = file_uri(&file_path);
+
+    ctx.notify(
+        LspNotification::DidOpen,
+        json!({
+            "textDocument": {
+                "uri": uri,
+                "languageId": "html",
+                "version": 1,
+                "text": "<html><body>\n  --\n</body></html>"
+            }
+        }),
+    )
+    .await;
+
+    let result = ctx
+        .request(
+            LspRequest::Completion,
+            json!({
+                "textDocument": { "uri": uri },
+                "position": {
+                    "line": 1,
+                    "character": 4,
+                },
+            }),
+        )
+        .await;
+
+    assert!(
+        result.is_null() || result.as_array().is_some_and(|arr| arr.is_empty()),
+        "should not return completions outside of style blocks"
+    );
+}
