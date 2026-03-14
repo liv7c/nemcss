@@ -235,6 +235,33 @@ impl NemCache {
             .collect()
     }
 
+    /// Returns completion items for semantic custom properties matching the given partial name.
+    pub fn semantic_property_completions(&self, partial_name: &str) -> Vec<CompletionItem> {
+        self.custom_properties
+            .iter()
+            .filter(|prop| prop.is_alias)
+            .filter(|prop| partial_name.is_empty() || prop.name.starts_with(partial_name))
+            .map(|prop| {
+                let detail = self
+                    .resolved_values
+                    .get(&prop.name)
+                    .cloned()
+                    .unwrap_or(prop.value.clone());
+
+                CompletionItem {
+                    label: prop.name.to_string(),
+                    kind: Some(CompletionItemKind::PROPERTY),
+                    detail: Some(detail),
+                    documentation: Some(Documentation::MarkupContent(MarkupContent {
+                        kind: MarkupKind::Markdown,
+                        value: format!("```css\n{}: {};\n```", prop.name, prop.value),
+                    })),
+                    ..Default::default()
+                }
+            })
+            .collect()
+    }
+
     /// Returns completions for utility classes matching the given partial name
     pub fn class_completions(&self, partial_name: &str) -> Vec<CompletionItem> {
         self.utilities
@@ -425,6 +452,45 @@ mod tests {
                     {"name": "md", "value": "1rem"}
                 ]
             }"##,
+        )?;
+
+        Ok(temp_dir)
+    }
+
+    fn create_semantic_test_project() -> Result<TempDir, Box<dyn std::error::Error>> {
+        let temp_dir = TempDir::new()?;
+        temp_dir.child(CONFIG_FILE_NAME).write_str(
+            r#"{
+            "content": ["src/**/*.html"],
+            "theme": {
+                "colors": {
+                    "source": "design-tokens/colors.json",
+                    "utilities": [
+                        { "prefix": "bg", "property": "background-color" }
+                    ]
+                }
+            },
+            "semantic": {
+                "text": {
+                    "property": "color",
+                    "tokens": {
+                        "primary":   "{colors.white}",
+                        "secondary": "{colors.black}"
+                    }
+                }
+            }
+        }"#,
+        )?;
+
+        temp_dir.child("design-tokens").create_dir_all()?;
+        temp_dir.child("design-tokens/colors.json").write_str(
+            r#"{
+            "title": "Color Tokens",
+            "items": [
+                { "name": "white", "value": "hsl(0, 0%, 100%)" },
+                { "name": "black", "value": "hsl(0, 0%, 0%)" }
+            ]
+        }"#,
         )?;
 
         Ok(temp_dir)
@@ -770,6 +836,61 @@ mod tests {
             assert!(!completions.is_empty());
             assert_eq!(completions.len(), 1);
             assert!(completions[0].label.starts_with("{colors.primary"));
+        }
+
+        #[test]
+        fn test_semantic_property_completions_returns_only_semantic_properties() {
+            let temp_dir = create_semantic_test_project().expect("failed to create test project");
+            let BuildResult { cache, .. } =
+                NemCache::build(temp_dir.path()).expect("failed to build cache");
+
+            let completions = cache.semantic_property_completions("--");
+            assert!(
+                !completions.is_empty(),
+                "should return completions for semantic properties, got none"
+            );
+
+            assert!(
+                completions.iter().all(|c| c.label.starts_with("--text-")),
+                "all completions should be for semantic properties, got: {:?}",
+                completions.iter().map(|c| &c.label).collect::<Vec<_>>()
+            );
+
+            assert!(
+                !completions.iter().any(|c| c.label.starts_with("--color-")),
+                "should not return completions for primitive properties, got: {:?}",
+                completions.iter().map(|c| &c.label).collect::<Vec<_>>()
+            );
+        }
+
+        #[test]
+        fn test_semantic_property_completions_filters_by_partial_name() {
+            let temp_dir = create_semantic_test_project().expect("failed to create test project");
+            let BuildResult { cache, .. } =
+                NemCache::build(temp_dir.path()).expect("failed to build cache");
+
+            let completions = cache.semantic_property_completions("--text-p");
+            assert!(
+                !completions.is_empty(),
+                "should return completions for matching semantic properties, got none"
+            );
+
+            assert_eq!(completions.len(), 1, "only --text-primaru should match");
+            assert_eq!(completions[0].label, "--text-primary");
+        }
+
+        #[test]
+        fn test_semantic_property_completions_returns_empty_when_no_matches() {
+            let temp_dir = create_semantic_test_project().expect("failed to create test project");
+            let BuildResult { cache, .. } =
+                NemCache::build(temp_dir.path()).expect("failed to build cache");
+
+            let completions = cache.semantic_property_completions("--nonexistent");
+            assert!(
+                completions.is_empty(),
+                "should return no completions when no matches, got: {:?}",
+                completions
+            );
         }
     }
 
