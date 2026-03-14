@@ -5,6 +5,7 @@
 mod cache;
 mod context;
 mod doc_context;
+mod file;
 mod position;
 
 use std::path::PathBuf;
@@ -21,6 +22,7 @@ use tower_lsp::{Client, LanguageServer};
 
 use crate::cache::{BuildResult, NemCache};
 use crate::context::extract_token_ref_partial;
+use crate::file::is_dedicated_css_file;
 use crate::position::lsp_col_to_byte;
 
 #[derive(Debug)]
@@ -196,6 +198,59 @@ impl LanguageServer for Backend {
 
             let partial_property = &var_ctx.partial_property;
             let items: Vec<CompletionItem> = cache.var_completions(partial_property);
+
+            return Ok(Some(CompletionResponse::Array(items)));
+        }
+
+        let in_css_region = if is_dedicated_css_file(uri) {
+            true
+        } else {
+            let doc_text = rope.to_string();
+            let line_byte_to_start = rope.line_to_byte(line_idx);
+            let cursor_doc_offset = line_byte_to_start + col;
+            let boundaries = doc_context::get_doc_language_boundaries(&doc_text);
+            doc_context::get_doc_language_at_offset(&boundaries, cursor_doc_offset)
+                == doc_context::DocLang::Css
+        };
+
+        if in_css_region
+            && let Some(decl_ctx) =
+                context::detect_css_property_declaration_context(&current_line, col)
+        {
+            let cache_guard = self.cache.read().await;
+            let cache = match cache_guard.as_ref() {
+                Some(cache) if cache.is_relevant_file(uri) => cache,
+                _ => return Ok(None),
+            };
+
+            let items: Vec<CompletionItem> =
+                cache.semantic_property_completions(&decl_ctx.partial_name);
+
+            if items.is_empty() {
+                return Ok(None);
+            }
+
+            let start_char = position
+                .character
+                .saturating_sub(decl_ctx.partial_name.len() as u32);
+            let edit_range = Range {
+                start: Position {
+                    line: position.line,
+                    character: start_char,
+                },
+                end: *position,
+            };
+
+            let items = items
+                .into_iter()
+                .map(|mut item| {
+                    item.text_edit = Some(CompletionTextEdit::Edit(TextEdit {
+                        range: edit_range,
+                        new_text: item.label.clone(),
+                    }));
+                    item
+                })
+                .collect();
 
             return Ok(Some(CompletionResponse::Array(items)));
         }

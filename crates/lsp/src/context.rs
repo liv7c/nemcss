@@ -239,7 +239,7 @@ pub fn detect_css_property_declaration_context(
     }
 
     Some(CssPropertyDeclarationContext {
-        partial_name: trimmed.to_string(),
+        partial_name: trimmed.trim_end().to_string(),
     })
 }
 
