@@ -51,13 +51,6 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - name: Patch Cargo workspace version
-        shell: bash
-        run: |
-          VERSION="${{ github.ref_name }}"
-          VERSION="${VERSION#v}"
-          sed -i.bak "s/^version = \".*\"/version = \"$VERSION\"/" Cargo.toml && rm Cargo.toml.bak
-
       - name: Build CLI and LSP
         run: cargo build --release --target ${{ matrix.arch }} --bin nemcss --bin nemcss-lsp
 
@@ -150,34 +143,39 @@ jobs:
         run: |
           node -e "
             const fs = require('fs');
-            const version = process.env.VERSION.replace(/^v/, '');
             const pkgs = [
               'crates/napi',
               'packages/nemcss',
-              'npm/@nemcss/cli-darwin-arm64',
-              'npm/@nemcss/cli-darwin-x64',
-              'npm/@nemcss/cli-linux-x64',
-              'npm/@nemcss/cli-linux-arm64',
-              'npm/@nemcss/cli-win32-x64',
               'packages/vite-plugin-nemcss',
               'packages/postcss-plugin-nemcss',
             ];
+            const allPkgJsons = [
+              ...pkgs.map(d => d + '/package.json'),
+              'npm/@nemcss/cli-darwin-arm64/package.json',
+              'npm/@nemcss/cli-darwin-x64/package.json',
+              'npm/@nemcss/cli-linux-x64/package.json',
+              'npm/@nemcss/cli-linux-arm64/package.json',
+              'npm/@nemcss/cli-win32-x64/package.json',
+            ];
             pkgs.forEach(p => {
               const json = JSON.parse(fs.readFileSync(p + '/package.json', 'utf8'));
-              json.version = version;
               for (const field of ['dependencies', 'optionalDependencies']) {
                 if (!json[field]) continue;
                 for (const [k, v] of Object.entries(json[field])) {
-                  if (v.startsWith('workspace:') || k.startsWith('@nemcss/')) {
-                    json[field][k] = version;
+                  if (typeof v === 'string' && v.startsWith('workspace:')) {
+                    const depPkgPath = allPkgJsons.find(f => {
+                      try { return JSON.parse(fs.readFileSync(f, 'utf8')).name === k; }
+                      catch { return false; }
+                    });
+                    if (depPkgPath) {
+                      json[field][k] = JSON.parse(fs.readFileSync(depPkgPath, 'utf8')).version;
+                    }
                   }
                 }
               }
               fs.writeFileSync(p + '/package.json', JSON.stringify(json, null, 2) + '\n');
             });
           "
-        env:
-          VERSION: ${{ github.ref_name }}
 
       - name: Copy CLI binaries into platform packages
         run: |
@@ -255,6 +253,12 @@ jobs:
           cp artifacts/lsp/nemcss-lsp-darwin-x64/nemcss-lsp    artifacts/lsp/nemcss-lsp-darwin-x64/nemcss-lsp-darwin-x64
           cp artifacts/lsp/nemcss-lsp-linux-x64/nemcss-lsp     artifacts/lsp/nemcss-lsp-linux-x64/nemcss-lsp-linux-x64
           cp artifacts/lsp/nemcss-lsp-linux-arm64/nemcss-lsp   artifacts/lsp/nemcss-lsp-linux-arm64/nemcss-lsp-linux-arm64
+
+      - name: Create GitHub Release
+        run: gh release create ${{ github.ref_name }} --generate-notes --latest
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
 
       - name: Upload assets to GitHub Release
         run: |

@@ -142,6 +142,12 @@ jobs:
             }
           done
 
+      - name: Create GitHub Release
+        run: gh release create ${{ github.ref_name }} --generate-notes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+
       - name: Upload vsix files to GitHub Release
         run: |
           for target in darwin-arm64 darwin-x64 linux-x64 linux-arm64 win32-x64; do
