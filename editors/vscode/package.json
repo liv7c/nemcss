@@ -1,5 +1,5 @@
 {
-  "name": "nemcss",
+  "name": "nemcss-vscode",
   "displayName": "nemcss",
   "description": "Language Server Protocol support for NemCSS",
   "repository": {
