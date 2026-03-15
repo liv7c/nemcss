@@ -124,6 +124,12 @@ jobs:
           pattern: nemcss-vscode-*
           path: artifacts
 
+      - name: Download all LSP artifacts
+        uses: actions/download-artifact@v8
+        with:
+          pattern: nemcss-lsp-*
+          path: artifacts
+
       - uses: actions/setup-node@v6
         with:
           node-version: 22
@@ -148,12 +154,33 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
 
-      - name: Upload vsix files to GitHub Release
+      - name: Rename release assets
         run: |
-          for target in darwin-arm64 darwin-x64 linux-x64 linux-arm64 win32-x64; do
-            gh release upload ${{ github.ref_name }} \
-              "artifacts/nemcss-vscode-${target}/nemcss-${target}.vsix"
-          done
+          mkdir -p artifacts/lsp
+          cp -r artifacts/nemcss-lsp-darwin-arm64 artifacts/lsp/
+          cp -r artifacts/nemcss-lsp-darwin-x64   artifacts/lsp/
+          cp -r artifacts/nemcss-lsp-linux-x64    artifacts/lsp/
+          cp -r artifacts/nemcss-lsp-linux-arm64  artifacts/lsp/
+          cp -r artifacts/nemcss-lsp-win32-x64    artifacts/lsp/
+
+          cp artifacts/lsp/nemcss-lsp-darwin-arm64/nemcss-lsp  artifacts/lsp/nemcss-lsp-darwin-arm64/nemcss-lsp-darwin-arm64
+          cp artifacts/lsp/nemcss-lsp-darwin-x64/nemcss-lsp    artifacts/lsp/nemcss-lsp-darwin-x64/nemcss-lsp-darwin-x64
+          cp artifacts/lsp/nemcss-lsp-linux-x64/nemcss-lsp     artifacts/lsp/nemcss-lsp-linux-x64/nemcss-lsp-linux-x64
+          cp artifacts/lsp/nemcss-lsp-linux-arm64/nemcss-lsp   artifacts/lsp/nemcss-lsp-linux-arm64/nemcss-lsp-linux-arm64
+
+      - name: Upload assets to GitHub Release
+        run: |
+          gh release upload ${{ github.ref_name }} \
+            artifacts/nemcss-vscode-darwin-arm64/nemcss-darwin-arm64.vsix \
+            artifacts/nemcss-vscode-darwin-x64/nemcss-darwin-x64.vsix \
+            artifacts/nemcss-vscode-linux-x64/nemcss-linux-x64.vsix \
+            artifacts/nemcss-vscode-linux-arm64/nemcss-linux-arm64.vsix \
+            artifacts/nemcss-vscode-win32-x64/nemcss-win32-x64.vsix \
+            artifacts/lsp/nemcss-lsp-darwin-arm64/nemcss-lsp-darwin-arm64 \
+            artifacts/lsp/nemcss-lsp-darwin-x64/nemcss-lsp-darwin-x64 \
+            artifacts/lsp/nemcss-lsp-linux-x64/nemcss-lsp-linux-x64 \
+            artifacts/lsp/nemcss-lsp-linux-arm64/nemcss-lsp-linux-arm64 \
+            artifacts/lsp/nemcss-lsp-win32-x64/nemcss-lsp.exe
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
