@@ -8,6 +8,9 @@
 import { readFileSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 
+// Fetch remote tags so we can check against them
+execSync('git fetch --tags', { stdio: 'inherit' });
+
 function tagExists(tag) {
   try {
     execSync(`git rev-parse refs/tags/${tag}`, { stdio: 'ignore' });
