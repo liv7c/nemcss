@@ -78,7 +78,7 @@ This generates the following files:
 
 ```json
 {
-  "$schema": "./node_modules/nemcss/schemas/nemcss.config.schema.json",
+  "$schema": "https://raw.githubusercontent.com/liv7c/nemcss/v0.5.0/packages/nemcss/schemas/nemcss.config.schema.json",
   "content": [
     "src/**/*.html",
     "src/**/*.jsx",

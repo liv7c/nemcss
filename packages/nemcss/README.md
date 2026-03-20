@@ -31,6 +31,7 @@ Run `nemcss init` to scaffold a `nemcss.config.json` and example token files, th
 | `nemcss init`                         | Scaffold `nemcss.config.json` and example token files in the current directory |
 | `nemcss build -i <input> -o <output>` | One-shot build: scan content files and write CSS                               |
 | `nemcss watch -i <input> -o <output>` | Watch mode: rebuild on token, content, or config changes                       |
+| `nemcss schema`                        | Print the JSON schema for `nemcss.config.json` to stdout                       |
 
 ## Configuration
 

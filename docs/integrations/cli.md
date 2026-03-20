@@ -1,6 +1,6 @@
 # CLI
 
-The `nemcss` CLI provides standalone `build`, `watch`, and `init` commands. No build tool required.
+The `nemcss` CLI provides standalone `build`, `watch`, `init`, and `schema` commands. No build tool required.
 
 ## Installation
 
@@ -37,6 +37,7 @@ When installed locally, run commands via `npx nemcss <command>` or add them as s
 | `nemcss init`                         | Scaffold `nemcss.config.json` and example token files in the current directory |
 | `nemcss build -i <input> -o <output>` | One-shot build: scan content files and write CSS                               |
 | `nemcss watch -i <input> -o <output>` | Watch mode: rebuild on token, content, or config changes                       |
+| `nemcss schema`                       | Print the JSON schema for `nemcss.config.json` to stdout                       |
 
 ### `init`
 
@@ -70,6 +71,14 @@ nemcss build -i src/styles.css -o dist/styles.css
 
 ```sh
 nemcss watch -i src/styles.css -o dist/styles.css
+```
+
+### `schema`
+
+Prints the JSON schema for `nemcss.config.json` to stdout. Useful for piping into a file or validating the schema shape.
+
+```sh
+nemcss schema > nemcss.config.schema.json
 ```
 
 ## Directives
