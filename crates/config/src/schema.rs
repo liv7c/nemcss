@@ -50,8 +50,8 @@ mod tests {
             "schema should have a `semantic` property"
         );
         assert!(
-            props["$schema"].is_null(),
-            "schema should not have a `$schema` property"
+            props["$schema"].is_object(),
+            "schema should have a `$schema` property so validators accept it in user configs"
         );
     }
 

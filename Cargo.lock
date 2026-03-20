@@ -268,7 +268,7 @@ checksum = "3a822ea5bc7590f9d40f1ba12c0dc3c2760f3482c6984db1573ad11031420831"
 
 [[package]]
 name = "cli"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "assert_cmd",
  "assert_fs",
@@ -305,7 +305,7 @@ checksum = "baf0a07a401f374238ab8e2f11a104d2851bf9ce711ec69804834de8af45c7af"
 
 [[package]]
 name = "config"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "globset",
  "miette",
@@ -520,7 +520,7 @@ checksum = "34aa73646ffb006b8f5147f3dc182bd4bcb190227ce861fc4a4844bf8e3cb2c0"
 
 [[package]]
 name = "engine"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "config",
  "divan",
@@ -546,7 +546,7 @@ dependencies = [
 
 [[package]]
 name = "extractor"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "regex",
 ]
@@ -1022,7 +1022,7 @@ checksum = "5e5032e24019045c762d3c0f28f5b6b8bbf38563a65908389bf7978758920897"
 
 [[package]]
 name = "lsp"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "assert_fs",
  "config",
@@ -1170,7 +1170,7 @@ dependencies = [
 
 [[package]]
 name = "nemcss-napi"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "config",
  "engine",

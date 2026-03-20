@@ -1,5 +1,4 @@
 {
-  "$schema": "NEMCSS_SCHEMA_URL",
   "content": [
     "src/**/*.html",
     "src/**/*.jsx",
