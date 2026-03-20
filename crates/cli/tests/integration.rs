@@ -44,7 +44,15 @@ fn test_init_generates_config_file_with_correct_content() {
         .success()
         .stderr("");
 
-    let expected_config_file_content = include_str!("../src/templates/nemcss.config.json");
+    let expected_schema_url = concat!(
+        "https://raw.githubusercontent.com/liv7c/nemcss/v",
+        env!("CARGO_PKG_VERSION"),
+        "/packages/nemcss/schemas/nemcss.config.schema.json"
+    );
+
+    let expected_config_file_content = include_str!("../src/templates/nemcss.config.json")
+        .replace("NEMCSS_SCHEMA_URL", expected_schema_url);
+
     temp_dir
         .child("nemcss.config.json")
         .assert(predicate::path::is_file())

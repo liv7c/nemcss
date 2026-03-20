@@ -1,5 +1,5 @@
 {
-  "$schema": "./node_modules/nemcss/schemas/nemcss.config.schema.json",
+  "$schema": "NEMCSS_SCHEMA_URL",
   "content": [
     "src/**/*.html",
     "src/**/*.jsx",

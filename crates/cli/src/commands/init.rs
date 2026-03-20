@@ -9,6 +9,12 @@ use thiserror::Error;
 /// Name of the design tokens directory.
 const DESIGN_TOKENS_DIR_NAME: &str = "design-tokens";
 
+const SCHEMA_URL: &str = concat!(
+    "https://raw.githubusercontent.com/liv7c/nemcss/v",
+    env!("CARGO_PKG_VERSION"),
+    "/packages/nemcss/schemas/nemcss.config.schema.json"
+);
+
 /// Error type for the `init` command.
 #[derive(Debug, Error, Diagnostic)]
 pub enum InitError {
@@ -70,7 +76,8 @@ fn create_config_file(current_dir: &Path) -> miette::Result<(), InitError> {
         });
     }
 
-    let config_file_content = include_str!("../templates/nemcss.config.json");
+    let config_file_content =
+        include_str!("../templates/nemcss.config.json").replace("NEMCSS_SCHEMA_URL", SCHEMA_URL);
     fs::write(&config_file_path, config_file_content).map_err(InitError::CreateConfigFile)?;
 
     println!(
