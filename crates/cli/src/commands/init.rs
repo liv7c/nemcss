@@ -9,6 +9,12 @@ use thiserror::Error;
 /// Name of the design tokens directory.
 const DESIGN_TOKENS_DIR_NAME: &str = "design-tokens";
 
+const SCHEMA_URL: &str = concat!(
+    "https://raw.githubusercontent.com/liv7c/nemcss/v",
+    env!("CARGO_PKG_VERSION"),
+    "/packages/nemcss/schemas/nemcss.config.schema.json"
+);
+
 /// Error type for the `init` command.
 #[derive(Debug, Error, Diagnostic)]
 pub enum InitError {
@@ -70,7 +76,8 @@ fn create_config_file(current_dir: &Path) -> miette::Result<(), InitError> {
         });
     }
 
-    let config_file_content = include_str!("../templates/nemcss.config.json");
+    let config_file_content =
+        include_str!("../templates/nemcss.config.json").replace("NEMCSS_SCHEMA_URL", SCHEMA_URL);
     fs::write(&config_file_path, config_file_content).map_err(InitError::CreateConfigFile)?;
 
     println!(
@@ -149,10 +156,11 @@ fn create_design_token_file(
 #[cfg(test)]
 mod tests {
     #[test]
-    fn test_config_template_is_valid_json() {
-        let model_config_content = include_str!("../templates/nemcss.config.json");
-        serde_json::from_str::<serde_json::Value>(model_config_content)
-            .expect("Config template should be valid JSON");
+    fn test_config_template_is_valid_nemcss_config() {
+        let raw = include_str!("../templates/nemcss.config.json");
+        let content = raw.replace("NEMCSS_SCHEMA_URL", "https://example.com/schema.json");
+        serde_json::from_str::<config::NemCssConfig>(&content)
+            .expect("Config template should be a valid NemCssConfig after substitution");
     }
 
     #[test]

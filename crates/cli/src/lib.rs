@@ -43,13 +43,23 @@
 //! - Configuration file (`nemcss.config.json`)
 //! - Input CSS file
 //!
+//! ## schema
+//!
+//! Prints to stdout the JSON schema for `NemCssConfig`.
+//! The schema is derived directly from the Rust type definitions.
+//! Useful for piping into a file or validating the schema shape.
+//!
+//! ```bash
+//! nemcss schema > nemcss.schema.json
+//! ```
+//!
 //! # Configuration
 //!
 //! The `nemcss.config.json` file controls which files are scanned:
 //!
 //! ```json
 //! {
-//!     "content": ["src/**/*.html", *src/**/*.css"],
+//!     "content": ["src/**/*.html", "src/**/*.css"],
 //!     "tokensDir": "design-tokens",
 //! }
 //! ```
@@ -121,6 +131,13 @@ enum Command {
         #[arg(short, long)]
         output: PathBuf,
     },
+
+    /// Generates a JSON schema for `NemCssConfig` as a pretty-printed JSON string.
+    /// The schema is derived directly from the Rust type definitions.
+    ///
+    /// Useful for piping into a file or validating the schema shape.
+    /// Example: nemcss schema > nemcss.schema.json
+    Schema,
 }
 
 /// Parses command-line arguments and runs the requested command.
@@ -137,6 +154,7 @@ pub fn run() -> miette::Result<()> {
             quiet,
         } => commands::build(input, output, quiet)?,
         Command::Watch { input, output } => commands::watch(input, output)?,
+        Command::Schema => commands::schema()?,
     }
 
     Ok(())

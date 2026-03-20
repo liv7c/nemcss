@@ -18,12 +18,14 @@
 //! Based on the resolved design tokens and user-defined [`TokenUtilityConfig`],
 //! this crate enables generation of CSS utility classes for your design system.
 mod config;
+mod schema;
 mod tokens;
 
 pub use config::{
     CONFIG_FILE_NAME, NemCssConfig, NemCssConfigError, SemanticConfig, SemanticGroupConfig,
     ThemeConfig, TokenConfig, TokenUtilityConfig,
 };
+pub use schema::{GenerateSchemaError, generate_schema};
 pub use tokens::{
     ResolveSemanticError, ResolveTokensError, ResolvedSemanticGroup, ResolvedToken, TokenValue,
     resolve_all_tokens,
