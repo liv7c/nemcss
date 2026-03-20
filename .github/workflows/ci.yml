@@ -50,6 +50,22 @@ jobs:
       - name: Linting
         run: cargo clippy --workspace --all-features --tests --benches -- -D warnings
 
+  schema:
+    name: JSON Schema drift check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v6
+
+      - name: Install the Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+
+      - name: Check schema is up to date
+        run: |
+          cargo run -p cli -- schema > /tmp/generated.json
+          diff packages/nemcss/schemas/nemcss.config.schema.json /tmp/generated.json \
+            || (echo "Schema is stale — run 'cargo run -p cli -- schema > packages/nemcss/schemas/nemcss.config.schema.json' and commit the result" && exit 1)
+
   coverage:
     name: Code coverage
     runs-on: ubuntu-latest
