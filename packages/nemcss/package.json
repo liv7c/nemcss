@@ -1,6 +1,6 @@
 {
   "name": "nemcss",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Command-line interface for nemcss, a design-token-driven CSS utility generator",
   "license": "MIT",
   "repository": {
