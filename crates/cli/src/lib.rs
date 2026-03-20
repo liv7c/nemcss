@@ -59,7 +59,7 @@
 //!
 //! ```json
 //! {
-//!     "content": ["src/**/*.html", *src/**/*.css"],
+//!     "content": ["src/**/*.html", "src/**/*.css"],
 //!     "tokensDir": "design-tokens",
 //! }
 //! ```

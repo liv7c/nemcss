@@ -156,10 +156,11 @@ fn create_design_token_file(
 #[cfg(test)]
 mod tests {
     #[test]
-    fn test_config_template_is_valid_json() {
-        let model_config_content = include_str!("../templates/nemcss.config.json");
-        serde_json::from_str::<serde_json::Value>(model_config_content)
-            .expect("Config template should be valid JSON");
+    fn test_config_template_is_valid_nemcss_config() {
+        let raw = include_str!("../templates/nemcss.config.json");
+        let content = raw.replace("NEMCSS_SCHEMA_URL", "https://example.com/schema.json");
+        serde_json::from_str::<config::NemCssConfig>(&content)
+            .expect("Config template should be a valid NemCssConfig after substitution");
     }
 
     #[test]

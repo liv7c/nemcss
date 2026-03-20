@@ -63,7 +63,7 @@ jobs:
       - name: Check schema is up to date
         run: |
           cargo run -p cli -- schema > /tmp/generated.json
-          diff packages/nemcss/schemas/nemcss.config.schema.json /tmp/generated.json \
+          diff --strip-trailing-cr packages/nemcss/schemas/nemcss.config.schema.json /tmp/generated.json \
             || (echo "Schema is stale — run 'cargo run -p cli -- schema > packages/nemcss/schemas/nemcss.config.schema.json' and commit the result" && exit 1)
 
   coverage:
