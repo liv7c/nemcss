@@ -1,0 +1,48 @@
+name: Release Plugins
+
+on:
+  push:
+    tags:
+      - 'vite-v[0-9]*'
+      - 'postcss-v[0-9]*'
+
+jobs:
+  publish:
+    name: Publish JS plugins
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/action-setup@v5
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: 'pnpm'
+          registry-url: 'https://registry.npmjs.org'
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build and publish vite plugin
+        if: startsWith(github.ref_name, 'vite-v')
+        run: |
+          pnpm --filter "@nemcss/vite" build
+          out=$(pnpm --filter "@nemcss/vite" publish --access public --no-git-checks 2>&1) && { echo "$out"; exit 0; }
+          echo "$out"
+          echo "$out" | grep -qE "previously published|publish over" && { echo "Already published, skipping"; exit 0; }
+          exit 1
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Build and publish postcss plugin
+        if: startsWith(github.ref_name, 'postcss-v')
+        run: |
+          pnpm --filter "@nemcss/postcss" build
+          out=$(pnpm --filter "@nemcss/postcss" publish --access public --no-git-checks 2>&1) && { echo "$out"; exit 0; }
+          echo "$out"
+          echo "$out" | grep -qE "previously published|publish over" && { echo "Already published, skipping"; exit 0; }
+          exit 1
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

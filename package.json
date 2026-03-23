@@ -4,7 +4,7 @@
   "packageManager": "pnpm@10.30.3",
   "devDependencies": {
     "@changesets/cli": "^2.29.4",
-    "vitepress": "2.0.0-alpha.16"
+    "vitepress": "2.0.0-alpha.17"
   },
   "scripts": {
     "changeset": "changeset",
