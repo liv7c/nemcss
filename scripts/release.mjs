@@ -28,24 +28,25 @@ function createTag(tag) {
 // Read versions
 const nemcssPkg = JSON.parse(readFileSync('packages/nemcss/package.json', 'utf8'));
 const vscodePkg = JSON.parse(readFileSync('editors/vscode/package.json', 'utf8'));
+const vitePkg = JSON.parse(readFileSync('packages/vite-plugin-nemcss/package.json', 'utf8'));
+const postcssPkg = JSON.parse(readFileSync('packages/postcss-plugin-nemcss/package.json', 'utf8'));
 
-const coreTag = `v${nemcssPkg.version}`;
-const editorTag = `editor-v${vscodePkg.version}`;
+const candidates = [
+  { tag: `v${nemcssPkg.version}` },
+  { tag: `editor-v${vscodePkg.version}` },
+  { tag: `vite-v${vitePkg.version}` },
+  { tag: `postcss-v${postcssPkg.version}` },
+];
 
 const tagsToCreate = [];
 
-if (!tagExists(coreTag)) {
-  createTag(coreTag);
-  tagsToCreate.push(coreTag);
-} else {
-  console.log(`Tag ${coreTag} already exists, skipping`);
-}
-
-if (!tagExists(editorTag)) {
-  createTag(editorTag);
-  tagsToCreate.push(editorTag);
-} else {
-  console.log(`Tag ${editorTag} already exists, skipping`);
+for (const { tag } of candidates) {
+  if (!tagExists(tag)) {
+    createTag(tag);
+    tagsToCreate.push(tag);
+  } else {
+    console.log(`Tag ${tag} already exists, skipping`);
+  }
 }
 
 if (tagsToCreate.length > 0) {

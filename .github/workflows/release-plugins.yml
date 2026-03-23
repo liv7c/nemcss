@@ -1,0 +1,86 @@
+name: Release Plugins
+
+on:
+  push:
+    tags:
+      - 'vite-v[0-9]*'
+      - 'postcss-v[0-9]*'
+
+jobs:
+  build-and-publish:
+    name: Build and publish JS plugins
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/action-setup@v5
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: 'pnpm'
+          registry-url: 'https://registry.npmjs.org'
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm --filter @nemcss/vite build
+
+      - run: pnpm --filter @nemcss/postcss build
+
+      - name: Resolve workspace dependencies
+        run: |
+          node -e "
+            const fs = require('fs');
+            const pkgs = [
+              'packages/vite-plugin-nemcss',
+              'packages/postcss-plugin-nemcss',
+            ];
+            const allPkgJsons = [
+              ...pkgs.map(d => d + '/package.json'),
+              'crates/napi/package.json',
+            ];
+            pkgs.forEach(p => {
+              const json = JSON.parse(fs.readFileSync(p + '/package.json', 'utf8'));
+              for (const field of ['dependencies', 'optionalDependencies']) {
+                if (!json[field]) continue;
+                for (const [k, v] of Object.entries(json[field])) {
+                  if (typeof v === 'string' && v.startsWith('workspace:')) {
+                    const depPkgPath = allPkgJsons.find(f => {
+                      try { return JSON.parse(fs.readFileSync(f, 'utf8')).name === k; }
+                      catch { return false; }
+                    });
+                    if (depPkgPath) {
+                      json[field][k] = JSON.parse(fs.readFileSync(depPkgPath, 'utf8')).version;
+                    }
+                  }
+                }
+              }
+              fs.writeFileSync(p + '/package.json', JSON.stringify(json, null, 2) + '\n');
+            });
+          "
+
+      - name: Publish plugins to npm
+        run: |
+          npm_publish() {
+            local dir="$1"
+            local out retries=3
+            for i in $(seq 1 $retries); do
+              out=$(npm publish "$dir" --access public 2>&1) && { echo "$out"; return 0; }
+              if echo "$out" | grep -qE "previously published|publish over"; then
+                echo "Skipping $dir (already published at this version)"
+                return 0
+              fi
+              if echo "$out" | grep -q "409" && [ $i -lt $retries ]; then
+                echo "Registry busy, retrying $dir in 5s... (attempt $i/$retries)"
+                sleep 5
+                continue
+              fi
+              echo "$out" >&2; return 1
+            done
+          }
+          npm_publish ./packages/vite-plugin-nemcss
+          npm_publish ./packages/postcss-plugin-nemcss
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
