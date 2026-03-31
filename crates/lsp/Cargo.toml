@@ -31,5 +31,5 @@ regex = { workspace = true }
 
 [dev-dependencies]
 assert_fs = "1.1.3"
-insta = { version = "1.46.3", features = ["json"] }
+insta = { version = "1.47.1", features = ["json"] }
 tower = { version = "0.5.3", features = ["util"] }
