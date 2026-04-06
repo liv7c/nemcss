@@ -37,7 +37,7 @@
     "fast-glob": "^3.3.3"
   },
   "devDependencies": {
-    "@types/node": "^25.4.0",
+    "@types/node": "^22.19.17",
     "tsup": "^8.5.1",
     "typescript": "^6.0.2",
     "postcss": "^8"
