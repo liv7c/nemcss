@@ -16,7 +16,7 @@ name = "nemcss-lsp"
 path = "src/main.rs"
 
 [dependencies]
-tokio = { version = "1.50.0", features = ["full"] }
+tokio = { version = "1.51.0", features = ["full"] }
 tower-lsp = "0.20.0"
 config = { path = "../config" }
 engine = { path = "../engine" }
@@ -31,5 +31,5 @@ regex = { workspace = true }
 
 [dev-dependencies]
 assert_fs = "1.1.3"
-insta = { version = "1.47.1", features = ["json"] }
+insta = { version = "1.47.2", features = ["json"] }
 tower = { version = "0.5.3", features = ["util"] }
