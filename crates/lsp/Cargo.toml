@@ -16,7 +16,7 @@ name = "nemcss-lsp"
 path = "src/main.rs"
 
 [dependencies]
-tokio = { version = "1.51.0", features = ["full"] }
+tokio = { version = "1.51.1", features = ["full"] }
 tower-lsp = "0.20.0"
 config = { path = "../config" }
 engine = { path = "../engine" }
