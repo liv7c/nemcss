@@ -59,9 +59,7 @@
     "typescript": "^6.0.3"
   },
   "ava": {
-    "extensions": {
-      "ts": "module"
-    },
+    "extensions": ["ts"],
     "timeout": "2m",
     "workerThreads": false,
     "environmentVariables": {
