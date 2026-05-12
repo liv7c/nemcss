@@ -11,8 +11,8 @@ repository.workspace = true
 crate-type = ["cdylib"]
 
 [dependencies]
-napi = "3.8.5"
-napi-derive = "3.5.4"
+napi = "3.8.6"
+napi-derive = "3.5.5"
 config = { path = "../config" }
 extractor = { path = "../extractor" }
 engine = { path = "../engine" }
