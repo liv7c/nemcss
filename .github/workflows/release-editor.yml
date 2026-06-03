@@ -31,7 +31,7 @@ jobs:
             target: win32-x64
             arch: x86_64-pc-windows-msvc
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v6.0.2
 
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -74,7 +74,7 @@ jobs:
           - target: linux-arm64
           - target: win32-x64
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v6.0.2
 
       - name: Download LSP artifact for ${{ matrix.target }}
         uses: actions/download-artifact@v8
