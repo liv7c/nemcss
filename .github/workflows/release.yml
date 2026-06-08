@@ -15,7 +15,7 @@ jobs:
   changesets:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v6.0.2
         with:
           token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
 
@@ -28,7 +28,7 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - uses: changesets/action@v1
+      - uses: changesets/action@v1.8.0
         with:
           version: pnpm run version
           publish: pnpm release
