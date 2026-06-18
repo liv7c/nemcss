@@ -49,13 +49,13 @@
     "version": "napi version"
   },
   "devDependencies": {
-    "@napi-rs/cli": "^3.6.2",
+    "@napi-rs/cli": "^3.7.0",
     "@oxc-node/core": "^0.1.0",
-    "@types/node": "^22.19.17",
-    "ava": "^8.0.0",
-    "oxlint": "^1.62.0",
+    "@types/node": "^22.19.20",
+    "ava": "^8.0.1",
+    "oxlint": "^1.69.0",
     "prettier": "^3.8.3",
-    "tinybench": "^6.0.1",
+    "tinybench": "^6.0.2",
     "typescript": "^6.0.3"
   },
   "ava": {
