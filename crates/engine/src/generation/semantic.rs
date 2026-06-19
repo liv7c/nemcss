@@ -23,24 +23,29 @@ pub fn generate_semantic_custom_properties(groups: &[&ResolvedSemanticGroup]) ->
 /// ".text-primary { color: var(--colors-blue-500); }"
 /// Note: this is useful for theming as it allows you to override the default semantic tokens.
 pub fn generate_semantic_utilities(groups: &[&ResolvedSemanticGroup]) -> Vec<Utility> {
-    groups
-        .iter()
-        .flat_map(|group| {
-            group.tokens.iter().map(|(name, _)| {
-                let utility_class_name = format!("{}-{}", group.prefix, name);
-                let utility_class_value =
-                    format!("{}: var(--{}-{})", group.property, group.prefix, name);
-                let utility_full_class =
-                    format!(".{} {{\n  {};\n}}", utility_class_name, utility_class_value);
+    let mut utilities = Vec::new();
 
-                Utility::new(
-                    &utility_full_class,
-                    &utility_class_name,
-                    &utility_class_value,
-                )
-            })
-        })
-        .collect()
+    for group in groups.iter() {
+        let Some(property) = &group.property else {
+            continue;
+        };
+
+        for (token_name, _) in group.tokens.iter() {
+            let utility_class_name = format!("{}-{}", group.prefix, token_name);
+            let utility_class_value =
+                format!("{}: var(--{}-{})", property, group.prefix, token_name);
+            let utility_full_class =
+                format!(".{} {{\n  {};\n}}", utility_class_name, utility_class_value);
+
+            utilities.push(Utility::new(
+                &utility_full_class,
+                &utility_class_name,
+                &utility_class_value,
+            ));
+        }
+    }
+
+    utilities
 }
 
 #[cfg(test)]
@@ -51,7 +56,7 @@ mod tests {
     fn text_group() -> ResolvedSemanticGroup {
         ResolvedSemanticGroup {
             prefix: "text".to_string(),
-            property: "color".to_string(),
+            property: Some("color".to_string()),
             tokens: vec![
                 ("primary".to_string(), "var(--color-blue-500)".to_string()),
                 ("secondary".to_string(), "var(--color-red-500)".to_string()),
@@ -89,11 +94,30 @@ mod tests {
     fn test_empty_group_produces_nothing() {
         let group = ResolvedSemanticGroup {
             prefix: "empty".to_string(),
-            property: "color".to_string(),
+            property: Some("color".to_string()),
             tokens: vec![],
         };
         let result = generate_semantic_custom_properties(&[&group]);
         assert!(result.is_empty());
+
+        let result = generate_semantic_utilities(&[&group]);
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_property_less_group_emits_vars_but_no_utilities() {
+        let group = ResolvedSemanticGroup {
+            prefix: "text".to_string(),
+            property: None,
+            tokens: vec![
+                ("primary".to_string(), "var(--color-blue-500)".to_string()),
+                ("secondary".to_string(), "var(--color-red-500)".to_string()),
+            ],
+        };
+        let result = generate_semantic_custom_properties(&[&group]);
+        assert_eq!(result.len(), 2);
+        assert_eq!(result[0], "--text-primary: var(--color-blue-500);");
+        assert_eq!(result[1], "--text-secondary: var(--color-red-500);");
 
         let result = generate_semantic_utilities(&[&group]);
         assert!(result.is_empty());

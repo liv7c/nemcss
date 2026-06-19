@@ -262,7 +262,7 @@ mod tests {
 
         let semantic_groups = [ResolvedSemanticGroup {
             prefix: "text".to_string(),
-            property: "color".to_string(),
+            property: Some("color".to_string()),
             tokens: vec![
                 ("primary".to_string(), "var(--color-blue-400)".to_string()),
                 ("error".to_string(), "var(--color-error-600)".to_string()),

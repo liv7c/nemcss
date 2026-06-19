@@ -179,7 +179,7 @@ pub struct ResolvedSemanticGroup {
     /// Group name used for both CSS variable prefix and utility class prefix (e.g. "text-", "--text-*")
     pub prefix: String,
     /// CSS property for utility classes (e.g. "background-color")
-    pub property: String,
+    pub property: Option<String>,
     /// (semantic-name, resolved-var) pairs (e.g. ("primary", "var(--color-blue-500)"))
     pub tokens: Vec<(String, String)>,
 }
@@ -391,7 +391,7 @@ mod tests {
                 groups: HashMap::from([(
                     "text".to_string(),
                     SemanticGroupConfig {
-                        property: "color".to_string(),
+                        property: Some("color".to_string()),
                         tokens: HashMap::from([(
                             "primary".to_string(),
                             "{colors.blue-700}".to_string(),
@@ -406,7 +406,7 @@ mod tests {
                 .get("text")
                 .expect("expect result to contain a text semantic group");
             assert_eq!(text.prefix, "text");
-            assert_eq!(text.property, "color");
+            assert_eq!(text.property, Some("color".to_string()));
             assert_eq!(
                 text.tokens[0],
                 ("primary".to_string(), "var(--color-blue-700)".to_string())
@@ -420,7 +420,7 @@ mod tests {
                 groups: HashMap::from([(
                     "text".to_string(),
                     SemanticGroupConfig {
-                        property: "color".to_string(),
+                        property: Some("color".to_string()),
                         tokens: HashMap::from([(
                             "primary".to_string(),
                             "{missing.token}".to_string(),

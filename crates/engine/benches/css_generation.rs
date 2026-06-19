@@ -162,7 +162,7 @@ fn create_semantic_groups() -> Vec<ResolvedSemanticGroup> {
     vec![
         ResolvedSemanticGroup {
             prefix: "text".to_string(),
-            property: "color".to_string(),
+            property: Some("color".to_string()),
             tokens: vec![
                 ("primary".to_string(), "var(--color-0)".to_string()),
                 ("secondary".to_string(), "var(--color-1)".to_string()),
@@ -171,7 +171,7 @@ fn create_semantic_groups() -> Vec<ResolvedSemanticGroup> {
         },
         ResolvedSemanticGroup {
             prefix: "bg".to_string(),
-            property: "background-color".to_string(),
+            property: Some("background-color".to_string()),
             tokens: vec![
                 ("surface".to_string(), "var(--color-3)".to_string()),
                 ("overlay".to_string(), "var(--color-4)".to_string()),

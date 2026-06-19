@@ -65,6 +65,10 @@ pub fn generate_filtered_semantic_utilities(
     let mut responsive_utilities: HashMap<String, Vec<Utility>> = HashMap::new();
 
     for group in semantic_groups.iter() {
+        let Some(property) = &group.property else {
+            continue;
+        };
+
         for (token_name, _) in group.tokens.iter() {
             let utility_class_name = format!("{}-{}", group.prefix, token_name);
 
@@ -75,7 +79,7 @@ pub fn generate_filtered_semantic_utilities(
                 continue;
             }
 
-            let class_value = format!("{}: var(--{}-{})", group.property, group.prefix, token_name);
+            let class_value = format!("{}: var(--{}-{})", property, group.prefix, token_name);
             let full_class = format!(".{} {{\n  {};\n}}", utility_class_name, class_value);
             let utility = Utility::new(&full_class, &utility_class_name, &class_value);
 
@@ -307,10 +311,40 @@ mod tests {
         use config::ResolvedSemanticGroup;
 
         #[test]
+        fn test_generate_no_semantic_utilities_when_no_property() {
+            let group = ResolvedSemanticGroup {
+                prefix: "text".to_string(),
+                property: None,
+                tokens: vec![
+                    ("primary".to_string(), "var(--color-primary)".to_string()),
+                    (
+                        "secondary".to_string(),
+                        "var(--color-secondary)".to_string(),
+                    ),
+                ],
+            };
+
+            let all_groups = vec![&group];
+            let used_utilities = HashSet::from(["text-primary".to_string()]);
+            let used_responsive_utilities = HashMap::from([(
+                "bg-primary".to_string(),
+                vec!["sm".to_string(), "md".to_string()],
+            )]);
+            let (utilities, responsive_utilities) = generate_filtered_semantic_utilities(
+                &all_groups,
+                &used_utilities,
+                &used_responsive_utilities,
+            );
+
+            assert_eq!(utilities.len(), 0);
+            assert_eq!(responsive_utilities.len(), 0);
+        }
+
+        #[test]
         fn test_generate_filtered_semantic_utilities() {
             let group = ResolvedSemanticGroup {
                 prefix: "text".to_string(),
-                property: "color".to_string(),
+                property: Some("color".to_string()),
                 tokens: vec![
                     ("primary".to_string(), "var(--color-primary)".to_string()),
                     (
@@ -346,7 +380,7 @@ mod tests {
         fn test_generate_filtered_semantic_utilities_responsive() {
             let group = ResolvedSemanticGroup {
                 prefix: "text".to_string(),
-                property: "color".to_string(),
+                property: Some("color".to_string()),
                 tokens: vec![
                     ("primary".to_string(), "var(--color-primary)".to_string()),
                     (
