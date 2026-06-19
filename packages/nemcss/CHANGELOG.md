@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.0
+
+### Minor Changes
+
+- 157e502: Make the `property` field optional for semantic token groups. Users can now omit it to generate only the CSS custom properties for a group and skip utility-class generation.
+
 ## 0.6.0
 
 ### Minor Changes
