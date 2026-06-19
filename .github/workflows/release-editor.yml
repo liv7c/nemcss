@@ -102,6 +102,10 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      - name: Use Marketplace extension name (publish as liv7c.nemcss)
+        working-directory: editors/vscode
+        run: npm pkg set name=nemcss
+
       - name: Package extension for ${{ matrix.target }}
         working-directory: editors/vscode
         run: pnpm exec vsce package --target ${{ matrix.target }} --no-dependencies --out nemcss-${{ matrix.target }}.vsix
