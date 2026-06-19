@@ -1,5 +1,11 @@
 # Change Log
 
+## 0.5.1
+
+### Patch Changes
+
+- 93a325b: Fix VS Code extension publishing to continue the existing liv7c.nemcss Marketplace listing.
+
 ## 0.5.0
 
 ### Minor Changes
