@@ -94,11 +94,11 @@ Components that reference `--surface-color` can be restyled just by changing whi
 
 The `semantic` block is optional. It lets you scope a subset of your primitive tokens to a specific role in your UI: text colors, background colors, surface colors, and so on.
 
-Each entry defines a group with a CSS `property` and a `tokens` map. Token values reference your primitive tokens using the `{category.tokenName}` syntax.
+Each entry defines a group with an optional CSS `property` and a `tokens` map. Token values reference your primitive tokens using the `{category.tokenName}` syntax.
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
-| `property` | `string` | yes | The CSS property for generated utility classes (e.g. `color`, `background-color`). |
+| `property` | `string` | no | The CSS property for generated utility classes (e.g. `color`, `background-color`). **Omit it to generate only the CSS custom properties for this group with no utility classes.** |
 | `tokens` | `object` | yes | A map of semantic token names to primitive token references (`{category.tokenName}`). |
 
 ### Naming
@@ -137,3 +137,31 @@ This generates:
 ```
 
 All your primitive color custom properties remain available. The semantic layer adds a second, intent-driven layer on top.
+
+### Generating only custom properties (no utility classes)
+
+If you only want the semantic CSS variables and don't need utility classes, omit the `property` field. The group's custom properties are still generated; no utility classes are.
+
+```json
+{
+  "semantic": {
+    "text": {
+      "tokens": {
+        "primary": "{colors.blue-600}",
+        "secondary": "{colors.slate-500}",
+        "muted": "{colors.slate-400}"
+      }
+    }
+  }
+}
+```
+
+This generates only the `:root` block:
+
+```css
+:root {
+  --text-primary: var(--color-blue-600);
+  --text-secondary: var(--color-slate-500);
+  --text-muted: var(--color-slate-400);
+}
+```

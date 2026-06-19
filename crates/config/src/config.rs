@@ -39,6 +39,20 @@ fn deserialize_non_empty_property<'de, D: serde::Deserializer<'de>>(
     Ok(s)
 }
 
+/// Custom deserializer for an optional non-empty property.
+fn deserialize_optional_non_empty_property<'de, D: serde::Deserializer<'de>>(
+    d: D,
+) -> Result<Option<String>, D::Error> {
+    let opt = Option::<String>::deserialize(d)?;
+    if let Some(s) = &opt
+        && s.is_empty()
+    {
+        return Err(serde::de::Error::custom("property must not be empty"));
+    }
+
+    Ok(opt)
+}
+
 /// NemCssConfig represents the configuration of the NemCSS util.
 /// It contains the paths to the content files and the design tokens, as well as the theme configuration.
 #[derive(Debug, Default, PartialEq, Serialize, Deserialize, JsonSchema)]
@@ -236,9 +250,15 @@ pub struct SemanticConfig {
 #[derive(Debug, Default, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct SemanticGroupConfig {
     /// CSS property this group targets (e.g. "color", "background-color")
-    #[serde(deserialize_with = "deserialize_non_empty_property")]
+    /// This is optional. Omit it when you generate only CSS custom properties for
+    /// the group.
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "deserialize_optional_non_empty_property"
+    )]
     #[schemars(extend("minLength"=1))]
-    pub property: String,
+    pub property: Option<String>,
     /// Mapping between a semantic name and an existing design token value
     /// e.g. "primary" -> "{colors.blue-800}"
     pub tokens: HashMap<String, String>,
@@ -389,8 +409,30 @@ mod tests {
             let config: NemCssConfig = serde_json::from_str(json).unwrap();
             let semantic = config.semantic.unwrap();
             let text = semantic.groups.get("text").unwrap();
-            assert_eq!(text.property, "color");
+            assert_eq!(text.property, Some("color".to_string()));
             assert_eq!(text.tokens.get("primary").unwrap(), "{colors.blue-500}");
+        }
+
+        #[test]
+        fn test_deserialize_semantic_group_with_no_property() {
+            let json = r#"{
+                "content": [],
+                "semantic": {
+                    "text": {
+                        "tokens": {
+                            "primary": "{colors.blue-500}",
+                            "secondary": "{colors.red-500}"
+                        }
+                    }
+                }
+            }"#;
+
+            let config: NemCssConfig = serde_json::from_str(json).unwrap();
+            let semantic = config.semantic.unwrap();
+            let text = semantic.groups.get("text").unwrap();
+            assert_eq!(text.property, None);
+            assert_eq!(text.tokens.get("primary").unwrap(), "{colors.blue-500}");
+            assert_eq!(text.tokens.get("secondary").unwrap(), "{colors.red-500}");
         }
 
         #[test]
