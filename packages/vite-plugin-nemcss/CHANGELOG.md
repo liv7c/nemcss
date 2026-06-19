@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.2
+
+### Patch Changes
+
+- Updated dependencies [157e502]
+  - @nemcss/napi@0.4.0
+
 ## 0.3.1
 
 ### Patch Changes
