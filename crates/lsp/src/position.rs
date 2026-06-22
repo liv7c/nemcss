@@ -39,6 +39,50 @@ pub fn lsp_col_to_byte(rope: &Rope, position: &Position, encoding: &PositionEnco
     byte_offset
 }
 
+/// Converts a byte offset in the text document to a cursor position.
+/// The lsp col is the character number.
+/// Position provided by the LSP client gives the following information:
+/// - the line number
+/// - the character number
+///
+/// This function checks the encoding to determine how to calculate the byte offset.
+/// It manages 2 cases:
+/// - utf8 encoding: the byte offset is the same as the character number
+/// - utf16 encoding: the byte offset is calculated by counting the number of bytes
+pub fn byte_to_position(
+    rope: &Rope,
+    byte_offset: usize,
+    encoding: &PositionEncodingKind,
+) -> Position {
+    let line = rope.byte_to_line(byte_offset);
+    let line_start_byte = rope.line_to_byte(line);
+    let col_byte = byte_offset - line_start_byte;
+
+    let character = if *encoding == PositionEncodingKind::UTF8 {
+        col_byte as u32
+    } else {
+        let line_slice = rope.line(line);
+        let mut byte_offset = 0usize;
+        let mut utf16_offset = 0u32;
+        for ch in line_slice.chars() {
+            if byte_offset >= col_byte {
+                break;
+            }
+
+            // returns the number of code units in the character
+            // 1 code unit = 2 bytes for utf16
+            utf16_offset += ch.len_utf16() as u32;
+            byte_offset += ch.len_utf8();
+        }
+        utf16_offset
+    };
+
+    Position {
+        line: line as u32,
+        character,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -51,27 +95,77 @@ mod tests {
         Position { line: 0, character }
     }
 
-    #[test]
-    fn test_utf8_passthrough() {
-        let result = lsp_col_to_byte(&rope("hello"), &pos(3), &PositionEncodingKind::UTF8);
-        assert_eq!(result, 3);
+    mod lsp_col_to_byte {
+        use super::*;
+
+        #[test]
+        fn test_utf8_passthrough() {
+            let result = lsp_col_to_byte(&rope("hello"), &pos(3), &PositionEncodingKind::UTF8);
+            assert_eq!(result, 3);
+        }
+
+        #[test]
+        fn test_utf16_ascii_same_as_byte() {
+            let result = lsp_col_to_byte(&rope("hello"), &pos(3), &PositionEncodingKind::UTF16);
+            assert_eq!(result, 3);
+        }
+
+        #[test]
+        fn test_utf16_emoji() {
+            let result = lsp_col_to_byte(&rope("g😀lo"), &pos(3), &PositionEncodingKind::UTF16);
+            assert_eq!(result, 5);
+        }
+
+        #[test]
+        fn test_utf16_2_byte_character() {
+            let result =
+                lsp_col_to_byte(&rope("café marcel"), &pos(5), &PositionEncodingKind::UTF16);
+            assert_eq!(result, 6);
+        }
     }
 
-    #[test]
-    fn test_utf16_ascii_same_as_byte() {
-        let result = lsp_col_to_byte(&rope("hello"), &pos(3), &PositionEncodingKind::UTF16);
-        assert_eq!(result, 3);
-    }
+    mod lsp_byte_to_position {
+        use super::*;
 
-    #[test]
-    fn test_utf16_emoji() {
-        let result = lsp_col_to_byte(&rope("g😀lo"), &pos(3), &PositionEncodingKind::UTF16);
-        assert_eq!(result, 5);
-    }
+        #[test]
+        fn test_byte_to_position_ascii_single_line() {
+            let r = rope("hello");
+            let p = byte_to_position(&r, 3, &PositionEncodingKind::UTF16);
+            assert_eq!(p, pos(3));
+        }
 
-    #[test]
-    fn test_utf16_2_byte_character() {
-        let result = lsp_col_to_byte(&rope("café marcel"), &pos(5), &PositionEncodingKind::UTF16);
-        assert_eq!(result, 6);
+        #[test]
+        fn test_byte_to_position_emoji_single_line() {
+            let r = rope("g😀lo");
+            let p = byte_to_position(&r, 5, &PositionEncodingKind::UTF16);
+            assert_eq!(p, pos(3));
+        }
+
+        #[test]
+        fn test_byte_to_position_multi_line() {
+            let r = rope("ab\ncd");
+            let p = byte_to_position(&r, 4, &PositionEncodingKind::UTF16);
+            assert_eq!(
+                p,
+                Position {
+                    line: 1,
+                    character: 1
+                }
+            );
+        }
+
+        #[test]
+        fn test_byte_to_position_multibyte_character() {
+            let r = rope("café marcel");
+            let p = byte_to_position(&r, 5, &PositionEncodingKind::UTF16);
+            assert_eq!(p, pos(4));
+        }
+
+        #[test]
+        fn test_byte_to_position_utf8_passthrough() {
+            let r = rope("café marcel");
+            let p = byte_to_position(&r, 5, &PositionEncodingKind::UTF8);
+            assert_eq!(p, pos(5));
+        }
     }
 }
