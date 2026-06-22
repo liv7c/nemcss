@@ -1,3 +1,26 @@
+# Changelog
+
+This repository publishes several packages, each versioned independently with
+[Changesets](https://github.com/changesets/changesets). Per-package changelogs are
+the source of truth — see the one for the package you care about:
+
+- [`nemcss`](packages/nemcss/CHANGELOG.md) — CLI and core npm package
+- [`@nemcss/napi`](crates/napi/CHANGELOG.md) — native Node bindings (engine)
+- [`@nemcss/vite`](packages/vite-plugin-nemcss/CHANGELOG.md) — Vite plugin
+- [`@nemcss/postcss`](packages/postcss-plugin-nemcss/CHANGELOG.md) — PostCSS plugin
+- [`nemcss-vscode`](editors/vscode/CHANGELOG.md) — VS Code extension
+
+The platform CLI binaries under `npm/@nemcss/cli-*` are versioned in lockstep with
+`nemcss`.
+
+> To add an entry, run `pnpm changeset` — do **not** edit changelogs by hand.
+
+---
+
+## Archive
+
+Entries below predate the move to Changesets (≤ v0.2.1) and are kept for history.
+
 ## [0.2.1] - 2026-03-10
 
 ### ⬆️ Dependencies
