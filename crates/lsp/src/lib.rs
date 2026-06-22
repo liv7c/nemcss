@@ -4,6 +4,7 @@
 //! utilities.
 mod cache;
 mod context;
+mod diagnostics;
 mod doc_context;
 mod file;
 mod position;
@@ -147,6 +148,28 @@ impl LanguageServer for Backend {
         }
 
         self.documents.insert(uri.to_string(), Rope::from(text));
+
+        // TODO: remove this
+        // This is a temporary diagnostic to test the diagnostics API.
+        if uri.path().ends_with(CONFIG_FILE_NAME) {
+            let diag = tower_lsp::lsp_types::Diagnostic {
+                range: Range {
+                    start: Position {
+                        line: 0,
+                        character: 0,
+                    },
+                    end: Position {
+                        line: 0,
+                        character: 5,
+                    },
+                },
+                severity: Some(DiagnosticSeverity::ERROR),
+                source: Some("nemcss".to_string()),
+                message: "nemcss: hello squiggle".to_string(),
+                ..Default::default()
+            };
+            self.client.publish_diagnostics(uri, vec![diag], None).await;
+        }
     }
 
     async fn did_change(&self, params: DidChangeTextDocumentParams) {
