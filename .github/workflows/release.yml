@@ -15,7 +15,7 @@ jobs:
   changesets:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
 
