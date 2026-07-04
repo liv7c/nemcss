@@ -1,6 +1,11 @@
 {
   "name": "@nemcss/cli-win32-x64",
   "version": "0.7.0",
+  "publishConfig": {
+    "executableFiles": [
+      "bin/nemcss.exe"
+    ]
+  },
   "os": [
     "win32"
   ],
