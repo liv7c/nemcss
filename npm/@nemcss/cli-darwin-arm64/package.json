@@ -1,6 +1,11 @@
 {
   "name": "@nemcss/cli-darwin-arm64",
   "version": "0.7.0",
+  "publishConfig": {
+    "executableFiles": [
+      "bin/nemcss"
+    ]
+  },
   "os": [
     "darwin"
   ],
