@@ -1,5 +1,11 @@
 # @nemcss/cli-win32-x64
 
+## 0.7.1
+
+### Patch Changes
+
+- 84f4f5c: Add publishConfig for pnpm so that CLI executable files keep their executable permission when published via pnpm publish
+
 ## 0.6.0
 
 ### Minor Changes
