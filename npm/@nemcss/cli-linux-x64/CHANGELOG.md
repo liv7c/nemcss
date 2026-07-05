@@ -1,5 +1,11 @@
 # @nemcss/cli-linux-x64
 
+## 0.7.2
+
+### Patch Changes
+
+- 2c5ae7c: We now normalize the content file paths before adding them to the glob. Previously, if a user wrote paths like "./index.html" in nemcss config content section, it caused issues with the CLI watcher. By normalizing the paths before adding them to the glob set, we now match them correctly.
+
 ## 0.7.1
 
 ### Patch Changes
