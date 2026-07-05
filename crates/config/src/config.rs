@@ -161,7 +161,8 @@ impl NemCssConfig {
     pub fn content_glob_set(&self) -> Result<globset::GlobSet, globset::Error> {
         let mut builder = globset::GlobSetBuilder::new();
         for pattern in &self.content {
-            builder.add(globset::Glob::new(pattern)?);
+            let normalized = pattern.strip_prefix("./").unwrap_or(pattern);
+            builder.add(globset::Glob::new(normalized)?);
         }
         builder.build()
     }
@@ -271,7 +272,11 @@ mod tests {
     #[test]
     fn test_content_glob_matches_correct_files() {
         let config = NemCssConfig {
-            content: vec!["content/**/*.md".to_string(), "src/**/*.svelte".to_string()],
+            content: vec![
+                "content/**/*.md".to_string(),
+                "src/**/*.svelte".to_string(),
+                "./index.html".to_string(),
+            ],
             ..Default::default()
         };
 
@@ -286,6 +291,9 @@ mod tests {
         assert!(glob_set.is_match("src/App.svelte"));
         assert!(glob_set.is_match("src/components/Button.svelte"));
         assert!(!glob_set.is_match("src/components/Error.tsx"));
+
+        // Matches the files prefixed with './' in the content globs
+        assert!(glob_set.is_match("index.html"));
     }
 
     #[test]
