@@ -54,7 +54,7 @@
     "@types/node": "^22.20.0",
     "ava": "^8.0.1",
     "oxlint": "^1.71.0",
-    "prettier": "^3.8.4",
+    "prettier": "^3.9.3",
     "tinybench": "^6.0.2",
     "typescript": "^6.0.3"
   },
