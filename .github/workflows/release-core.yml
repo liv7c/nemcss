@@ -91,41 +91,14 @@ jobs:
           name: nemcss-lsp-${{ matrix.target }}
           path: dist/lsp/
 
-  build-plugins:
-    name: Build JS plugins
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: pnpm/action-setup@v6
-
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 22
-          package-manager-cache: false
-
-      - run: pnpm install --frozen-lockfile
-
-      - run: pnpm --filter @nemcss/vite build
-
-      - run: pnpm --filter @nemcss/postcss build
-
-      - uses: actions/upload-artifact@v7
-        with:
-          name: vite-plugin
-          path: packages/vite-plugin-nemcss/dist/
-
-      - uses: actions/upload-artifact@v7
-        with:
-          name: postcss-plugin
-          path: packages/postcss-plugin-nemcss/dist/
-
   publish:
     name: Publish to npm + GitHub Release
-    needs: [build, build-plugins]
+    needs: [build]
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      # Required for npm trusted publishing (OIDC)
+      id-token: write
     steps:
       - uses: actions/checkout@v7
 
@@ -166,11 +139,6 @@ jobs:
       - name: Copy NAPI bindings
         run: cp artifacts/napi-*/*.node crates/napi/
 
-      - name: Copy plugin dist
-        run: |
-          cp -r artifacts/vite-plugin/.   packages/vite-plugin-nemcss/dist/
-          cp -r artifacts/postcss-plugin/. packages/postcss-plugin-nemcss/dist/
-
       - name: Publish all packages to npm
         run: |
           pnpm_publish() {
@@ -187,11 +155,7 @@ jobs:
           pnpm_publish "@nemcss/cli-linux-arm64"
           pnpm_publish "@nemcss/cli-win32-x64"
           pnpm_publish "@nemcss/napi" --ignore-scripts
-          pnpm_publish "@nemcss/vite"
-          pnpm_publish "@nemcss/postcss"
           pnpm_publish "nemcss"
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Rename release assets
         run: |

@@ -12,6 +12,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      # Required for npm trusted publishing (OIDC)
+      id-token: write
     steps:
       - uses: actions/checkout@v7
 
@@ -33,8 +35,6 @@ jobs:
           echo "$out"
           echo "$out" | grep -qE "previously published|publish over" && { echo "Already published, skipping"; exit 0; }
           exit 1
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Build and publish postcss plugin
         if: startsWith(github.ref_name, 'postcss-v')
@@ -44,5 +44,3 @@ jobs:
           echo "$out"
           echo "$out" | grep -qE "previously published|publish over" && { echo "Already published, skipping"; exit 0; }
           exit 1
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
