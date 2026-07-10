@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.3
+
+### Patch Changes
+
+- a1a35cd: Migrated npm publishing to trusted publishing
+
 ## 0.7.2
 
 ### Patch Changes
