@@ -40,12 +40,26 @@ pub struct TokenItem {
 
 /// Represents the value of a design token.
 /// The value can be a simple value or a list of values.
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum TokenValue {
     /// Represents a simple value.
     Simple(String),
     /// Represents a list of values.
     List(Vec<String>),
+}
+
+/// Implements the Serialize trait for TokenValue.
+/// This allows serializing a TokenValue::Simple into a JSON string and a TokenValue::List into an array.
+impl Serialize for TokenValue {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        match self {
+            TokenValue::Simple(val) => serializer.serialize_str(val),
+            TokenValue::List(items) => items.serialize(serializer),
+        }
+    }
 }
 
 /// Implements the Deserialize trait for TokenValue.
@@ -83,5 +97,35 @@ impl Display for TokenValue {
             TokenValue::Simple(value) => write!(f, "{}", value),
             TokenValue::List(values) => write!(f, "[{}]", values.join(", ")),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn simple_token_value_serializes_as_plain_string() {
+        let value = TokenValue::Simple("8px".to_string());
+        assert_eq!(serde_json::to_string(&value).unwrap(), r#""8px""#);
+    }
+
+    #[test]
+    fn list_token_value_serializes_as_array() {
+        let value = TokenValue::List(vec!["Arial".to_string(), "Helvetica".to_string()]);
+
+        assert_eq!(
+            serde_json::to_string(&value).unwrap(),
+            r#"["Arial","Helvetica"]"#
+        );
+    }
+
+    #[test]
+    fn token_value_serializes_and_deserializes_correctly() {
+        let original = TokenValue::Simple("8px".to_string());
+        let json = serde_json::to_string(&original).unwrap();
+        let deserialized_val: TokenValue = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(deserialized_val, original);
     }
 }
