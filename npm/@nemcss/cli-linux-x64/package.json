@@ -1,6 +1,11 @@
 {
   "name": "@nemcss/cli-linux-x64",
   "version": "0.7.3",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/liv7c/nemcss.git",
+    "directory": "npm/@nemcss/cli-linux-x64"
+  },
   "publishConfig": {
     "executableFiles": [
       "bin/nemcss"
