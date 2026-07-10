@@ -11,9 +11,10 @@ PR merged with changeset file
     and syncs Cargo.toml + platform CLI versions (via scripts/version.mjs)
 
 Merge "Version Packages" PR
-  → scripts/release.mjs creates git tags (v*, editor-v*)
+  → scripts/release.mjs creates git tags (v*, editor-v*, vite-v*, postcss-v*)
   → v* tag  → release-core.yml  (builds CLI+LSP+NAPI, publishes npm, creates GitHub release)
   → editor-v* tag → release-editor.yml (builds LSP, publishes VSIX, creates GitHub release)
+  → vite-v* / postcss-v* tags → release-plugins.yml (builds + publishes the plugin to npm)
 ```
 
 ## Adding a changeset to your PR
@@ -38,7 +39,7 @@ This creates a `.changeset/<random-name>.md` file. Commit it alongside your code
 - **@nemcss/vite** / **@nemcss/postcss** are the framework plugins.
 - **nemcss-vscode** is the VS Code extension. Bumping this creates a separate `editor-v*` tag and triggers the editor release workflow.
 
-The 5 platform CLI packages (`@nemcss/cli-darwin-arm64`, etc.) are ignored by changesets. They're synced automatically by `scripts/version.mjs`.
+The 5 platform CLI packages (`@nemcss/cli-darwin-arm64`, etc.) appear in the prompt but should never be selected — their versions are synced automatically by `scripts/version.mjs`.
 
 ### Rust crate → package mapping
 
@@ -71,8 +72,9 @@ Merge the "Version Packages" PR. This triggers:
 
 1. `scripts/release.mjs` runs and creates git tags for any new versions
 2. Tag pushes trigger the build workflows:
-   - `v0.5.0` → `release-core.yml`. Builds CLI + LSP + NAPI for all 5 platforms, publishes to npm, creates a GitHub release with binaries.
+   - `v0.5.0` → `release-core.yml`. Builds CLI + LSP + NAPI for all 5 platforms, publishes `nemcss`, `@nemcss/napi`, and the platform CLI packages to npm, creates a GitHub release with binaries.
    - `editor-v0.5.0` → `release-editor.yml`. Builds LSP, packages VSIX for all 5 platforms, publishes to VS Code Marketplace, creates a GitHub release with VSIX files.
+   - `vite-v0.3.0` / `postcss-v0.3.0` → `release-plugins.yml`. Builds and publishes the plugin to npm. These tags are pushed whenever the plugin version changed, including alongside a core release — `release-plugins.yml` is the only workflow that publishes the plugins.
 
 ## Changeset bot (optional)
 

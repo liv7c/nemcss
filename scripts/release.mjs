@@ -38,29 +38,15 @@ const postcssTag = `postcss-v${postcssPkg.version}`;
 
 const tagsToCreate = [];
 
-// Core and editor tags are always evaluated
-for (const tag of [coreTag, editorTag]) {
+// Plugin tags are always pushed alongside core/editor tags:
+// release-plugins.yml is the sole publisher for @nemcss/vite and
+// @nemcss/postcss (npm trusted publishing allows one workflow per package).
+for (const tag of [coreTag, editorTag, viteTag, postcssTag]) {
   if (!tagExists(tag)) {
     createTag(tag);
     tagsToCreate.push(tag);
   } else {
     console.log(`Tag ${tag} already exists, skipping`);
-  }
-}
-
-const coreTagIsNew = tagsToCreate.includes(coreTag);
-
-// Only push plugin tags when core is NOT being released.
-// If core is being released, release-core.yml handles plugin publishing,
-// so pushing plugin tags would cause two workflows to race on the same version.
-if (!coreTagIsNew) {
-  for (const tag of [viteTag, postcssTag]) {
-    if (!tagExists(tag)) {
-      createTag(tag);
-      tagsToCreate.push(tag);
-    } else {
-      console.log(`Tag ${tag} already exists, skipping`);
-    }
   }
 }
 
