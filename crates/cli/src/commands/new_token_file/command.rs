@@ -1,13 +1,59 @@
-use std::fs;
+use std::{fs, path::Path};
 
 use config::{CONFIG_FILE_NAME, NemCssConfig, TokenFile};
 use miette::Result;
 use owo_colors::OwoColorize;
+use serde_json::json;
 
 use crate::commands::new_token_file::{
     error::NewTokenFileError,
     scale::{ScaleSource, build_items},
 };
+
+/// Registers a token file under `theme.<name>` in the nemcss configuration file,
+/// preserving the existing formatting of all other keys.
+fn register_in_config(
+    config_path: &Path,
+    name: &str,
+    prefix: &str,
+    source: &str,
+    force: bool,
+) -> Result<(), NewTokenFileError> {
+    let content = fs::read_to_string(config_path).map_err(NewTokenFileError::ReadConfigFile)?;
+    let mut config: serde_json::Value =
+        serde_json::from_str(&content).map_err(NewTokenFileError::ParseConfigFile)?;
+
+    let root = config
+        .as_object_mut()
+        .ok_or(NewTokenFileError::ConfigNotAnObject)?;
+
+    let theme = root
+        .entry("theme")
+        .or_insert_with(|| json!({}))
+        .as_object_mut()
+        .ok_or(NewTokenFileError::ThemeNotAnObject)?;
+
+    if theme.contains_key(name) && !force {
+        return Err(NewTokenFileError::ThemeEntryExists {
+            name: name.to_string(),
+        });
+    }
+
+    theme.insert(
+        name.to_string(),
+        json!({"prefix": prefix, "source": source }),
+    );
+
+    // validate the the patched config is valid before overwriting the current config file
+    serde_json::from_value::<config::NemCssConfig>(config.clone())
+        .map_err(NewTokenFileError::PatchedConfigInvalid)?;
+
+    let output = serde_json::to_string_pretty(&config).map_err(NewTokenFileError::Serialize)?;
+
+    fs::write(config_path, output + "\n").map_err(NewTokenFileError::WriteConfigFile)?;
+
+    Ok(())
+}
 
 /// Command to generate a new token file
 pub fn new_token_file(
@@ -39,6 +85,15 @@ pub fn new_token_file(
         });
     }
 
+    let source_path = format!("{}/{name}.json", config.tokens_dir.display());
+    register_in_config(
+        &config_path,
+        name,
+        prefix.as_deref().unwrap_or(name),
+        &source_path,
+        force,
+    )?;
+
     let token_file = TokenFile {
         title: format!("{} Tokens", capitalize(name)),
         description: Some(format!("Design tokens for {name}")),
@@ -53,9 +108,6 @@ pub fn new_token_file(
         format!("{name}.json").green(),
         token_file_path.display()
     );
-
-    // TODO
-    let _ = prefix;
 
     Ok(())
 }

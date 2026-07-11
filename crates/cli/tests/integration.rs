@@ -1,5 +1,6 @@
 use assert_fs::TempDir;
 use assert_fs::prelude::*;
+use config::CONFIG_FILE_NAME;
 use predicates::prelude::*;
 
 /// Create the command to run the binary.
@@ -323,4 +324,62 @@ fn test_new_token_file_overwrites_with_force() {
         .child("design-tokens")
         .child("spacings.json")
         .assert(predicate::str::contains(r#""value": "33px""#));
+}
+
+#[test]
+fn test_new_token_file_registers_theme_entry() {
+    let (mut cmd, temp_dir) = setup_cmd().unwrap();
+    cmd.current_dir(&temp_dir).arg("init").assert().success();
+
+    let (mut cmd, _) = setup_cmd().unwrap();
+
+    cmd.current_dir(&temp_dir)
+        .args([
+            "new-token-file",
+            "radius",
+            "--unit",
+            "px",
+            "--values",
+            "2,4,8",
+        ])
+        .assert()
+        .success();
+
+    let config_content = std::fs::read_to_string(temp_dir.child(CONFIG_FILE_NAME).path()).unwrap();
+    let config: serde_json::Value = serde_json::from_str(&config_content).unwrap();
+
+    assert_eq!(config["theme"]["radius"]["prefix"], "radius");
+    assert_eq!(
+        config["theme"]["radius"]["source"],
+        "design-tokens/radius.json"
+    );
+}
+
+#[test]
+fn test_new_token_file_respects_custom_prefix() {
+    let (mut cmd, temp_dir) = setup_cmd().unwrap();
+    cmd.current_dir(&temp_dir).arg("init").assert().success();
+
+    let (mut cmd, _) = setup_cmd().unwrap();
+
+    cmd.current_dir(&temp_dir)
+        .args([
+            "new-token-file",
+            "font-size",
+            "--unit",
+            "rem",
+            "--values",
+            "1,1.25",
+            "--names",
+            "sm, md",
+            "--prefix",
+            "text",
+        ])
+        .assert()
+        .success();
+
+    let config_content =
+        std::fs::read_to_string(temp_dir.child("nemcss.config.json").path()).unwrap();
+    let config: serde_json::Value = serde_json::from_str(&config_content).unwrap();
+    assert_eq!(config["theme"]["font-size"]["prefix"], "text");
 }

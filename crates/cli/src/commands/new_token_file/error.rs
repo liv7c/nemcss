@@ -48,4 +48,32 @@ pub enum NewTokenFileError {
     #[error("unable to write token file: {0}")]
     #[diagnostic(code(nemcss::new_token_file::write_token_file))]
     WriteTokenFile(std::io::Error),
+
+    #[error("unable to read config file content: {0}")]
+    #[diagnostic(code(nemcss::new_token_file::read_config_file))]
+    ReadConfigFile(std::io::Error),
+
+    #[error("unable to parse config file content: {0}")]
+    #[diagnostic(code(nemcss::new_token_file::parse_config_file))]
+    ParseConfigFile(serde_json::Error),
+
+    #[error("config file content is not an object")]
+    #[diagnostic(code(nemcss::new_token_file::config_not_an_object))]
+    ConfigNotAnObject,
+
+    #[error("theme entry in the config is not an object")]
+    #[diagnostic(code(nemcss::new_token_file::theme_not_an_object))]
+    ThemeNotAnObject,
+
+    #[error("theme entry with name {name} already exists in the config")]
+    #[diagnostic(code(nemcss::new_token_file::theme_entry_exists))]
+    ThemeEntryExists { name: String },
+
+    #[error("patched config file is invalid: {0}")]
+    #[diagnostic(code(nemcss::new_token_file::patched_config_invalid))]
+    PatchedConfigInvalid(serde_json::Error),
+
+    #[error("unable to overwrite current nemcss config file: {0}")]
+    #[diagnostic(code(nemcss::new_token_file::write_config_file))]
+    WriteConfigFile(std::io::Error),
 }
