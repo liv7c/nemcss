@@ -43,6 +43,25 @@
 //! - Configuration file (`nemcss.config.json`)
 //! - Input CSS file
 //!
+//! ## new-token-file
+//!
+//! Creates a new token file in the design tokens folder and registers it in the `nemcss.config.json`.
+//!
+//! ```bash
+//! nemcss new-token-file radius --names "xs,sm,md" --values "2,4,8" --unit "px"
+//! nemcss new-token-file spacing --unit "rem" --step 0.5 --count 12
+//! nemcss new-token-file font-size --unit "rem" --values "1,clamp(1.5rem, 1rem + 2vw, 2.5rem)" --names "md,fluid"
+//! nemcss new-token-file max-width
+//! ```
+//!
+//! This command:
+//! - create a new design token file named based on the first positional argument provided
+//! - registers the new design token config in the `nemcss.config.json`
+//!
+//! Values can be numbers (`--unit` is appended) or arbitrary CSS like `clamp(...)`.
+//! You can also generate scaled values via the `--step` and `--count` flags.
+//! Existing token files are never overwritten without the `--force` flag.
+//!
 //! ## schema
 //!
 //! Prints to stdout the JSON schema for `NemCssConfig`.

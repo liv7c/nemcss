@@ -81,6 +81,35 @@ Prints the JSON schema for `nemcss.config.json` to stdout. Useful for piping int
 nemcss schema > nemcss.config.schema.json
 ```
 
+### `new-token-file`
+
+Generates a design token file in your `tokensDir` and registers it under `theme`
+in `nemcss.config.json`. Requires an existing config — run `nemcss init` first.
+Aliased as `nemcss ntf`.
+
+```sh
+# explicit values with names
+nemcss new-token-file spacing --unit px --values "8,16,24,32" --names "sm,md,lg,xl"
+
+# generated uniform scale (0.5rem, 1rem, … 6rem)
+nemcss new-token-file spacing --unit rem --step 0.5 --count 12
+
+# arbitrary CSS values are kept verbatim — commas inside () are safe
+nemcss new-token-file font-size --unit rem --values "1,clamp(1.5rem, 1rem + 2vw, 2.5rem)" --names "md,fluid"
+
+# empty placeholder file to fill in by hand
+nemcss new-token-file max-width
+```
+
+| Flag                           | Description                                                                                                                   |
+| ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
+| `--values`                     | Comma-separated values. Numbers get `--unit` appended (`0` stays bare); anything else is kept verbatim and requires `--names` |
+| `--step`, `--count`, `--start` | Generate a uniform scale instead; `--start` defaults to `--step`. Mutually exclusive with `--values`                          |
+| `--names`                      | Token names, one per value. Numeric values name themselves when omitted                                                       |
+| `--unit`                       | CSS unit appended to numeric values (`px`, `rem`, …)                                                                          |
+| `--prefix`                     | Custom-property prefix registered in the config (defaults to the file name)                                                   |
+| `--force`                      | Overwrite an existing token file or `theme` entry                                                                             |
+
 ## Directives
 
 The CLI looks for two directives in the input file and replaces them with generated CSS:
