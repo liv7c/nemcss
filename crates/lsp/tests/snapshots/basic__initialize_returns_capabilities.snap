@@ -3,6 +3,9 @@ source: crates/lsp/tests/basic.rs
 expression: "result[\"capabilities\"]"
 ---
 {
+  "positionEncoding": "utf-16",
+  "textDocumentSync": 1,
+  "hoverProvider": true,
   "completionProvider": {
     "triggerCharacters": [
       " ",
@@ -12,8 +15,5 @@ expression: "result[\"capabilities\"]"
       "-",
       "{"
     ]
-  },
-  "hoverProvider": true,
-  "positionEncoding": "utf-16",
-  "textDocumentSync": 1
+  }
 }
