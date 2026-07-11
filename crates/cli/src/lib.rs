@@ -242,7 +242,14 @@ pub fn run() -> miette::Result<()> {
                 (None, None) => commands::ScaleSource::Placeholder,
             };
 
-            commands::new_token_file(&name, source, names, &unit, prefix, force)?
+            let request = commands::TokenFileRequest {
+                prefix: prefix.unwrap_or(name.clone()),
+                name,
+                source,
+                names,
+                unit,
+            };
+            commands::new_token_file(request, force)?
         }
     }
 

@@ -55,15 +55,25 @@ fn register_in_config(
     Ok(())
 }
 
+/// Everything the `new-token-file` token needs to create a token file,
+/// regardless of whether the options were collected via flags or from interactive prompts.
+pub struct TokenFileRequest {
+    pub name: String,
+    pub source: ScaleSource,
+    pub names: Option<Vec<String>>,
+    pub unit: String,
+    pub prefix: String,
+}
+
 /// Command to generate a new token file
-pub fn new_token_file(
-    name: &str,
-    source: ScaleSource,
-    names: Option<Vec<String>>,
-    unit: &str,
-    prefix: Option<String>,
-    force: bool,
-) -> Result<(), NewTokenFileError> {
+pub fn new_token_file(request: TokenFileRequest, force: bool) -> Result<(), NewTokenFileError> {
+    let TokenFileRequest {
+        name,
+        source,
+        names,
+        unit,
+        prefix,
+    } = request;
     let current_dir = std::env::current_dir().map_err(NewTokenFileError::RetrieveCurrentDir)?;
 
     let config_path = current_dir.join(CONFIG_FILE_NAME);
@@ -73,7 +83,7 @@ pub fn new_token_file(
 
     let config = NemCssConfig::from_path(&config_path).map_err(NewTokenFileError::LoadConfig)?;
 
-    let items = build_items(&source, names.as_deref(), unit)?;
+    let items = build_items(&source, names.as_deref(), &unit)?;
 
     let tokens_dir = current_dir.join(&config.tokens_dir);
     fs::create_dir_all(&tokens_dir).map_err(NewTokenFileError::CreateTokensDir)?;
@@ -86,16 +96,10 @@ pub fn new_token_file(
     }
 
     let source_path = format!("{}/{name}.json", config.tokens_dir.display());
-    register_in_config(
-        &config_path,
-        name,
-        prefix.as_deref().unwrap_or(name),
-        &source_path,
-        force,
-    )?;
+    register_in_config(&config_path, &name, &prefix, &source_path, force)?;
 
     let token_file = TokenFile {
-        title: format!("{} Tokens", capitalize(name)),
+        title: format!("{} Tokens", capitalize(&name)),
         description: Some(format!("Design tokens for {name}")),
         items,
     };

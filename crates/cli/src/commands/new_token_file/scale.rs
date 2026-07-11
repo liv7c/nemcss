@@ -225,7 +225,7 @@ mod tests {
             "lg".to_string(),
             "xl".to_string(),
         ];
-        let items = build_items(&source, Some(&names), "rem").unwrap();
+        let items = build_items(source, Some(&names), "rem").unwrap();
 
         assert_eq!(items[1].name, "md");
         assert_eq!(items[1].value, TokenValue::Simple("1.25rem".to_string()));
@@ -236,7 +236,7 @@ mod tests {
         // 4 values vs only 3 names
         let source = &explicit(&["1.0", "1.25", "1.50", "2.0"]);
         let names = vec!["sm".to_string(), "md".to_string(), "lg".to_string()];
-        let result = build_items(&source, Some(&names), "rem");
+        let result = build_items(source, Some(&names), "rem");
 
         assert!(matches!(
             result,
