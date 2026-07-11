@@ -8,6 +8,6 @@ mod watch;
 
 pub use build::build;
 pub use init::init;
-pub use new_token_file::new_token_file;
+pub use new_token_file::{ScaleSource, new_token_file, split_values};
 pub use schema::schema;
 pub use watch::watch;

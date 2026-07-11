@@ -120,3 +120,62 @@ fn test_init_skips_existing_design_tokens_dir() {
         .child("colors.json")
         .assert(predicate::path::missing());
 }
+
+#[test]
+fn test_new_token_file_appears_in_help() {
+    let (mut cmd, _) = setup_cmd().unwrap();
+
+    cmd.arg("-h")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("new-token-file"));
+}
+
+#[test]
+fn test_new_token_file_rejects_values_combined_with_step() {
+    let (mut cmd, temp_dir) = setup_cmd().unwrap();
+
+    cmd.current_dir(&temp_dir)
+        .args([
+            "new-token-file",
+            "spacing",
+            "--values",
+            "8,16",
+            "--step",
+            "8",
+            "--count",
+            "4",
+        ])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("cannot be used with"));
+}
+
+#[test]
+fn test_new_token_file_rejects_step_without_count() {
+    let (mut cmd, temp_dir) = setup_cmd().unwrap();
+
+    cmd.current_dir(&temp_dir)
+        .args(["new-token-file", "spacing", "--step", "8"])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("required"));
+}
+
+#[test]
+fn test_new_token_file_rejects_start_without_step() {
+    let (mut cmd, temp_dir) = setup_cmd().unwrap();
+
+    cmd.current_dir(&temp_dir)
+        .args([
+            "new-token-file",
+            "spacing",
+            "--start",
+            "0.5",
+            "--count",
+            "3",
+        ])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("required"));
+}

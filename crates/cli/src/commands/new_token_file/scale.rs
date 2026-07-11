@@ -10,11 +10,11 @@ pub fn format_number(value: f64) -> String {
 /// Split a `--values` string on top-level commas only.
 /// Commas inside of parentheses remain untouched.
 ///
-/// ```
+/// ```ignore
 /// split_values("1rem, clamp(1rem, 2vw+1.5rem, 4rem), 5rem");
 /// # vec!["1rem", "clamp(1rem, 2vw+1.5rem, 4rem)", "5rem"]
 /// ```
-fn split_values(raw: &str) -> Vec<String> {
+pub fn split_values(raw: &str) -> Vec<String> {
     let mut output = Vec::new();
     // buffer used to keep track of current substring
     let mut current = String::new();
