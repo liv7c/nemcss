@@ -179,3 +179,148 @@ fn test_new_token_file_rejects_start_without_step() {
         .failure()
         .stderr(predicate::str::contains("required"));
 }
+
+#[test]
+fn test_new_token_file_errors_without_config_file() {
+    let (mut cmd, temp_dir) = setup_cmd().unwrap();
+
+    cmd.current_dir(&temp_dir)
+        .args([
+            "new-token-file",
+            "radius",
+            "--unit",
+            "px",
+            "--values",
+            "2, 4, 8",
+        ])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("nemcss init"));
+}
+
+#[test]
+fn test_new_token_file_creates_token_file() {
+    let (mut cmd, temp_dir) = setup_cmd().unwrap();
+
+    cmd.current_dir(&temp_dir).arg("init").assert().success();
+
+    let (mut cmd, _) = setup_cmd().unwrap();
+
+    cmd.current_dir(&temp_dir)
+        .args([
+            "new-token-file",
+            "radius",
+            "--unit",
+            "px",
+            "--values",
+            "2, 4, 8",
+            "--names",
+            "xs,sm,md",
+        ])
+        .assert()
+        .success();
+
+    let expected = r#"{
+  "title": "Radius Tokens",
+  "description": "Design tokens for radius",
+  "items": [
+    {
+      "name": "xs",
+      "value": "2px"
+    },
+    {
+      "name": "sm",
+      "value": "4px"
+    },
+    {
+      "name": "md",
+      "value": "8px"
+    }
+  ]
+}"#;
+    temp_dir
+        .child("design-tokens")
+        .child("radius.json")
+        .assert(predicate::path::is_file())
+        .assert(predicate::str::contains(expected));
+}
+
+#[test]
+fn test_new_token_file_accepts_css_function_values() {
+    let (mut cmd, temp_dir) = setup_cmd().unwrap();
+
+    cmd.current_dir(&temp_dir).arg("init").assert().success();
+
+    let (mut cmd, _) = setup_cmd().unwrap();
+
+    cmd.current_dir(&temp_dir)
+        .args([
+            "new-token-file",
+            "font-size",
+            "--unit",
+            "rem",
+            "--values",
+            "1,clamp(1.5rem, 1rem + 2vw, 2.5rem)",
+            "--names",
+            "md, fluid",
+        ])
+        .assert()
+        .success();
+
+    temp_dir
+        .child("design-tokens")
+        .child("font-size.json")
+        .assert(predicate::str::contains(r#"value": "1rem""#))
+        .assert(predicate::str::contains(
+            r#"value": "clamp(1.5rem, 1rem + 2vw, 2.5rem)""#,
+        ));
+}
+
+#[test]
+fn test_new_token_file_refuses_to_overwrite_without_force_flag() {
+    let (mut cmd, temp_dir) = setup_cmd().unwrap();
+
+    cmd.current_dir(&temp_dir).arg("init").assert().success();
+
+    let (mut cmd, _) = setup_cmd().unwrap();
+
+    cmd.current_dir(&temp_dir)
+        .args([
+            "new-token-file",
+            "spacings",
+            "--unit",
+            "px",
+            "--values",
+            "8,16",
+        ])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("--force"));
+}
+
+#[test]
+fn test_new_token_file_overwrites_with_force() {
+    let (mut cmd, temp_dir) = setup_cmd().unwrap();
+
+    cmd.current_dir(&temp_dir).arg("init").assert().success();
+
+    let (mut cmd, _) = setup_cmd().unwrap();
+
+    cmd.current_dir(&temp_dir)
+        .args([
+            "new-token-file",
+            "spacings",
+            "--unit",
+            "px",
+            "--values",
+            "33",
+            "--force",
+        ])
+        .assert()
+        .success();
+
+    temp_dir
+        .child("design-tokens")
+        .child("spacings.json")
+        .assert(predicate::str::contains(r#""value": "33px""#));
+}
