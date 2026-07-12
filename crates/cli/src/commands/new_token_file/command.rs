@@ -109,9 +109,6 @@ pub fn new_token_file(request: TokenFileRequest, force: bool) -> Result<(), NewT
         });
     }
 
-    let source_path = format!("{}/{name}.json", config.tokens_dir.display());
-    register_in_config(&config_path, &name, &prefix, &source_path, force)?;
-
     let token_file = TokenFile {
         title: format!("{} Tokens", capitalize(&name)),
         description: Some(format!("Design tokens for {name}")),
@@ -120,6 +117,9 @@ pub fn new_token_file(request: TokenFileRequest, force: bool) -> Result<(), NewT
 
     let json = serde_json::to_string_pretty(&token_file).map_err(NewTokenFileError::Serialize)?;
     fs::write(&token_file_path, json + "\n").map_err(NewTokenFileError::WriteTokenFile)?;
+
+    let source_path = format!("{}/{name}.json", config.tokens_dir.display());
+    register_in_config(&config_path, &name, &prefix, &source_path, force)?;
 
     println!(
         " ✔︎ Created {} at {}",

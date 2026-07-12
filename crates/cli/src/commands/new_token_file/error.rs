@@ -14,7 +14,7 @@ pub enum NewTokenFileError {
     NameCountMismatch { expected: usize, got: usize },
 
     #[error(
-        "value {value:?} is not a number, so it cannot automically be named automatically. Use the --names argument"
+        "value {value:?} is not a number, so it cannot be named automatically. Use the --names argument"
     )]
     #[diagnostic(code(nemcss::new_token_file::name_required_for_value))]
     NameRequiredForValue { value: String },
