@@ -39,10 +39,24 @@ fn register_in_config(
         });
     }
 
-    theme.insert(
-        name.to_string(),
-        json!({"prefix": prefix, "source": source }),
-    );
+    // if key exists in theme, merge the new token file settings with other already set options
+    match theme.get_mut(name) {
+        Some(existing) => {
+            let obj = existing.as_object_mut().ok_or_else(|| {
+                NewTokenFileError::ThemeEntryNotAnObject {
+                    name: name.to_string(),
+                }
+            })?;
+            obj.insert("prefix".to_string(), json!(prefix));
+            obj.insert("source".to_string(), json!(source));
+        }
+        None => {
+            theme.insert(
+                name.to_string(),
+                json!({ "prefix": prefix, "source": source }),
+            );
+        }
+    }
 
     // validate the the patched config is valid before overwriting the current config file
     serde_json::from_value::<config::NemCssConfig>(config.clone())

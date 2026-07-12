@@ -69,6 +69,10 @@ pub enum NewTokenFileError {
     #[diagnostic(code(nemcss::new_token_file::theme_entry_exists))]
     ThemeEntryExists { name: String },
 
+    #[error("theme entry with {name} is not an object, so it cannot be updated in place")]
+    #[diagnostic(code(nemcss::new_token_file::theme_entry_not_an_object))]
+    ThemeEntryNotAnObject { name: String },
+
     #[error("patched config file is invalid: {0}")]
     #[diagnostic(code(nemcss::new_token_file::patched_config_invalid))]
     PatchedConfigInvalid(serde_json::Error),

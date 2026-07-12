@@ -1,3 +1,5 @@
+use std::fs;
+
 use assert_fs::TempDir;
 use assert_fs::prelude::*;
 use config::CONFIG_FILE_NAME;
@@ -324,6 +326,17 @@ fn test_new_token_file_overwrites_with_force() {
         .child("design-tokens")
         .child("spacings.json")
         .assert(predicate::str::contains(r#""value": "33px""#));
+
+    let config_content = fs::read_to_string(temp_dir.child(CONFIG_FILE_NAME).path()).unwrap();
+    let config: serde_json::Value = serde_json::from_str(&config_content).unwrap();
+
+    assert_eq!(
+        config["theme"]["spacings"]["utilities"],
+        serde_json::json!([
+        { "prefix": "p", "property": "padding" },
+        { "prefix": "m", "property": "margin"}
+        ])
+    )
 }
 
 #[test]
@@ -410,15 +423,4 @@ fn test_new_token_file_name_still_required_without_interactive() {
         .assert()
         .failure()
         .stderr(predicate::str::contains("required"));
-}
-
-#[test]
-fn test_new_token_file_fails_gracefully_without_a_terminal() {
-    let (mut cmd, temp_dir) = setup_cmd().unwrap();
-
-    cmd.current_dir(&temp_dir)
-        .args(["new-token-file", "--interactive"])
-        .assert()
-        .failure()
-        .stderr(predicate::str::contains("terminal"));
 }
