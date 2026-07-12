@@ -1,5 +1,11 @@
 # @nemcss/cli-linux-x64
 
+## 0.8.0
+
+### Minor Changes
+
+- 6b67edc: Add new-token-file command to generate a token file via the CLI
+
 ## 0.7.2
 
 ### Patch Changes
