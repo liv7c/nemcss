@@ -383,3 +383,42 @@ fn test_new_token_file_respects_custom_prefix() {
     let config: serde_json::Value = serde_json::from_str(&config_content).unwrap();
     assert_eq!(config["theme"]["font-size"]["prefix"], "text");
 }
+
+#[test]
+fn test_new_token_file_interactive_conflicts_with_value_flags() {
+    let (mut cmd, temp_dir) = setup_cmd().unwrap();
+
+    cmd.current_dir(&temp_dir)
+        .args([
+            "new-token-file",
+            "spacing",
+            "--interactive",
+            "--values",
+            "8,16",
+        ])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("cannot be used with"));
+}
+
+#[test]
+fn test_new_token_file_name_still_required_without_interactive() {
+    let (mut cmd, temp_dir) = setup_cmd().unwrap();
+
+    cmd.current_dir(&temp_dir)
+        .arg("new-token-file")
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("required"));
+}
+
+#[test]
+fn test_new_token_file_fails_gracefully_without_a_terminal() {
+    let (mut cmd, temp_dir) = setup_cmd().unwrap();
+
+    cmd.current_dir(&temp_dir)
+        .args(["new-token-file", "--interactive"])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("terminal"));
+}

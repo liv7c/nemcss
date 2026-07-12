@@ -76,4 +76,12 @@ pub enum NewTokenFileError {
     #[error("unable to overwrite current nemcss config file: {0}")]
     #[diagnostic(code(nemcss::new_token_file::write_config_file))]
     WriteConfigFile(std::io::Error),
+
+    #[error("interactive mode requires a terminal")]
+    #[diagnostic(code(nemcss::new_token_file::not_a_terminal))]
+    NotATerminal,
+
+    #[error("prompt failed: {0}")]
+    #[diagnostic(code(nemcss::new_token_file::prompt))]
+    Prompt(inquire::InquireError),
 }

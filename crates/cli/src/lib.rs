@@ -88,6 +88,8 @@ use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
 
+use crate::commands::interative_request;
+
 /// A CLI for the `nemcss` project, a design-token-driven CSS utility generator.
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -162,7 +164,8 @@ enum Command {
     #[command(visible_alias = "ntf")]
     NewTokenFile {
         /// Name of the token file (e.g. "spacing" creates a spacing.json file)
-        name: String,
+        #[arg(required_unless_present = "interactive")]
+        name: Option<String>,
         /// Comma-separated values: numbers get --unit appended. Anything else is kept as such.
         #[arg(long, conflicts_with_all = ["step", "count", "start"])]
         values: Option<String>,
@@ -190,6 +193,10 @@ enum Command {
         /// Prefix for the generated custom properties (defaults to the file name)
         #[arg(long)]
         prefix: Option<String>,
+
+        /// Answer prompts instead of passing value flags
+        #[arg(short, long, default_value_t = false, conflicts_with_all = ["values", "step", "count", "start", "names", "unit", "prefix"])]
+        interactive: bool,
 
         /// Overwrite an existing token file and theme entry.
         #[arg(long, default_value_t = false)]
@@ -229,6 +236,7 @@ pub fn run() -> miette::Result<()> {
             unit,
             prefix,
             force,
+            interactive,
         } => {
             let source = match (values, step) {
                 (Some(values), _) => {
@@ -242,12 +250,18 @@ pub fn run() -> miette::Result<()> {
                 (None, None) => commands::ScaleSource::Placeholder,
             };
 
-            let request = commands::TokenFileRequest {
-                prefix: prefix.unwrap_or(name.clone()),
-                name,
-                source,
-                names,
-                unit,
+            let request = if interactive {
+                interative_request(name)?
+            } else {
+                let name = name.expect("required unless the command is run in interactive mode");
+
+                commands::TokenFileRequest {
+                    prefix: prefix.unwrap_or(name.clone()),
+                    name,
+                    source,
+                    names,
+                    unit,
+                }
             };
             commands::new_token_file(request, force)?
         }
