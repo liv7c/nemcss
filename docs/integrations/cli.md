@@ -1,6 +1,6 @@
 # CLI
 
-The `nemcss` CLI provides standalone `build`, `watch`, `init`, and `schema` commands. No build tool required.
+The `nemcss` CLI provides standalone `build`, `watch`, `init`, `new-token-file` and `schema` commands. No build tool required.
 
 ## Installation
 
@@ -32,12 +32,13 @@ When installed locally, run commands via `npx nemcss <command>` or add them as s
 
 ## Commands
 
-| Command                               | Description                                                                    |
-| ------------------------------------- | ------------------------------------------------------------------------------ |
-| `nemcss init`                         | Scaffold `nemcss.config.json` and example token files in the current directory |
-| `nemcss build -i <input> -o <output>` | One-shot build: scan content files and write CSS                               |
-| `nemcss watch -i <input> -o <output>` | Watch mode: rebuild on token, content, or config changes                       |
-| `nemcss schema`                       | Print the JSON schema for `nemcss.config.json` to stdout                       |
+| Command                               | Description                                                                                                    |
+| ------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `nemcss init`                         | Scaffold `nemcss.config.json` and example token files in the current directory                                 |
+| `nemcss build -i <input> -o <output>` | One-shot build: scan content files and write CSS                                                               |
+| `nemcss watch -i <input> -o <output>` | Watch mode: rebuild on token, content, or config changes                                                       |
+| `nemcss schema`                       | Print the JSON schema for `nemcss.config.json` to stdout                                                       |
+| `nemcss new-token-file <NAME>`        | Generates a new token file and registers it in nemcss.config.json. Run it with `--help` to see all the options |
 
 ### `init`
 
@@ -84,22 +85,34 @@ nemcss schema > nemcss.config.schema.json
 ### `new-token-file`
 
 Generates a design token file in your `tokensDir` and registers it under `theme`
-in `nemcss.config.json`. Requires an existing config — run `nemcss init` first.
+in `nemcss.config.json`. Requires an existing config. Run `nemcss init` first before trying this command.
 Aliased as `nemcss ntf`.
 
+Run it with explicit values with names:
+
 ```sh
-# explicit values with names
 nemcss new-token-file spacing --unit px --values "8,16,24,32" --names "sm,md,lg,xl"
+```
 
-# generated uniform scale (0.5rem, 1rem, … 6rem)
+You can also generate uniform scales (0.5, 1, 1.5):
+
+```sh
 nemcss new-token-file spacing --unit rem --step 0.5 --count 12
+```
 
-# arbitrary CSS values are kept verbatim — commas inside () are safe
+Or with arbitrary values (kept as such in the generated token file):
+
+```sh
 nemcss new-token-file font-size --unit rem --values "1,clamp(1.5rem, 1rem + 2vw, 2.5rem)" --names "md,fluid"
+```
 
-# empty placeholder file to fill in by hand
+You can also generate a placeholder file you can edit manually:
+
+```sh
 nemcss new-token-file max-width
 ```
+
+Here's a recap of all the command options:
 
 | Flag                           | Description                                                                                                                   |
 | ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
@@ -109,6 +122,7 @@ nemcss new-token-file max-width
 | `--unit`                       | CSS unit appended to numeric values (`px`, `rem`, …)                                                                          |
 | `--prefix`                     | Custom-property prefix registered in the config (defaults to the file name)                                                   |
 | `--force`                      | Overwrite an existing token file or `theme` entry                                                                             |
+| `--interactive`                | Run the command in interactive mode                                                                                           |
 
 ## Directives
 

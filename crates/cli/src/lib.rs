@@ -160,7 +160,7 @@ enum Command {
     ///
     /// Example usage:
     /// nemcss new-token-file spacing --unit px --values "8,16,24,32" --names "sm,md,lg,xl"
-    /// newmcss new-tokenf-file spacing --unit rem --step 0.5 --count 12
+    /// nemcss new-token-file spacing --unit rem --step 0.5 --count 12
     #[command(visible_alias = "ntf")]
     NewTokenFile {
         /// Name of the token file (e.g. "spacing" creates a spacing.json file)
