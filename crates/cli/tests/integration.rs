@@ -1,5 +1,8 @@
+use std::fs;
+
 use assert_fs::TempDir;
 use assert_fs::prelude::*;
+use config::CONFIG_FILE_NAME;
 use predicates::prelude::*;
 
 /// Create the command to run the binary.
@@ -119,4 +122,305 @@ fn test_init_skips_existing_design_tokens_dir() {
         .child("design-tokens")
         .child("colors.json")
         .assert(predicate::path::missing());
+}
+
+#[test]
+fn test_new_token_file_appears_in_help() {
+    let (mut cmd, _) = setup_cmd().unwrap();
+
+    cmd.arg("-h")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("new-token-file"));
+}
+
+#[test]
+fn test_new_token_file_rejects_values_combined_with_step() {
+    let (mut cmd, temp_dir) = setup_cmd().unwrap();
+
+    cmd.current_dir(&temp_dir)
+        .args([
+            "new-token-file",
+            "spacing",
+            "--values",
+            "8,16",
+            "--step",
+            "8",
+            "--count",
+            "4",
+        ])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("cannot be used with"));
+}
+
+#[test]
+fn test_new_token_file_rejects_step_without_count() {
+    let (mut cmd, temp_dir) = setup_cmd().unwrap();
+
+    cmd.current_dir(&temp_dir)
+        .args(["new-token-file", "spacing", "--step", "8"])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("required"));
+}
+
+#[test]
+fn test_new_token_file_rejects_start_without_step() {
+    let (mut cmd, temp_dir) = setup_cmd().unwrap();
+
+    cmd.current_dir(&temp_dir)
+        .args([
+            "new-token-file",
+            "spacing",
+            "--start",
+            "0.5",
+            "--count",
+            "3",
+        ])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("required"));
+}
+
+#[test]
+fn test_new_token_file_errors_without_config_file() {
+    let (mut cmd, temp_dir) = setup_cmd().unwrap();
+
+    cmd.current_dir(&temp_dir)
+        .args([
+            "new-token-file",
+            "radius",
+            "--unit",
+            "px",
+            "--values",
+            "2, 4, 8",
+        ])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("nemcss init"));
+}
+
+#[test]
+fn test_new_token_file_creates_token_file() {
+    let (mut cmd, temp_dir) = setup_cmd().unwrap();
+
+    cmd.current_dir(&temp_dir).arg("init").assert().success();
+
+    let (mut cmd, _) = setup_cmd().unwrap();
+
+    cmd.current_dir(&temp_dir)
+        .args([
+            "new-token-file",
+            "radius",
+            "--unit",
+            "px",
+            "--values",
+            "2, 4, 8",
+            "--names",
+            "xs,sm,md",
+        ])
+        .assert()
+        .success();
+
+    let expected = r#"{
+  "title": "Radius Tokens",
+  "description": "Design tokens for radius",
+  "items": [
+    {
+      "name": "xs",
+      "value": "2px"
+    },
+    {
+      "name": "sm",
+      "value": "4px"
+    },
+    {
+      "name": "md",
+      "value": "8px"
+    }
+  ]
+}"#;
+    temp_dir
+        .child("design-tokens")
+        .child("radius.json")
+        .assert(predicate::path::is_file())
+        .assert(predicate::str::contains(expected));
+}
+
+#[test]
+fn test_new_token_file_accepts_css_function_values() {
+    let (mut cmd, temp_dir) = setup_cmd().unwrap();
+
+    cmd.current_dir(&temp_dir).arg("init").assert().success();
+
+    let (mut cmd, _) = setup_cmd().unwrap();
+
+    cmd.current_dir(&temp_dir)
+        .args([
+            "new-token-file",
+            "font-size",
+            "--unit",
+            "rem",
+            "--values",
+            "1,clamp(1.5rem, 1rem + 2vw, 2.5rem)",
+            "--names",
+            "md, fluid",
+        ])
+        .assert()
+        .success();
+
+    temp_dir
+        .child("design-tokens")
+        .child("font-size.json")
+        .assert(predicate::str::contains(r#"value": "1rem""#))
+        .assert(predicate::str::contains(
+            r#"value": "clamp(1.5rem, 1rem + 2vw, 2.5rem)""#,
+        ));
+}
+
+#[test]
+fn test_new_token_file_refuses_to_overwrite_without_force_flag() {
+    let (mut cmd, temp_dir) = setup_cmd().unwrap();
+
+    cmd.current_dir(&temp_dir).arg("init").assert().success();
+
+    let (mut cmd, _) = setup_cmd().unwrap();
+
+    cmd.current_dir(&temp_dir)
+        .args([
+            "new-token-file",
+            "spacings",
+            "--unit",
+            "px",
+            "--values",
+            "8,16",
+        ])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("--force"));
+}
+
+#[test]
+fn test_new_token_file_overwrites_with_force() {
+    let (mut cmd, temp_dir) = setup_cmd().unwrap();
+
+    cmd.current_dir(&temp_dir).arg("init").assert().success();
+
+    let (mut cmd, _) = setup_cmd().unwrap();
+
+    cmd.current_dir(&temp_dir)
+        .args([
+            "new-token-file",
+            "spacings",
+            "--unit",
+            "px",
+            "--values",
+            "33",
+            "--force",
+        ])
+        .assert()
+        .success();
+
+    temp_dir
+        .child("design-tokens")
+        .child("spacings.json")
+        .assert(predicate::str::contains(r#""value": "33px""#));
+
+    let config_content = fs::read_to_string(temp_dir.child(CONFIG_FILE_NAME).path()).unwrap();
+    let config: serde_json::Value = serde_json::from_str(&config_content).unwrap();
+
+    assert_eq!(
+        config["theme"]["spacings"]["utilities"],
+        serde_json::json!([
+        { "prefix": "p", "property": "padding" },
+        { "prefix": "m", "property": "margin"}
+        ])
+    )
+}
+
+#[test]
+fn test_new_token_file_registers_theme_entry() {
+    let (mut cmd, temp_dir) = setup_cmd().unwrap();
+    cmd.current_dir(&temp_dir).arg("init").assert().success();
+
+    let (mut cmd, _) = setup_cmd().unwrap();
+
+    cmd.current_dir(&temp_dir)
+        .args([
+            "new-token-file",
+            "radius",
+            "--unit",
+            "px",
+            "--values",
+            "2,4,8",
+        ])
+        .assert()
+        .success();
+
+    let config_content = std::fs::read_to_string(temp_dir.child(CONFIG_FILE_NAME).path()).unwrap();
+    let config: serde_json::Value = serde_json::from_str(&config_content).unwrap();
+
+    assert_eq!(config["theme"]["radius"]["prefix"], "radius");
+    assert_eq!(
+        config["theme"]["radius"]["source"],
+        "design-tokens/radius.json"
+    );
+}
+
+#[test]
+fn test_new_token_file_respects_custom_prefix() {
+    let (mut cmd, temp_dir) = setup_cmd().unwrap();
+    cmd.current_dir(&temp_dir).arg("init").assert().success();
+
+    let (mut cmd, _) = setup_cmd().unwrap();
+
+    cmd.current_dir(&temp_dir)
+        .args([
+            "new-token-file",
+            "font-size",
+            "--unit",
+            "rem",
+            "--values",
+            "1,1.25",
+            "--names",
+            "sm, md",
+            "--prefix",
+            "text",
+        ])
+        .assert()
+        .success();
+
+    let config_content =
+        std::fs::read_to_string(temp_dir.child("nemcss.config.json").path()).unwrap();
+    let config: serde_json::Value = serde_json::from_str(&config_content).unwrap();
+    assert_eq!(config["theme"]["font-size"]["prefix"], "text");
+}
+
+#[test]
+fn test_new_token_file_interactive_conflicts_with_value_flags() {
+    let (mut cmd, temp_dir) = setup_cmd().unwrap();
+
+    cmd.current_dir(&temp_dir)
+        .args([
+            "new-token-file",
+            "spacing",
+            "--interactive",
+            "--values",
+            "8,16",
+        ])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("cannot be used with"));
+}
+
+#[test]
+fn test_new_token_file_name_still_required_without_interactive() {
+    let (mut cmd, temp_dir) = setup_cmd().unwrap();
+
+    cmd.current_dir(&temp_dir)
+        .arg("new-token-file")
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("required"));
 }

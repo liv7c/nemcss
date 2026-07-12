@@ -21,4 +21,4 @@ pub use resolver::{
     ResolveSemanticError, ResolveTokensError, ResolvedSemanticGroup, ResolvedToken,
     resolve_all_semantic_groups, resolve_all_tokens,
 };
-pub use token::TokenValue;
+pub use token::{TokenFile, TokenItem, TokenValue};

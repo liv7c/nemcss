@@ -43,6 +43,25 @@
 //! - Configuration file (`nemcss.config.json`)
 //! - Input CSS file
 //!
+//! ## new-token-file
+//!
+//! Creates a new token file in the design tokens folder and registers it in the `nemcss.config.json`.
+//!
+//! ```bash
+//! nemcss new-token-file radius --names "xs,sm,md" --values "2,4,8" --unit "px"
+//! nemcss new-token-file spacing --unit "rem" --step 0.5 --count 12
+//! nemcss new-token-file font-size --unit "rem" --values "1,clamp(1.5rem, 1rem + 2vw, 2.5rem)" --names "md,fluid"
+//! nemcss new-token-file max-width
+//! ```
+//!
+//! This command:
+//! - create a new design token file named based on the first positional argument provided
+//! - registers the new design token config in the `nemcss.config.json`
+//!
+//! Values can be numbers (`--unit` is appended) or arbitrary CSS like `clamp(...)`.
+//! You can also generate scaled values via the `--step` and `--count` flags.
+//! Existing token files are never overwritten without the `--force` flag.
+//!
 //! ## schema
 //!
 //! Prints to stdout the JSON schema for `NemCssConfig`.
@@ -68,6 +87,8 @@ pub mod commands;
 use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
+
+use crate::commands::interative_request;
 
 /// A CLI for the `nemcss` project, a design-token-driven CSS utility generator.
 #[derive(Parser, Debug)]
@@ -132,6 +153,56 @@ enum Command {
         output: PathBuf,
     },
 
+    /// Generates a new token file and registers it in `nemcss.config.json`.
+    ///
+    /// Provide explicit values or generate a uniform scale from a step and count. There is also
+    /// the option to generate a placeholder token file.
+    ///
+    /// Example usage:
+    /// nemcss new-token-file spacing --unit px --values "8,16,24,32" --names "sm,md,lg,xl"
+    /// nemcss new-token-file spacing --unit rem --step 0.5 --count 12
+    #[command(visible_alias = "ntf")]
+    NewTokenFile {
+        /// Name of the token file (e.g. "spacing" creates a spacing.json file)
+        #[arg(required_unless_present = "interactive")]
+        name: Option<String>,
+        /// Comma-separated values: numbers get --unit appended. Anything else is kept as such.
+        #[arg(long, conflicts_with_all = ["step", "count", "start"])]
+        values: Option<String>,
+
+        /// Step between generated scale values. Requires --count
+        #[arg(long, requires = "count")]
+        step: Option<f64>,
+
+        /// Number of values to generate. Requires --step
+        #[arg(long, requires = "step")]
+        count: Option<usize>,
+
+        /// First value of generated scale (defaults to --step)
+        #[arg(long, requires = "step")]
+        start: Option<f64>,
+
+        /// Comma-separated names for the values (e.g. "sm, md, lg, xl")
+        #[arg(long, value_delimiter = ',')]
+        names: Option<Vec<String>>,
+
+        /// CSS unit appended to each value (e.g. "px", "rem")
+        #[arg(long, default_value = "")]
+        unit: String,
+
+        /// Prefix for the generated custom properties (defaults to the file name)
+        #[arg(long)]
+        prefix: Option<String>,
+
+        /// Answer prompts instead of passing value flags
+        #[arg(short, long, default_value_t = false, conflicts_with_all = ["values", "step", "count", "start", "names", "unit", "prefix"])]
+        interactive: bool,
+
+        /// Overwrite an existing token file and theme entry.
+        #[arg(long, default_value_t = false)]
+        force: bool,
+    },
+
     /// Generates a JSON schema for `NemCssConfig` as a pretty-printed JSON string.
     /// The schema is derived directly from the Rust type definitions.
     ///
@@ -155,6 +226,45 @@ pub fn run() -> miette::Result<()> {
         } => commands::build(input, output, quiet)?,
         Command::Watch { input, output } => commands::watch(input, output)?,
         Command::Schema => commands::schema()?,
+        Command::NewTokenFile {
+            name,
+            values,
+            step,
+            count,
+            start,
+            names,
+            unit,
+            prefix,
+            force,
+            interactive,
+        } => {
+            let source = match (values, step) {
+                (Some(values), _) => {
+                    commands::ScaleSource::Explicit(commands::split_values(&values))
+                }
+                (None, Some(step)) => commands::ScaleSource::Generated {
+                    start: start.unwrap_or(step),
+                    step,
+                    count: count.expect("clap enforces --step requires --count"),
+                },
+                (None, None) => commands::ScaleSource::Placeholder,
+            };
+
+            let request = if interactive {
+                interative_request(name)?
+            } else {
+                let name = name.expect("required unless the command is run in interactive mode");
+
+                commands::TokenFileRequest {
+                    prefix: prefix.unwrap_or(name.clone()),
+                    name,
+                    source,
+                    names,
+                    unit,
+                }
+            };
+            commands::new_token_file(request, force)?
+        }
     }
 
     Ok(())
