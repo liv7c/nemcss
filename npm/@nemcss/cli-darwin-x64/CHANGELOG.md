@@ -1,5 +1,11 @@
 # @nemcss/cli-darwin-x64
 
+## 0.8.1
+
+### Patch Changes
+
+- 6621c21: Fix input CSS file not triggering a rebuild in watch mode.
+
 ## 0.8.0
 
 ### Minor Changes
