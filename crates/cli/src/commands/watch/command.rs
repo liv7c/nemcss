@@ -15,7 +15,10 @@ use thiserror::Error;
 
 use crate::commands::{
     build::{BuildError, build},
-    watch::watcher::{FileWatcher, FilterEventsError, SetupWatcherError},
+    watch::{
+        paths::make_path_absolute,
+        watcher::{FileWatcher, FilterEventsError, SetupWatcherError},
+    },
 };
 
 /// Context for the watch command containing configuration and state.
@@ -52,6 +55,7 @@ impl WatchContext {
         let current_dir = std::env::current_dir()?;
         let config_path = current_dir.join(CONFIG_FILE_NAME);
         let config = NemCssConfig::from_path(&config_path)?;
+        let input = make_path_absolute(&input, &current_dir);
 
         let glob_set = config.content_glob_set()?;
 
