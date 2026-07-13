@@ -73,6 +73,15 @@ pub fn extract_watch_dirs(config_content: &[String]) -> Vec<(PathBuf, RecursiveM
     watch_dirs.into_iter().collect()
 }
 
+/// Turn a path into an absolute path if it is not already one.
+pub fn make_path_absolute(path: &Path, base: &Path) -> PathBuf {
+    if path.is_absolute() {
+        path.to_path_buf()
+    } else {
+        base.join(path)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -102,5 +111,21 @@ mod tests {
             "expected a/b to be in the result"
         );
         assert!(result.contains(&(PathBuf::from("source.json"), RecursiveMode::NonRecursive)));
+    }
+
+    #[test]
+    fn test_make_path_absolute_joins_relative_path_with_base() {
+        assert_eq!(
+            make_path_absolute(Path::new("./styles.css"), Path::new("/project")),
+            PathBuf::from("/project/styles.css")
+        );
+    }
+
+    #[test]
+    fn test_make_path_absolute_leaves_absolute_paths_unchanged() {
+        assert_eq!(
+            make_path_absolute(Path::new("/project/styles.css"), Path::new("/project")),
+            PathBuf::from("/project/styles.css")
+        );
     }
 }

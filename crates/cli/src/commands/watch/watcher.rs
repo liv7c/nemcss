@@ -148,6 +148,7 @@ impl FileWatcher {
 /// Checks if a path is relevant for the watch context.
 ///
 /// Relevant paths are:
+/// - the CSS input file
 /// - The config file
 /// - The tokens directory
 /// - Any path in the config content glob set
@@ -159,6 +160,47 @@ fn is_relevant_path(path: &Path, watch_context: &WatchContext) -> bool {
         .unwrap_or(false);
     let is_config_file = path.ends_with(CONFIG_FILE_NAME);
     let is_in_tokens_dir = path.starts_with(watch_context.config.tokens_dir());
+    let is_input_file = path == watch_context.input;
 
-    matches_config_content_glob || is_config_file || is_in_tokens_dir
+    is_input_file || matches_config_content_glob || is_config_file || is_in_tokens_dir
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    mod is_relevant_path {
+        use super::*;
+        use crate::commands::watch::command::WatchContext;
+        use config::NemCssConfig;
+
+        fn make_context(input: PathBuf) -> WatchContext {
+            let mut config: NemCssConfig =
+                serde_json::from_str(r#"{ "content": ["src/**/*.html"] }"#).unwrap();
+            config.base_dir = PathBuf::from("/project");
+            let glob_set = config.content_glob_set().unwrap();
+
+            WatchContext {
+                input,
+                output: PathBuf::from("/project/dist/styles.css"),
+                config_path: PathBuf::from("/project/nemcss.config.json"),
+                config,
+                glob_set,
+            }
+        }
+
+        #[test]
+        fn css_input_file_change_is_relevant() {
+            let ctx = make_context(PathBuf::from("/project/styles.css"));
+
+            assert!(is_relevant_path(Path::new("/project/styles.css"), &ctx));
+        }
+
+        #[test]
+        fn unrelated_file_is_not_relevant() {
+            let ctx = make_context(PathBuf::from("/project/styles.css"));
+
+            assert!(!is_relevant_path(Path::new("/project/other.css"), &ctx));
+        }
+    }
 }
