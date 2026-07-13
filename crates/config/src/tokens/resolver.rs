@@ -152,7 +152,7 @@ pub fn resolve_all_tokens(
             .and_then(|t| t.tokens.get(&token_name_in_config));
 
         let prefix = token_config
-            .and_then(|cfg| cfg.prefix.clone())
+            .map(|cfg| cfg.prefix.clone())
             .unwrap_or_else(|| default_prefix_for_token_type(&name));
 
         let tokens = load_tokens_from_file(&path)?;

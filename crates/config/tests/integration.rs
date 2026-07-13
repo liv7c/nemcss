@@ -200,3 +200,13 @@ fn test_no_utilities_get_generated_if_not_explicitly_set() {
     let color_utilities = &color_token.utilities;
     assert!(color_utilities.is_empty());
 }
+
+#[test]
+fn test_returns_error_when_theme_entry_has_no_prefix() {
+    let config_path = get_config_fixture_path("error_missing_prefix");
+
+    let result = NemCssConfig::from_path(&config_path);
+
+    let error = result.unwrap_err();
+    assert!(error.to_string().contains("prefix"));
+}

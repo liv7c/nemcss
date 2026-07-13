@@ -66,7 +66,7 @@ mod tests {
                 "colors".to_string(),
                 TokenConfig {
                     source: PathBuf::from("colors.json"),
-                    prefix: None,
+                    prefix: String::from("color"),
                     utilities: None,
                 },
             )]),
@@ -83,7 +83,7 @@ mod tests {
                 "spacings".to_string(),
                 TokenConfig {
                     source: PathBuf::from("design-tokens/spacings.json"),
-                    prefix: Some("spacing".to_string()),
+                    prefix: String::from("spacing"),
                     utilities: Some(vec![
                         TokenUtilityConfig {
                             prefix: "p".to_string(),

@@ -214,10 +214,9 @@ pub struct TokenConfig {
     pub source: PathBuf,
 
     /// The token prefix is used to generate the custom properties for the given token.
-    /// For example, if prefix is "color", the token prefix will be "color-".
-    /// If the color tokens include a "primary" variant, the custom property generated will be
-    /// "--color-primary".
-    pub prefix: Option<String>,
+    /// If prefix is set to "color", the token prefix will be "color-".
+    /// The generated custom properties will take the shape --<PREFIX>-<TOKEN_NAME>.
+    pub prefix: String,
 
     /// Utilities are used to generate utility classes for the given token.
     pub utilities: Option<Vec<TokenUtilityConfig>>,

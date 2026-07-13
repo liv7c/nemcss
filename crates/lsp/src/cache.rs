@@ -415,6 +415,7 @@ mod tests {
                 "content": ["src/**/*.html"],
                 "theme": {
                     "colors": {
+                        "prefix": "color",
                         "source": "design-tokens/colors.json",
                         "utilities": [
                             { "prefix": "text", "property": "color" },
@@ -422,6 +423,7 @@ mod tests {
                         ]
                     },
                     "spacings": {
+                        "prefix": "spacing",
                         "source": "design-tokens/spacings.json",
                         "utilities": [
                             { "prefix": "p", "property": "padding" }
@@ -463,6 +465,7 @@ mod tests {
             "content": ["src/**/*.html"],
             "theme": {
                 "colors": {
+                    "prefix": "color",
                     "source": "design-tokens/colors.json",
                     "utilities": [
                         { "prefix": "bg", "property": "background-color" }
@@ -634,6 +637,7 @@ mod tests {
                     "content": ["src/**/*.html"],
                     "theme": {
                         "colors": {
+                            "prefix": "color",
                             "source": "design-tokens/colors.json",
                             "utilities": [
                                 { "prefix": "bg", "property": "background-color" }

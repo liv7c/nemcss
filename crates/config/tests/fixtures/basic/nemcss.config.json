@@ -1,8 +1,5 @@
 {
-  "content": [
-    "src/**/*.html",
-    "src/**/*.svelte"
-  ],
+  "content": ["src/**/*.html", "src/**/*.svelte"],
   "tokensDir": "design-tokens",
   "theme": {
     "colors": {
@@ -14,11 +11,9 @@
       ]
     },
     "spacing": {
+      "prefix": "spacing",
       "source": "design-tokens/spacings.json",
-      "utilities": [
-        { "prefix": "flow-space", "property": "--flow-space" }
-      ]
+      "utilities": [{ "prefix": "flow-space", "property": "--flow-space" }]
     }
   }
 }
-

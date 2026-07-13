@@ -69,6 +69,7 @@ impl TestCmdHelper {
             "content": ["src/**/*.html"],
             "theme": {
                 "colors": {
+                    "prefix": "color",
                     "source": "design-tokens/colors.json",
                     "utilities": [
                         { "prefix": "text", "property": "color" },
@@ -77,6 +78,7 @@ impl TestCmdHelper {
                     ]
                 },
                 "spacings": {
+                    "prefix": "spacing",
                     "source": "design-tokens/spacings.json",
                     "utilities": [
                         { "prefix": "p", "property": "padding" },
@@ -99,10 +101,12 @@ impl TestCmdHelper {
             "content": ["src/**/*.html"],
             "theme": {
                 "colors": {
+                    "prefix": "color",
                     "source": "design-tokens/colors.json",
                     "utilities": []
                 },
                 "spacings": {
+                    "prefix": "spacing",
                     "source": "design-tokens/spacings.json",
                     "utilities": [
                         { "prefix": "p", "property": "padding" },
