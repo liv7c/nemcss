@@ -76,8 +76,8 @@ fn test_returns_error_on_invalid_json() {
 }
 
 #[test]
-fn test_resolves_tokens_automatically_detected() {
-    let config_path = get_config_fixture_path("autodetection_tokens");
+fn test_resolves_registered_tokens() {
+    let config_path = get_config_fixture_path("registered_tokens");
     let config = NemCssConfig::from_path(&config_path).unwrap();
 
     let tokens = config.resolve_all_tokens().unwrap();
@@ -125,6 +125,18 @@ fn test_resolves_tokens_automatically_detected() {
             "monospace".to_string()
         ]))
     );
+}
+
+#[test]
+fn test_returns_error_when_source_file_is_missing() {
+    let config_path = get_config_fixture_path("error_missing_source_file");
+    let config = NemCssConfig::from_path(&config_path).unwrap();
+
+    let error = config.resolve_all_tokens().unwrap_err();
+
+    let msg = error.to_string();
+    assert!(msg.contains("colors"));
+    assert!(msg.contains("colors.json"));
 }
 
 #[test]

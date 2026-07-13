@@ -6,7 +6,6 @@ use miette::{Diagnostic, Result};
 use thiserror::Error;
 
 use crate::tokens::token::{TokenFile, TokenValue};
-use crate::tokens::utilities::{default_prefix_for_token_type, get_utilities_for_token_type};
 use crate::{NemCssConfig, SemanticConfig, TokenUtilityConfig};
 
 /// Represents the error type when scanning the tokens directory.
@@ -79,6 +78,16 @@ pub enum ResolveTokensError {
 
     #[error("failed to load tokens from file: {0}")]
     LoadTokensFromFileError(#[from] LoadTokensFromFileError),
+
+    #[error("token file not found for theme entry `{token_name}`: {}", source_path.display())]
+    #[diagnostic(
+        code(config::tokens::resolve::source_not_found),
+        help("check the `source` path for this entry in nemcss.config.json")
+    )]
+    SourceFileNotFound {
+        token_name: String,
+        source_path: PathBuf,
+    },
 }
 
 /// Represents a resolved token.
@@ -122,50 +131,28 @@ pub fn resolve_all_tokens(
 ) -> Result<HashMap<String, ResolvedToken>, ResolveTokensError> {
     let mut resolved_tokens = HashMap::new();
 
-    let tokens_dir = config.tokens_dir();
-    let token_files = scan_tokens_dir(&tokens_dir)?;
+    if let Some(theme) = config.theme.as_ref() {
+        for (name, token_config) in &theme.tokens {
+            let path = config.base_dir.join(&token_config.source);
+            if !path.is_file() {
+                return Err(ResolveTokensError::SourceFileNotFound {
+                    token_name: name.clone(),
+                    source_path: token_config.source.clone(),
+                });
+            }
 
-    // Map the token source to the token name in the theme configuration.
-    let config_by_token_source: HashMap<PathBuf, String> = config
-        .theme
-        .as_ref()
-        .map(|theme| {
-            theme
-                .tokens
-                .iter()
-                .map(|(name, cfg)| (config.base_dir.join(&cfg.source), name.clone()))
-                .collect()
-        })
-        .unwrap_or_default();
+            let tokens = load_tokens_from_file(&path)?;
+            let utilities = token_config.utilities.clone().unwrap_or_default();
 
-    for (name, path) in token_files {
-        // check if the token name is overridden in the theme configuration
-        // if not, use the token name is derived from the file name.
-        let token_name_in_config = config_by_token_source
-            .get(&path)
-            .cloned()
-            .unwrap_or(name.clone());
-
-        let token_config = config
-            .theme
-            .as_ref()
-            .and_then(|t| t.tokens.get(&token_name_in_config));
-
-        let prefix = token_config
-            .map(|cfg| cfg.prefix.clone())
-            .unwrap_or_else(|| default_prefix_for_token_type(&name));
-
-        let tokens = load_tokens_from_file(&path)?;
-        let utilities = get_utilities_for_token_type(&token_name_in_config, config.theme.as_ref());
-
-        resolved_tokens.insert(
-            token_name_in_config,
-            ResolvedToken {
-                tokens,
-                utilities,
-                prefix,
-            },
-        );
+            resolved_tokens.insert(
+                name.clone(),
+                ResolvedToken {
+                    tokens,
+                    utilities,
+                    prefix: token_config.prefix.clone(),
+                },
+            );
+        }
     }
 
     Ok(resolved_tokens)
