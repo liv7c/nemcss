@@ -1,5 +1,11 @@
 # Change Log
 
+## 0.5.3
+
+### Patch Changes
+
+- de138b7: Update the bundled LSP to no longer error when there is an unregistered design token file.
+
 ## 0.5.2
 
 ### Patch Changes

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.0
+
+### Minor Changes
+
+- de138b7: Make token registration explicit in nemcss.config.json. All theme tokens now need an explicit prefix too. Init command has been simplified to only generate a config file and an empty tokens directory.
+
 ## 0.4.1
 
 ### Patch Changes
