@@ -120,7 +120,19 @@ impl NemCache {
         let config_path = workspace_root.join(CONFIG_FILE_NAME);
         let config = NemCssConfig::from_path(&config_path)?;
 
-        let primitive_tokens = config.resolve_all_tokens()?;
+        let primitive_tokens = config.resolve_registered_tokens()?;
+
+        let unregistered_warnings: Vec<String> = config
+            .unregistered_token_files()
+            .unwrap_or_default()
+            .iter()
+            .map(|path| {
+                format!(
+                    "token file {} is not registered in nemcss.config.json; ignoring it",
+                    path.display()
+                )
+            })
+            .collect();
 
         let token_references: Vec<String> = primitive_tokens
             .iter()
@@ -169,7 +181,10 @@ impl NemCache {
                 content_globs,
                 token_references,
             },
-            warnings: semantic_warnings.into_iter().collect(),
+            warnings: semantic_warnings
+                .into_iter()
+                .chain(unregistered_warnings)
+                .collect(),
         })
     }
 
@@ -458,6 +473,49 @@ mod tests {
         Ok(temp_dir)
     }
 
+    fn create_viewports_test_project() -> Result<TempDir, Box<dyn std::error::Error>> {
+        let temp_dir = create_test_project()?;
+
+        temp_dir.child(CONFIG_FILE_NAME).write_str(
+            r#"{
+                "content": ["src/**/*.html"],
+                "theme": {
+                    "colors": {
+                        "prefix": "color",
+                        "source": "design-tokens/colors.json",
+                        "utilities": [
+                            { "prefix": "text", "property": "color" },
+                            { "prefix": "bg",   "property": "background-color" }
+                        ]
+                    },
+                    "spacings": {
+                        "prefix": "spacing",
+                        "source": "design-tokens/spacings.json",
+                        "utilities": [
+                            { "prefix": "p", "property": "padding" }
+                        ]
+                    },
+                    "viewports": {
+                        "prefix": "viewport",
+                        "source": "design-tokens/viewports.json"
+                    }
+                }
+            }"#,
+        )?;
+
+        temp_dir.child("design-tokens/viewports.json").write_str(
+            r##"{
+                "title": "viewports",
+                "items": [
+                    { "name": "sm", "value": "640px" },
+                    { "name": "md", "value": "768px" }
+                ]
+            }"##,
+        )?;
+
+        Ok(temp_dir)
+    }
+
     fn create_semantic_test_project() -> Result<TempDir, Box<dyn std::error::Error>> {
         let temp_dir = TempDir::new()?;
         temp_dir.child(CONFIG_FILE_NAME).write_str(
@@ -534,20 +592,30 @@ mod tests {
         }
 
         #[test]
-        fn test_build_cache_with_viewports() {
+        fn test_build_cache_warns_but_succeeds_with_unregistered_tokens() {
             let temp_dir = create_test_project().expect("failed to create test project");
+
             temp_dir
-                .child("design-tokens/viewports.json")
-                .write_str(
-                    r##"{
-                  "title": "viewports",
-                  "items": [
-                      {"name": "sm", "value": "640px"},
-                      {"name": "md", "value": "768px"}
-                  ]
-              }"##,
-                )
-                .expect("failed to write viewports.json");
+                .child("design-tokens/radii.json")
+                .write_str(r##"{ "title": "radii", "items": [{ "name": "sm", "value": "4px" }] }"##)
+                .unwrap();
+
+            let BuildResult { cache, warnings } =
+                NemCache::build(temp_dir.path()).expect("cache should build despite stray file");
+
+            assert!(
+                !cache.utilities.is_empty(),
+                "unregistered tokens should still resolve"
+            );
+            assert!(
+                warnings.iter().any(|w| w.contains("radii.json")),
+                "the stray file should surface as a warning"
+            );
+        }
+
+        #[test]
+        fn test_build_cache_with_viewports() {
+            let temp_dir = create_viewports_test_project().expect("failed to create test project");
 
             let BuildResult { cache, .. } =
                 NemCache::build(temp_dir.path()).expect("failed to build cache");
@@ -585,7 +653,7 @@ mod tests {
         }
 
         #[test]
-        fn test_build_cache_fails_missing_design_tokens() {
+        fn test_build_cache_succeeds_with_no_theme_and_no_tokens_dir() {
             let temp_dir = TempDir::new().expect("failed to create temp dir");
             temp_dir
                 .child(CONFIG_FILE_NAME)
@@ -596,11 +664,13 @@ mod tests {
                 )
                 .expect("failed to write config");
 
-            let cache = NemCache::build(temp_dir.path());
+            let BuildResult { cache, warnings } =
+                NemCache::build(temp_dir.path()).expect("empty project should build a cache");
             assert!(
-                cache.is_err(),
-                "should fail to build cache when design-tokens is missing"
+                cache.utilities.is_empty(),
+                "no registered tokens, no utilities"
             );
+            assert!(warnings.is_empty(), "no stray token files, no warnings")
         }
 
         #[test]
@@ -761,19 +831,7 @@ mod tests {
 
         #[test]
         fn test_responsive_class_completions_returns_all_when_partial_name_is_empty() {
-            let temp_dir = create_test_project().expect("failed to create test project");
-            temp_dir
-                .child("design-tokens/viewports.json")
-                .write_str(
-                    r##"{
-                  "title": "viewports",
-                  "items": [
-                      {"name": "sm", "value": "640px"},
-                      {"name": "md", "value": "768px"}
-                  ]
-              }"##,
-                )
-                .expect("failed to write viewports.json");
+            let temp_dir = create_viewports_test_project().expect("failed to create test project");
             let BuildResult { cache, .. } =
                 NemCache::build(temp_dir.path()).expect("failed to build cache");
 
@@ -783,19 +841,7 @@ mod tests {
 
         #[test]
         fn test_responsive_class_completions_returns_matching_classes() {
-            let temp_dir = create_test_project().expect("failed to create test project");
-            temp_dir
-                .child("design-tokens/viewports.json")
-                .write_str(
-                    r##"{
-                  "title": "viewports",
-                  "items": [
-                      {"name": "sm", "value": "640px"},
-                      {"name": "md", "value": "768px"}
-                  ]
-              }"##,
-                )
-                .expect("failed to write viewports.json");
+            let temp_dir = create_viewports_test_project().expect("failed to create test project");
             let BuildResult { cache, .. } =
                 NemCache::build(temp_dir.path()).expect("failed to build cache");
 
@@ -960,19 +1006,8 @@ mod tests {
 
         #[test]
         fn test_hover_for_class_returns_hover_for_responsive_class() {
-            let temp_dir = create_test_project().expect("failed to create test project");
-            temp_dir
-                .child("design-tokens/viewports.json")
-                .write_str(
-                    r##"{
-                  "title": "viewports",
-                  "items": [
-                      {"name": "sm", "value": "640px"},
-                      {"name": "md", "value": "768px"}
-                  ]
-              }"##,
-                )
-                .expect("failed to write viewports.json");
+            let temp_dir =
+                create_viewports_test_project().expect("failed to create viewports test project");
             let BuildResult { cache, .. } =
                 NemCache::build(temp_dir.path()).expect("failed to build cache");
 
