@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -23,8 +23,8 @@ pub enum ScanTokensDirError {
 /// Scans the given tokens directory and returns a mapping of token names to their file paths.
 /// It enables discovering all design token files in the specified directory.
 /// The token name is derived from the file name without the `.json` extension.
-fn scan_tokens_dir(path: &Path) -> Result<HashMap<String, PathBuf>, ScanTokensDirError> {
-    let mut tokens = HashMap::new();
+fn scan_tokens_dir(path: &Path) -> Result<Vec<PathBuf>, ScanTokensDirError> {
+    let mut tokens = Vec::new();
 
     let entries = fs::read_dir(path).map_err(ScanTokensDirError::ReadDirError)?;
 
@@ -37,11 +37,7 @@ fn scan_tokens_dir(path: &Path) -> Result<HashMap<String, PathBuf>, ScanTokensDi
             continue;
         }
 
-        let prefix_from_filename = path.file_stem().and_then(|s| s.to_str());
-
-        if let Some(prefix) = prefix_from_filename {
-            tokens.insert(prefix.to_string(), path);
-        }
+        tokens.push(path);
     }
 
     Ok(tokens)
@@ -88,6 +84,15 @@ pub enum ResolveTokensError {
         token_name: String,
         source_path: PathBuf,
     },
+
+    #[error("token file `{}` is not registered in nemcss.config.json", path.display())]
+    #[diagnostic(
+        code(config::tokens::resolve::unregistered_token_file),
+        help(
+            "add a theme entry with `source` pointing to this file and a `prefix`, or remove this file"
+        )
+    )]
+    UnregisteredTokenFile { path: PathBuf },
 }
 
 /// Represents a resolved token.
@@ -103,18 +108,9 @@ pub struct ResolvedToken {
     pub prefix: String,
 }
 
-/// Resolve all tokens, based on auto-discovered token files in the tokens directory and the theme
-/// configuration.
-///
-/// # Resolution process
-///
-/// 1. Scans `tokensDir` for all `.json` files
-/// 2. Derives token names from filenames (e.g., `fonts.json` -> `fonts`)
-/// 3. Applies theme configuration overrides:
-///     - Custom `source` paths
-///     - Custom `prefix` value
-///     - Additional `utilities` configurations
-/// 4. Merges default utilities with user-defined utilities
+/// Resolve all token registered in the them configuration.
+/// It will scan the `theme` key in nemcss.config.json and scan the design-tokens folder to
+/// validate the registered token file exists.
 ///
 /// # Examples
 ///
@@ -126,7 +122,7 @@ pub struct ResolvedToken {
 /// println!("{resolved:?}");
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
-pub fn resolve_all_tokens(
+pub fn resolve_registered_tokens(
     config: &NemCssConfig,
 ) -> Result<HashMap<String, ResolvedToken>, ResolveTokensError> {
     let mut resolved_tokens = HashMap::new();
@@ -156,6 +152,51 @@ pub fn resolve_all_tokens(
     }
 
     Ok(resolved_tokens)
+}
+
+/// Checks for unregistered token files by comparing the token files registered in the config file with the
+/// token files inside of the design tokens directory.
+/// It returns a sorted list of unregistered token files.
+pub fn unregistered_token_files(config: &NemCssConfig) -> Result<Vec<PathBuf>, ScanTokensDirError> {
+    let tokens_dir = config.tokens_dir();
+    if !tokens_dir.is_dir() {
+        return Ok(Vec::new());
+    }
+
+    let registered_sources: HashSet<PathBuf> = config
+        .theme
+        .as_ref()
+        .map(|theme| {
+            theme
+                .tokens
+                .values()
+                .map(|cfg| config.base_dir.join(&cfg.source))
+                .collect()
+        })
+        .unwrap_or_default();
+
+    let mut unregistered: Vec<PathBuf> = scan_tokens_dir(&tokens_dir)?
+        .into_iter()
+        .filter(|path| !registered_sources.contains(path))
+        .map(|path| path.to_path_buf())
+        .collect();
+
+    unregistered.sort();
+    Ok(unregistered)
+}
+
+/// Resolves all tokens, erroring out if there are unregistered token files in the design-token directory.
+/// An unregistered token file is a file that exists in the design-tokens dir without being registered inside `theme` in `nemcss.config.json`
+pub fn resolve_all_tokens(
+    config: &NemCssConfig,
+) -> Result<HashMap<String, ResolvedToken>, ResolveTokensError> {
+    let resolved = resolve_registered_tokens(config)?;
+
+    if let Some(path) = unregistered_token_files(config)?.into_iter().next() {
+        return Err(ResolveTokensError::UnregisteredTokenFile { path });
+    }
+
+    Ok(resolved)
 }
 
 /// A resolved semantic group for CSS generation.
@@ -258,25 +299,18 @@ mod tests {
         let viewport_token_path = tokens_tmp_dir.path().join("screen_viewports.json");
         fs::write(&viewport_token_path, "{}").unwrap();
 
-        let result = scan_tokens_dir(tokens_tmp_dir.path()).unwrap();
+        let mut result = scan_tokens_dir(tokens_tmp_dir.path()).unwrap();
+        result.sort();
 
-        assert_eq!(result.len(), 4);
-        assert!(result.contains_key("colors"));
-        assert!(result.get("colors").unwrap().eq(&colors_token_path));
+        let mut expected = vec![
+            colors_token_path,
+            fonts_token_path,
+            spacings_token_path,
+            viewport_token_path,
+        ];
+        expected.sort();
 
-        assert!(result.contains_key("fonts"));
-        assert!(result.get("fonts").unwrap().eq(&fonts_token_path));
-
-        assert!(result.contains_key("spacings"));
-        assert!(result.get("spacings").unwrap().eq(&spacings_token_path));
-
-        assert!(result.contains_key("screen_viewports"));
-        assert!(
-            result
-                .get("screen_viewports")
-                .unwrap()
-                .eq(&viewport_token_path)
-        );
+        assert_eq!(result, expected);
     }
 
     #[test]

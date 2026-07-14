@@ -1,0 +1,6 @@
+{
+  "content": ["src/**/*.html"],
+  "theme": {
+    "fonts": { "source": "design-tokens/fonts.json", "prefix": "font" }
+  }
+}

@@ -222,3 +222,35 @@ fn test_returns_error_when_theme_entry_has_no_prefix() {
     let error = result.unwrap_err();
     assert!(error.to_string().contains("prefix"));
 }
+
+#[test]
+fn test_returns_error_for_unregistered_token_file() {
+    let config_path = get_config_fixture_path("error_unregistered_token_file");
+    let config = NemCssConfig::from_path(&config_path).unwrap();
+
+    let error = config.resolve_all_tokens().unwrap_err();
+
+    let msg = error.to_string();
+    assert!(msg.contains("colors.json"));
+    assert!(msg.contains("not registered"));
+}
+
+#[test]
+fn test_lists_unregistered_token_files_without_erroring() {
+    let config_path = get_config_fixture_path("error_unregistered_token_file");
+    let config = NemCssConfig::from_path(&config_path).unwrap();
+
+    let unregistered = config.unregistered_token_files().unwrap();
+
+    assert_eq!(unregistered.len(), 1);
+    assert!(unregistered[0].ends_with("colors.json"));
+}
+
+#[test]
+fn test_resolves_to_empty_map_with_empty_theme_and_no_tokens() {
+    let config_path = get_config_fixture_path("empty_theme");
+    let config = NemCssConfig::from_path(&config_path).unwrap();
+
+    let tokens = config.resolve_all_tokens().unwrap();
+    assert!(tokens.is_empty());
+}

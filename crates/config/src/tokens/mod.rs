@@ -18,6 +18,7 @@ mod token;
 
 pub use resolver::{
     ResolveSemanticError, ResolveTokensError, ResolvedSemanticGroup, ResolvedToken,
-    resolve_all_semantic_groups, resolve_all_tokens,
+    ScanTokensDirError, resolve_all_semantic_groups, resolve_all_tokens, resolve_registered_tokens,
+    unregistered_token_files,
 };
 pub use token::{TokenFile, TokenItem, TokenValue};

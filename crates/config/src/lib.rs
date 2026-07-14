@@ -28,5 +28,5 @@ pub use config::{
 pub use schema::{GenerateSchemaError, generate_schema};
 pub use tokens::{
     ResolveSemanticError, ResolveTokensError, ResolvedSemanticGroup, ResolvedToken, TokenFile,
-    TokenItem, TokenValue, resolve_all_tokens,
+    TokenItem, TokenValue, resolve_registered_tokens,
 };
