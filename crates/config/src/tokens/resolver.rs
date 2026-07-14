@@ -108,9 +108,8 @@ pub struct ResolvedToken {
     pub prefix: String,
 }
 
-/// Resolve all token registered in the them configuration.
-/// It will scan the `theme` key in nemcss.config.json and scan the design-tokens folder to
-/// validate the registered token file exists.
+/// Resolve all tokens registered in the theme configuration.
+/// For each entry under `theme` in `nemcss.config.json`, loads and parses its `source` file.
 ///
 /// # Examples
 ///

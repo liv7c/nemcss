@@ -7,7 +7,7 @@
 //!
 //! ## init
 //!
-//! Initializes a new project with the `nemcss` configuration and example design tokens.
+//! Initializes a new project with a `nemcss.config.json` and an empty `design-tokens` directory.
 //!
 //! ```bash
 //! nemcss init
@@ -101,7 +101,8 @@ struct Args {
 
 #[derive(Subcommand, Debug)]
 enum Command {
-    /// Initializes a new project with the `nemcss` configuration and example design tokens.
+    /// Initializes a new project with a `nemcss.config.json` file and an empty design-tokens
+    /// directory.
     ///
     /// Example usage:
     /// nemcss init

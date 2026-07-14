@@ -77,7 +77,7 @@ fn create_config_file(current_dir: &Path) -> miette::Result<(), InitError> {
     Ok(())
 }
 
-/// Create the design tokens directory .
+/// Create the design tokens directory.
 ///
 /// # Errors
 ///
@@ -85,11 +85,10 @@ fn create_config_file(current_dir: &Path) -> miette::Result<(), InitError> {
 fn create_design_tokens_dir(current_dir: &Path) -> miette::Result<(), InitError> {
     let design_tokens_dir_path = current_dir.join(DESIGN_TOKENS_DIR_NAME);
 
-    // Skip the design tokens if user has already a design tokens
-    // directory.
+    // Skip creating the design tokens directory if it already exists.
     if design_tokens_dir_path.exists() {
         println!(
-            "  ℹ Directory {} already exists, skipping directory and example tokens creation",
+            "  ℹ Directory {} already exists, skipping directory creation",
             DESIGN_TOKENS_DIR_NAME.yellow()
         );
         return Ok(());
