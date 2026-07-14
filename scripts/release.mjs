@@ -50,9 +50,14 @@ for (const tag of [coreTag, editorTag, viteTag, postcssTag]) {
   }
 }
 
+// GitHub drops push events when more than 3 tags are pushed in a single
+// `git push` command, silently skipping the tag-triggered release workflows.
+// Push each tag separately so every one reliably fires its workflow.
 if (tagsToCreate.length > 0) {
-  console.log(`Pushing tags: ${tagsToCreate.join(', ')}`);
-  execSync(`git push origin ${tagsToCreate.join(' ')}`, { stdio: 'inherit' });
+  for (const tag of tagsToCreate) {
+    console.log(`Pushing tag: ${tag}`);
+    execSync(`git push origin ${tag}`, { stdio: 'inherit' });
+  }
 } else {
   console.log('No new tags to push');
 }
