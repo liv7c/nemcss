@@ -1,5 +1,11 @@
 # @nemcss/cli-linux-x64
 
+## 0.9.1
+
+### Patch Changes
+
+- c2b517a: Make watch mode more permissive. It was shutting down if the content list in nemcss config contained any glob for a folder not on disk yet.
+
 ## 0.9.0
 
 ### Minor Changes
