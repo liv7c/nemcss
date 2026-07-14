@@ -230,6 +230,8 @@ pub struct TokenConfig {
     /// The token prefix is used to generate the custom properties for the given token.
     /// If prefix is set to "color", the token prefix will be "color-".
     /// The generated custom properties will take the shape --<PREFIX>-<TOKEN_NAME>.
+    #[serde(deserialize_with = "deserialize_non_empty_prefix")]
+    #[schemars(extend("minLength"=1))]
     pub prefix: String,
 
     /// Utilities are used to generate utility classes for the given token.
