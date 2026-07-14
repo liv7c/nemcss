@@ -232,6 +232,7 @@ fn test_returns_error_for_unregistered_token_file() {
 
     let msg = error.to_string();
     assert!(msg.contains("colors.json"));
+    assert!(msg.contains("spacings.json"));
     assert!(msg.contains("not registered"));
 }
 
@@ -242,8 +243,9 @@ fn test_lists_unregistered_token_files_without_erroring() {
 
     let unregistered = config.unregistered_token_files().unwrap();
 
-    assert_eq!(unregistered.len(), 1);
+    assert_eq!(unregistered.len(), 2);
     assert!(unregistered[0].ends_with("colors.json"));
+    assert!(unregistered[1].ends_with("spacings.json"));
 }
 
 #[test]

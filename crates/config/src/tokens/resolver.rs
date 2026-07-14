@@ -85,14 +85,14 @@ pub enum ResolveTokensError {
         source_path: PathBuf,
     },
 
-    #[error("token file `{}` is not registered in nemcss.config.json", path.display())]
+    #[error("token file(s) not registered in nemcss.config.json: {}", paths.iter().map(|p| p.display().to_string()).collect::<Vec<_>>().join(", "))]
     #[diagnostic(
         code(config::tokens::resolve::unregistered_token_file),
         help(
-            "add a theme entry with `source` pointing to this file and a `prefix`, or remove this file"
+            "add a theme entry with `source` pointing to these files and a `prefix`, or remove these files"
         )
     )]
-    UnregisteredTokenFile { path: PathBuf },
+    UnregisteredTokenFile { paths: Vec<PathBuf> },
 }
 
 /// Represents a resolved token.
@@ -192,8 +192,12 @@ pub fn resolve_all_tokens(
 ) -> Result<HashMap<String, ResolvedToken>, ResolveTokensError> {
     let resolved = resolve_registered_tokens(config)?;
 
-    if let Some(path) = unregistered_token_files(config)?.into_iter().next() {
-        return Err(ResolveTokensError::UnregisteredTokenFile { path });
+    let unregistered = unregistered_token_files(config)?;
+
+    if !unregistered.is_empty() {
+        return Err(ResolveTokensError::UnregisteredTokenFile {
+            paths: unregistered,
+        });
     }
 
     Ok(resolved)
