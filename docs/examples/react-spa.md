@@ -63,9 +63,41 @@ yarn dlx nemcss init
 ```
 :::
 
-This creates `nemcss.config.json` and a `design-tokens/` folder with example token files.
+This creates a minimal `nemcss.config.json` and an empty `design-tokens/` folder.
 
-## Step 5: Configure content paths
+## Step 5: Add design tokens
+
+Create a color and a spacing token file with `new-token-file`. It registers each one in your config as it creates it:
+
+```sh
+npx nemcss new-token-file colors --prefix color --values "hsl(0, 0%, 100%),hsl(0, 0%, 0%)" --names "white,black"
+npx nemcss new-token-file spacings --prefix spacing --unit rem --values "0.5,1,1.5" --names "sm,md,lg"
+```
+
+Add a `padding` utility to the spacings entry, and a `text` semantic group so `text-default` and `text-muted` are available, by editing `nemcss.config.json`:
+
+```json
+{
+  "theme": {
+    "spacings": {
+      "prefix": "spacing",
+      "source": "design-tokens/spacings.json",
+      "utilities": [{ "prefix": "p", "property": "padding" }]
+    }
+  },
+  "semantic": {
+    "text": {
+      "property": "color",
+      "tokens": {
+        "default": "{colors.black}",
+        "muted": "{colors.white}"
+      }
+    }
+  }
+}
+```
+
+## Step 6: Configure content paths
 
 Edit `nemcss.config.json` to point at your React source files:
 
@@ -76,12 +108,13 @@ Edit `nemcss.config.json` to point at your React source files:
 }
 ```
 
-## Step 6: Add `@nemcss base;` to your CSS
+## Step 7: Add the directives to your CSS
 
-Open `src/index.css` and add the directive at the top:
+Open `src/index.css` and add both directives at the top:
 
 ```css
 @nemcss base;
+@nemcss utilities;
 ```
 
 Make sure `src/index.css` is imported in `src/main.jsx` (it is by default in the Vite React template):
@@ -91,7 +124,7 @@ Make sure `src/index.css` is imported in `src/main.jsx` (it is by default in the
 import './index.css'
 ```
 
-## Step 7: Use the generated classes
+## Step 8: Use the generated classes
 
 ```jsx
 // src/App.jsx
@@ -105,7 +138,7 @@ export default function App() {
 }
 ```
 
-## Step 8: Start the dev server
+## Step 9: Start the dev server
 
 ::: code-group
 ```sh [npm]

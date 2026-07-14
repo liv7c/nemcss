@@ -4,30 +4,28 @@ NemCSS is configured via a `nemcss.config.json` file at the root of your project
 
 ## Top-level fields
 
-| Field | Type | Default | Description |
-| --- | --- | --- | --- |
-| `content` | `string[]` | `[]` | Glob patterns for source files. NemCSS scans these to only generate used utility classes. If empty, no utility classes are generated. |
-| `tokensDir` | `string` | `"design-tokens"` | Path to the directory containing your token JSON files. |
-| `theme` | `object` | (none) | Token category configuration. Each key is a category name (e.g. `colors`). |
-| `semantic` | `object` | (none) | Semantic token groups. Optional. See [the semantic block](#the-semantic-block). |
+| Field       | Type       | Default           | Description                                                                                                                           |
+| ----------- | ---------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `content`   | `string[]` | `[]`              | Glob patterns for source files. NemCSS scans these to only generate used utility classes. If empty, no utility classes are generated. |
+| `tokensDir` | `string`   | `"design-tokens"` | Path to the directory containing your token JSON files.                                                                               |
+| `theme`     | `object`   | (none)            | Token category configuration. Each key is a category name (e.g. `colors`).                                                            |
+| `semantic`  | `object`   | (none)            | Semantic token groups. Optional. See [the semantic block](#the-semantic-block).                                                       |
 
 ## The `theme` block
 
 For each token category, you decide which utility classes to generate. A utility is defined by a `prefix` (the class name prefix) and a `property` (the CSS property). One utility class is generated per token in the category. If you don't define any utilities, none are generated. Custom properties are always generated regardless.
 
-| Field | Type | Required | Description |
-| --- | --- | --- | --- |
-| `source` | `string` | yes | Path to the token JSON file for this category, relative to the project root. |
-| `prefix` | `string` | no | Base name for generated custom properties. `"sp"` → `--sp-xxs`, `--sp-xs`, etc. Defaults to the category name if not set. |
-| `utilities` | `object[]` | no | Utility classes to generate. Each entry has a `prefix` (class prefix) and `property` (CSS property). |
+| Field       | Type       | Required | Description                                                                                                               |
+| ----------- | ---------- | -------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `source`    | `string`   | yes      | Path to the token JSON file for this category, relative to the project root.                                              |
+| `prefix`    | `string`   | yes      | Base name for generated custom properties. `"sp"` → `--sp-xxs`, `--sp-xs`, etc. |
+| `utilities` | `object[]` | no       | Utility classes to generate. Each entry has a `prefix` (class prefix) and `property` (CSS property).                      |
 
 ### Naming
 
-The key you use in `theme` (e.g. `"spacings"`) is the category name. It is what you reference in semantic token values (`{spacings.xxs}`). The category name is derived from the token file name without its extension (e.g. `spacings.json` → `"spacings"`). The `prefix` field controls the base name for the generated CSS custom properties. A category `"spacings"` with `"prefix": "sp"` produces `--sp-xxs`, `--sp-xs`, and so on. If `prefix` is not set, the category name is used.
+The key you use in `theme` (e.g. `"spacings"`) is the category name. It is what you reference in semantic token values (`{spacings.xxs}`). The `prefix` field controls the base name for the generated CSS custom properties. A category `"spacings"` with `"prefix": "sp"` produces `--sp-xxs`, `--sp-xs`, and so on.
 
-::: tip Default prefix
-For common category names, NemCSS applies a default singularization when `prefix` is not set: `colors` → `color`, `spacings` → `spacing`, `fonts` → `font`, `shadows` → `shadow`, `borders` → `border`, `radii` → `radius`. For anything else, the category name is used as-is.
-:::
+**Every token file must be registered under `theme`.** If a .json file sits in your tokensDir without a matching entry, the build stops with an error naming the file. The easiest way to add an entry is `nemcss new-token-file`, which creates the file and registers it in one step.
 
 ### Example
 
@@ -96,10 +94,10 @@ The `semantic` block is optional. It lets you scope a subset of your primitive t
 
 Each entry defines a group with an optional CSS `property` and a `tokens` map. Token values reference your primitive tokens using the `{category.tokenName}` syntax.
 
-| Field | Type | Required | Description |
-| --- | --- | --- | --- |
-| `property` | `string` | no | The CSS property for generated utility classes (e.g. `color`, `background-color`). **Omit it to generate only the CSS custom properties for this group with no utility classes.** |
-| `tokens` | `object` | yes | A map of semantic token names to primitive token references (`{category.tokenName}`). |
+| Field      | Type     | Required | Description                                                                                                                                                                       |
+| ---------- | -------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `property` | `string` | no       | The CSS property for generated utility classes (e.g. `color`, `background-color`). **Omit it to generate only the CSS custom properties for this group with no utility classes.** |
+| `tokens`   | `object` | yes      | A map of semantic token names to primitive token references (`{category.tokenName}`).                                                                                             |
 
 ### Naming
 
@@ -131,9 +129,15 @@ This generates:
   --text-muted: var(--color-slate-400);
 }
 
-.text-primary { color: var(--text-primary); }
-.text-secondary { color: var(--text-secondary); }
-.text-muted { color: var(--text-muted); }
+.text-primary {
+  color: var(--text-primary);
+}
+.text-secondary {
+  color: var(--text-secondary);
+}
+.text-muted {
+  color: var(--text-muted);
+}
 ```
 
 All your primitive color custom properties remain available. The semantic layer adds a second, intent-driven layer on top.

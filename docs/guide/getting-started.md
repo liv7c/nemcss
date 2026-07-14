@@ -72,9 +72,7 @@ nemcss init
 
 :::
 
-This generates the following files:
-
-**`nemcss.config.json`**
+This creates a minimal `nemcss.config.json` and an empty `design-tokens/` directory:
 
 ```json
 {
@@ -87,11 +85,67 @@ This generates the following files:
     "src/**/*.astro"
   ],
   "tokensDir": "design-tokens",
+  "theme": {}
+}
+```
+
+There are no tokens yet. The `theme` block is where each token file gets registered, and it fills up as you add them in the next step.
+
+## Step 2: Add your first token files
+
+The `new-token-file` command creates a token file and registers it in your config in one go. Add a few colors:
+
+```sh
+npx nemcss new-token-file colors --prefix color --values "hsl(0, 0%, 100%),hsl(0, 0%, 0%)" --names "white,black"
+```
+
+This writes `design-tokens/colors.json`:
+
+```json
+{
+  "title": "Colors Tokens",
+  "description": "Design tokens for colors",
+  "items": [
+    { "name": "white", "value": "hsl(0, 0%, 100%)" },
+    { "name": "black", "value": "hsl(0, 0%, 0%)" }
+  ]
+}
+```
+
+and adds the matching entry to your config:
+
+```json
+{
   "theme": {
     "colors": {
       "prefix": "color",
       "source": "design-tokens/colors.json"
-    },
+    }
+  }
+}
+```
+
+Now a spacing scale. Numeric values get the `--unit` appended:
+
+```sh
+npx nemcss new-token-file spacings --prefix spacing --unit rem --values "0.5,1,1.5" --names "sm,md,lg"
+```
+
+A few variations worth knowing:
+
+- `nemcss new-token-file --interactive` walks you through the same options with prompts.
+- `--step` and `--count` generate a uniform scale instead of explicit values, e.g. `--unit rem --step 0.5 --count 6`.
+- `ntf` is a shorthand alias: `nemcss ntf radius --unit px --values "2,4,8" --names "sm,md,lg"`.
+
+Every token file must be registered under `theme`. If a `.json` file sits in `design-tokens/` without a matching entry, the build stops with an error naming the file. Since `new-token-file` registers as it creates, you only need to think about this when adding files by hand. See the [configuration reference](/guide/configuration) for details.
+
+### Add utility classes
+
+So far the config only generates CSS custom properties. To also get utility classes, add a `utilities` array to a theme entry. Each utility pairs a class prefix with a CSS property:
+
+```json
+{
+  "theme": {
     "spacings": {
       "prefix": "spacing",
       "source": "design-tokens/spacings.json",
@@ -100,61 +154,33 @@ This generates the following files:
         { "prefix": "m", "property": "margin" }
       ]
     }
-  },
+  }
+}
+```
+
+With the spacing tokens above, this generates classes like `p-sm`, `p-md`, `m-lg`. Leaving `utilities` off a category (like `colors` here) is fine: you still get its custom properties.
+
+### Add a semantic layer (optional)
+
+Primitive tokens name what a value is (`black`), not what it is for. The optional `semantic` block maps intent names onto your primitives:
+
+```json
+{
   "semantic": {
     "text": {
       "property": "color",
       "tokens": {
         "default": "{colors.black}",
-        "muted": "{colors.white}"
-      }
-    },
-    "bg": {
-      "property": "background-color",
-      "tokens": {
-        "page": "{colors.white}",
-        "surface": "{colors.black}"
+        "inverted": "{colors.white}"
       }
     }
   }
 }
 ```
 
-**`design-tokens/colors.json`**
+This generates `--text-default` and `--text-inverted` custom properties that reference your color tokens, plus `.text-default` and `.text-inverted` utility classes. See [the semantic block](/guide/configuration#the-semantic-block) for the full reference.
 
-```json
-{
-  "title": "Color Tokens",
-  "description": "Example design token file for colors",
-  "items": [
-    { "name": "white", "value": "hsl(0, 0%, 100%)" },
-    { "name": "black", "value": "hsl(0, 0%, 0%)" }
-  ]
-}
-```
-
-**`design-tokens/spacings.json`**
-
-```json
-{
-  "title": "Spacing Tokens",
-  "description": "Example design token file for spacings",
-  "items": [
-    { "name": "0", "value": "0" },
-    { "name": "xxs", "value": "0.125rem" },
-    { "name": "xs", "value": "0.25rem" },
-    { "name": "sm", "value": "0.5rem" },
-    { "name": "md", "value": "1rem" },
-    { "name": "lg", "value": "1.5rem" },
-    { "name": "xl", "value": "2rem" },
-    { "name": "xxl", "value": "3rem" }
-  ]
-}
-```
-
-The config gives you a starting point: color tokens with no utilities (custom properties only), spacing tokens with padding and margin utilities, and a semantic layer with `text` and `bg` groups scoped to your colors. Adjust to fit your project.
-
-## Step 2: Point `content` at your source files
+## Step 3: Point `content` at your source files
 
 Edit the `content` field in `nemcss.config.json` to match your project's source files. NemCSS scans these to only generate the utility classes your project actually uses.
 
@@ -170,7 +196,7 @@ Edit the `content` field in `nemcss.config.json` to match your project's source 
 }
 ```
 
-## Step 3: Add `@nemcss base;` to your CSS
+## Step 4: Add `@nemcss base;` to your CSS
 
 NemCSS uses two directives that it replaces at build time:
 
@@ -214,13 +240,27 @@ A few things to keep in mind:
 - With the CLI, the directive must be in the file passed via `-i`. With the Vite and PostCSS plugins it can be in any CSS file processed by the pipeline
 - The CLI will error if the directive is missing. The Vite and PostCSS plugins will silently skip the file
 
-## Step 4: Build your CSS
+## Step 5: Build your CSS
 
 ```sh
 nemcss build -i src/styles.css -o dist/styles.css
 ```
 
-The output file will have each directive replaced with its generated CSS. Only the utility classes found in your content files are included.
+The output file will have each directive replaced with its generated CSS. With the tokens from step 2 and a `p-md` class used somewhere in your content files, the output looks like this:
+
+```css
+:root {
+  --color-white: hsl(0, 0%, 100%);
+  --color-black: hsl(0, 0%, 0%);
+  --spacing-sm: 0.5rem;
+  --spacing-md: 1rem;
+  --spacing-lg: 1.5rem;
+}
+
+.p-md {
+  padding: var(--spacing-md);
+}
+```
 
 For watch mode during development:
 
@@ -230,5 +270,5 @@ nemcss watch -i src/styles.css -o dist/styles.css
 
 ## Next steps
 
-- [Configuration reference](/guide/configuration): learn what you can configure
+- [Configuration reference](/guide/configuration): learn what you can configure, including the semantic token layer
 - [Examples](/examples/vanilla): full walkthroughs for Vanilla HTML, Astro, and React
