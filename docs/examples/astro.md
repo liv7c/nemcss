@@ -89,9 +89,41 @@ yarn dlx nemcss init
 
 :::
 
-This creates `nemcss.config.json` and a `design-tokens/` folder with example token files.
+This creates a minimal `nemcss.config.json` and an empty `design-tokens/` folder.
 
-## Step 5: Configure content paths
+## Step 5: Add design tokens
+
+Create a color and a spacing token file with `new-token-file`. It registers each one in your config as it creates it:
+
+```sh
+npx nemcss new-token-file colors --prefix color --values "hsl(0, 0%, 100%),hsl(0, 0%, 0%)" --names "white,black"
+npx nemcss new-token-file spacings --prefix spacing --unit rem --values "0.5,1,1.5" --names "sm,md,lg"
+```
+
+Add a `padding` utility to the spacings entry, and a `text` semantic group so `text-default` and `text-muted` are available, by editing `nemcss.config.json`:
+
+```json
+{
+  "theme": {
+    "spacings": {
+      "prefix": "spacing",
+      "source": "design-tokens/spacings.json",
+      "utilities": [{ "prefix": "p", "property": "padding" }]
+    }
+  },
+  "semantic": {
+    "text": {
+      "property": "color",
+      "tokens": {
+        "default": "{colors.black}",
+        "muted": "{colors.white}"
+      }
+    }
+  }
+}
+```
+
+## Step 6: Configure content paths
 
 Edit `nemcss.config.json` to point at your Astro components and pages:
 
@@ -102,15 +134,16 @@ Edit `nemcss.config.json` to point at your Astro components and pages:
 }
 ```
 
-## Step 6: Add `@nemcss base;` to a global CSS file
+## Step 7: Add the directives to a global CSS file
 
 Create `src/styles/global.css`:
 
 ```css
 @nemcss base;
+@nemcss utilities;
 ```
 
-## Step 7: Import the global CSS in your layout
+## Step 8: Import the global CSS in your layout
 
 ```astro
 ---
@@ -128,7 +161,7 @@ import '../styles/global.css'
 </html>
 ```
 
-## Step 8: Use the generated classes
+## Step 9: Use the generated classes
 
 ```astro
 ---
@@ -141,7 +174,7 @@ import Layout from '../layouts/Layout.astro'
 </Layout>
 ```
 
-## Step 9: Start the dev server
+## Step 10: Start the dev server
 
 ::: code-group
 

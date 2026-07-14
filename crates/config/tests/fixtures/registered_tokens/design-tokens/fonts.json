@@ -1,0 +1,14 @@
+{
+  "title": "Fonts",
+  "description": "Font family stacks",
+  "items": [
+    {
+      "name": "base",
+      "value": ["Satoshi", "Inter"]
+    },
+    {
+      "name": "mono",
+      "value": ["DM Mono", "monospace"]
+    }
+  ]
+}

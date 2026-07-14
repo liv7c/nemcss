@@ -76,8 +76,8 @@ fn test_returns_error_on_invalid_json() {
 }
 
 #[test]
-fn test_resolves_tokens_automatically_detected() {
-    let config_path = get_config_fixture_path("autodetection_tokens");
+fn test_resolves_registered_tokens() {
+    let config_path = get_config_fixture_path("registered_tokens");
     let config = NemCssConfig::from_path(&config_path).unwrap();
 
     let tokens = config.resolve_all_tokens().unwrap();
@@ -125,6 +125,18 @@ fn test_resolves_tokens_automatically_detected() {
             "monospace".to_string()
         ]))
     );
+}
+
+#[test]
+fn test_returns_error_when_source_file_is_missing() {
+    let config_path = get_config_fixture_path("error_missing_source_file");
+    let config = NemCssConfig::from_path(&config_path).unwrap();
+
+    let error = config.resolve_all_tokens().unwrap_err();
+
+    let msg = error.to_string();
+    assert!(msg.contains("colors"));
+    assert!(msg.contains("colors.json"));
 }
 
 #[test]
@@ -199,4 +211,48 @@ fn test_no_utilities_get_generated_if_not_explicitly_set() {
     let color_token = tokens.get("colors").unwrap();
     let color_utilities = &color_token.utilities;
     assert!(color_utilities.is_empty());
+}
+
+#[test]
+fn test_returns_error_when_theme_entry_has_no_prefix() {
+    let config_path = get_config_fixture_path("error_missing_prefix");
+
+    let result = NemCssConfig::from_path(&config_path);
+
+    let error = result.unwrap_err();
+    assert!(error.to_string().contains("prefix"));
+}
+
+#[test]
+fn test_returns_error_for_unregistered_token_file() {
+    let config_path = get_config_fixture_path("error_unregistered_token_file");
+    let config = NemCssConfig::from_path(&config_path).unwrap();
+
+    let error = config.resolve_all_tokens().unwrap_err();
+
+    let msg = error.to_string();
+    assert!(msg.contains("colors.json"));
+    assert!(msg.contains("spacings.json"));
+    assert!(msg.contains("not registered"));
+}
+
+#[test]
+fn test_lists_unregistered_token_files_without_erroring() {
+    let config_path = get_config_fixture_path("error_unregistered_token_file");
+    let config = NemCssConfig::from_path(&config_path).unwrap();
+
+    let unregistered = config.unregistered_token_files().unwrap();
+
+    assert_eq!(unregistered.len(), 2);
+    assert!(unregistered[0].ends_with("colors.json"));
+    assert!(unregistered[1].ends_with("spacings.json"));
+}
+
+#[test]
+fn test_resolves_to_empty_map_with_empty_theme_and_no_tokens() {
+    let config_path = get_config_fixture_path("empty_theme");
+    let config = NemCssConfig::from_path(&config_path).unwrap();
+
+    let tokens = config.resolve_all_tokens().unwrap();
+    assert!(tokens.is_empty());
 }

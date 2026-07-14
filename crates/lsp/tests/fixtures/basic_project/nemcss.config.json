@@ -1,9 +1,11 @@
 {
-  "content": [
-    "src/**/*.html"
-  ],
+  "content": ["src/**/*.html"],
   "tokensDir": "design-tokens",
   "theme": {
+    "spacings": {
+      "prefix": "spacing",
+      "source": "design-tokens/spacings.json"
+    },
     "colors": {
       "prefix": "color",
       "source": "design-tokens/colors.json",
@@ -11,6 +13,10 @@
         { "prefix": "text", "property": "color" },
         { "prefix": "bg", "property": "background-color" }
       ]
+    },
+    "viewports": {
+      "prefix": "viewport",
+      "source": "design-tokens/viewports.json"
     }
   }
 }

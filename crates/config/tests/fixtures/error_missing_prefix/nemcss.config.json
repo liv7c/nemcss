@@ -1,0 +1,6 @@
+{
+  "content": ["src/**/*.html"],
+  "theme": {
+    "colors": { "source": "design-tokens/colors.json" }
+  }
+}

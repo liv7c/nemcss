@@ -1,3 +1,5 @@
+use std::fs;
+
 use assert_fs::TempDir;
 use assert_fs::prelude::*;
 use predicates::prelude::*;
@@ -23,7 +25,17 @@ impl TestCmdHelper {
         self.temp_dir.child("nemcss.config.json").write_str(
             r#"
         {
-            "content": ["src/**/*.html"]
+            "content": ["src/**/*.html"],
+            "theme": {
+              "spacings": {
+                    "prefix": "spacing",
+                    "source": "design-tokens/spacings.json"
+                },
+                "colors": {
+                    "prefix": "color",
+                    "source": "design-tokens/colors.json"
+                }
+            }
         }
         "#,
         )?;
@@ -69,6 +81,7 @@ impl TestCmdHelper {
             "content": ["src/**/*.html"],
             "theme": {
                 "colors": {
+                    "prefix": "color",
                     "source": "design-tokens/colors.json",
                     "utilities": [
                         { "prefix": "text", "property": "color" },
@@ -77,6 +90,7 @@ impl TestCmdHelper {
                     ]
                 },
                 "spacings": {
+                    "prefix": "spacing",
                     "source": "design-tokens/spacings.json",
                     "utilities": [
                         { "prefix": "p", "property": "padding" },
@@ -99,10 +113,12 @@ impl TestCmdHelper {
             "content": ["src/**/*.html"],
             "theme": {
                 "colors": {
+                    "prefix": "color",
                     "source": "design-tokens/colors.json",
                     "utilities": []
                 },
                 "spacings": {
+                    "prefix": "spacing",
                     "source": "design-tokens/spacings.json",
                     "utilities": [
                         { "prefix": "p", "property": "padding" },
@@ -141,6 +157,17 @@ impl TestCmdHelper {
     ]
 }"#,
             )?;
+
+        let config_child = self.temp_dir.child("nemcss.config.json");
+        let mut config: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(config_child.path())?)?;
+        config["theme"]["viewports"] = serde_json::json!({
+            "prefix": "viewport",
+            "source": "design-tokens/viewports.json"
+        });
+
+        config_child.write_str(&serde_json::to_string_pretty(&config)?)?;
+
         Ok(self)
     }
 

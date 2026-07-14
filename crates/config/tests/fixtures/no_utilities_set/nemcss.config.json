@@ -1,11 +1,9 @@
 {
-  "content": [
-    "src/**/*.html",
-    "src/**/*.svelte"
-  ],
+  "content": ["src/**/*.html", "src/**/*.svelte"],
   "tokensDir": "design-tokens",
   "theme": {
     "colors": {
+      "prefix": "color",
       "source": "design-tokens/colors.json"
     },
     "spacings": {
@@ -14,4 +12,3 @@
     }
   }
 }
-

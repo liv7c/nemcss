@@ -8,34 +8,5 @@
     "src/**/*.astro"
   ],
   "tokensDir": "design-tokens",
-  "theme": {
-    "colors": {
-      "prefix": "color",
-      "source": "design-tokens/colors.json"
-    },
-    "spacings": {
-      "prefix": "spacing",
-      "source": "design-tokens/spacings.json",
-      "utilities": [
-        { "prefix": "p", "property": "padding" },
-        { "prefix": "m", "property": "margin" }
-      ]
-    }
-  },
-  "semantic": {
-    "text": {
-      "property": "color",
-      "tokens": {
-        "default": "{colors.black}",
-        "muted": "{colors.white}"
-      }
-    },
-    "bg": {
-      "property": "background-color",
-      "tokens": {
-        "page": "{colors.white}",
-        "surface": "{colors.black}"
-      }
-    }
-  }
+  "theme": {}
 }

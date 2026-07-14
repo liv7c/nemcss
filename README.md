@@ -22,11 +22,10 @@ npm install -D nemcss
 npx nemcss init
 ```
 
-This creates a `nemcss.config.json` and a `design-tokens` folder with example color and spacing tokens.
-
-Need another token file? The `new-token-file` command creates it and registers it in your config in one go:
+This creates a `nemcss.config.json` and an empty `design-tokens` folder. `nemcss init` doesn't generate example tokens: you add tokens with `new-token-file`, which creates the file and registers it in your config in one go.
 
 ```sh
+npx nemcss new-token-file colors --prefix color --values "hsl(0, 0%, 100%),hsl(0, 0%, 0%)" --names "white,black"
 npx nemcss new-token-file radius --unit px --values "2,4,8" --names "sm,md,lg"
 ```
 
@@ -48,27 +47,15 @@ The `@nemcss base;` directive is replaced with the custom properties generated f
 
 ```css
 :root {
-  --color-white: hsl(0, 0%, 100%);
-  --color-black: hsl(0, 0%, 0%);
   --radius-sm: 2px;
   --radius-md: 4px;
   --radius-lg: 8px;
-  --spacing-md: 1rem;
-  /* ... */
-  --text-default: var(--color-black);
-  --bg-page: var(--color-white);
-}
-
-.p-md {
-  padding: var(--spacing-md);
-}
-.text-default {
-  color: var(--text-default);
-}
-.bg-page {
-  background-color: var(--bg-page);
+  --color-white: hsl(0, 0%, 100%);
+  --color-black: hsl(0, 0%, 0%);
 }
 ```
+
+Utility classes and a semantic layer (mapping tokens to intent, like "text" or "background") are both opt-in via `nemcss.config.json` — see the [configuration guide](https://liv7c.github.io/nemcss/guide/configuration.html).
 
 Use `nemcss watch` during development to rebuild on changes. There is also a Vite plugin and a PostCSS plugin if you prefer to integrate NemCSS into your existing build. Check out the [currently supported integrations](https://liv7c.github.io/nemcss/integrations/cli.html).
 

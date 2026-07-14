@@ -34,7 +34,7 @@ When installed locally, run commands via `npx nemcss <command>` or add them as s
 
 | Command                               | Description                                                                                                    |
 | ------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| `nemcss init`                         | Scaffold `nemcss.config.json` and example token files in the current directory                                 |
+| `nemcss init`                         | Create a minimal `nemcss.config.json` and an empty `design-tokens/` folder in the current directory            |
 | `nemcss build -i <input> -o <output>` | One-shot build: scan content files and write CSS                                                               |
 | `nemcss watch -i <input> -o <output>` | Watch mode: rebuild on token, content, or config changes                                                       |
 | `nemcss schema`                       | Print the JSON schema for `nemcss.config.json` to stdout                                                       |

@@ -2,7 +2,6 @@
 
 Design token files are your primitives. Colors, spacings, fonts, whatever forms the foundation of your UI. NemCSS reads them and generates CSS custom properties from them. The token files stay simple and focused on one thing: your raw values. All the wiring happens in `nemcss.config.json`.
 
-
 ## Token file format
 
 Each token file is a JSON file with a `title`, an optional `description`, and an `items` array:
@@ -24,7 +23,7 @@ Each token file is a JSON file with a `title`, an optional `description`, and an
 | `description` | no       | Optional description of what these tokens represent.      |
 | `items`       | yes      | Array of token entries, each with a `name` and a `value`. |
 
-Place these files in your `tokensDir` (defaults to `design-tokens/`). The filename determines the token category (e.g. `colors.json` is the `colors` category).
+Place these files in your `tokensDir` (defaults to `design-tokens/`) and register each one under `theme` in `nemcss.config.json`. The theme key is the category name.
 
 ## Token value types
 
@@ -103,12 +102,24 @@ This generates:
   --spacing-md: 1rem;
 }
 
-.p-xs { padding: var(--spacing-xs); }
-.p-sm { padding: var(--spacing-sm); }
-.p-md { padding: var(--spacing-md); }
-.m-xs { margin: var(--spacing-xs); }
-.m-sm { margin: var(--spacing-sm); }
-.m-md { margin: var(--spacing-md); }
+.p-xs {
+  padding: var(--spacing-xs);
+}
+.p-sm {
+  padding: var(--spacing-sm);
+}
+.p-md {
+  padding: var(--spacing-md);
+}
+.m-xs {
+  margin: var(--spacing-xs);
+}
+.m-sm {
+  margin: var(--spacing-sm);
+}
+.m-md {
+  margin: var(--spacing-md);
+}
 ```
 
 ## Using tokens in semantic groups
@@ -151,8 +162,12 @@ This generates:
   --text-muted: var(--color-muted);
 }
 
-.text-primary { color: var(--text-primary); }
-.text-muted { color: var(--text-muted); }
+.text-primary {
+  color: var(--text-primary);
+}
+.text-muted {
+  color: var(--text-muted);
+}
 ```
 
 Your primitive color custom properties remain available. The semantic group adds a second layer with explicit intent.

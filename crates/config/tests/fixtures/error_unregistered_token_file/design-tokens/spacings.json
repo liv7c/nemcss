@@ -1,0 +1,14 @@
+{
+  "title": "Spacings",
+  "description": "Spacings tokens",
+  "items": [
+    {
+      "name": "0",
+      "value": "0px"
+    },
+    {
+      "name": "sm",
+      "value": "4px"
+    }
+  ]
+}

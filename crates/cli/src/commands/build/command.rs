@@ -36,6 +36,10 @@ pub enum BuildError {
     #[diagnostic(code(nemcss::build::missing_base_directive))]
     MissingBaseDirective(String),
 
+    #[error("failed to build the globset from the content patterns: {0}")]
+    #[diagnostic(code(nemcss::build::content_glob_set))]
+    ContentGlobSet(#[from] globset::Error),
+
     #[error("failed to get the content files: {0}")]
     #[diagnostic(code(nemcss::build::get_content_files))]
     GetContentFiles(#[from] GetContentFilesError),
@@ -115,7 +119,8 @@ pub fn build(
         .get("viewports")
         .or_else(|| resolved_tokens.get("viewport"));
 
-    let files_to_scan = get_content_files(&config.content, current_dir.as_path())?;
+    let content_glob_set = config.content_glob_set()?;
+    let files_to_scan = get_content_files(&content_glob_set, current_dir.as_path())?;
 
     if files_to_scan.is_empty() && !quiet {
         eprintln!(
