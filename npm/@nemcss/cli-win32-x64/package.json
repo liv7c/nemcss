@@ -1,6 +1,6 @@
 {
   "name": "@nemcss/cli-win32-x64",
-  "version": "0.9.0",
+  "version": "0.9.1",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/liv7c/nemcss.git",
