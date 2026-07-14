@@ -38,7 +38,7 @@ fn test_version() {
 }
 
 #[test]
-fn test_init_generates_config_file_with_correct_content() {
+fn test_init_creates_minimal_config_and_empty_tokens_dir() {
     let (mut cmd, temp_dir) = setup_cmd().unwrap();
 
     cmd.current_dir(&temp_dir)
@@ -53,31 +53,10 @@ fn test_init_generates_config_file_with_correct_content() {
         .child("nemcss.config.json")
         .assert(predicate::path::is_file())
         .assert(predicate::str::contains(expected_config_file_content));
-}
-
-#[test]
-fn test_init_generates_tokens_dir_with_correct_content() {
-    let (mut cmd, temp_dir) = setup_cmd().unwrap();
-
-    cmd.current_dir(&temp_dir).arg("init").assert().success();
 
     temp_dir
         .child("design-tokens")
         .assert(predicate::path::is_dir());
-
-    let expected_spacings_file_content = include_str!("../src/templates/spacings.json");
-    temp_dir
-        .child("design-tokens")
-        .child("spacings.json")
-        .assert(predicate::path::is_file())
-        .assert(predicate::str::contains(expected_spacings_file_content));
-
-    let expected_colors_file_content = include_str!("../src/templates/colors.json");
-    temp_dir
-        .child("design-tokens")
-        .child("colors.json")
-        .assert(predicate::path::is_file())
-        .assert(predicate::str::contains(expected_colors_file_content));
 }
 
 #[test]
@@ -282,11 +261,22 @@ fn test_new_token_file_accepts_css_function_values() {
 #[test]
 fn test_new_token_file_refuses_to_overwrite_without_force_flag() {
     let (mut cmd, temp_dir) = setup_cmd().unwrap();
-
     cmd.current_dir(&temp_dir).arg("init").assert().success();
 
     let (mut cmd, _) = setup_cmd().unwrap();
+    cmd.current_dir(&temp_dir)
+        .args([
+            "new-token-file",
+            "spacings",
+            "--unit",
+            "px",
+            "--values",
+            "8,16",
+        ])
+        .assert()
+        .success();
 
+    let (mut cmd, _) = setup_cmd().unwrap();
     cmd.current_dir(&temp_dir)
         .args([
             "new-token-file",
@@ -308,7 +298,34 @@ fn test_new_token_file_overwrites_with_force() {
     cmd.current_dir(&temp_dir).arg("init").assert().success();
 
     let (mut cmd, _) = setup_cmd().unwrap();
+    cmd.current_dir(&temp_dir)
+        .args([
+            "new-token-file",
+            "spacings",
+            "--unit",
+            "px",
+            "--values",
+            "8,16",
+        ])
+        .assert()
+        .success();
 
+    let config_child = temp_dir.child(CONFIG_FILE_NAME);
+    let mut config: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(config_child.path()).unwrap()).unwrap();
+    config["theme"]["spacings"] = serde_json::json!({
+        "prefix": "spacing",
+        "source": "design-tokens/spacings.json",
+        "utilities": [
+            { "prefix": "p", "property": "padding" },
+            { "prefix": "m", "property": "margin" }
+        ]
+    });
+    config_child
+        .write_str(&serde_json::to_string_pretty(&config).unwrap())
+        .unwrap();
+
+    let (mut cmd, _) = setup_cmd().unwrap();
     cmd.current_dir(&temp_dir)
         .args([
             "new-token-file",

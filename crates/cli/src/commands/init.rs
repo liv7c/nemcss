@@ -31,14 +31,9 @@ pub enum InitError {
     #[error("failed to create the design tokens directory: {0}")]
     #[diagnostic(code(nemcss::init::create_design_tokens_dir))]
     CreateDesignTokensDir(std::io::Error),
-
-    /// Error creating the design token file
-    #[error("failed to create the design token file: {0}")]
-    #[diagnostic(code(nemcss::init::create_design_token_file))]
-    CreateDesignTokenFile(std::io::Error),
 }
 
-/// Initialize a new project with the `nemcss.config.json` configuration and example design tokens.
+/// Initialize a new project with the `nemcss.config.json` configuration
 pub fn init() -> miette::Result<(), InitError> {
     let current_dir = std::env::current_dir().map_err(InitError::RetrieveCurrentDir)?;
 
@@ -49,7 +44,7 @@ pub fn init() -> miette::Result<(), InitError> {
     println!();
 
     create_config_file(&current_dir)?;
-    create_design_tokens_and_example_tokens(&current_dir)?;
+    create_design_tokens_dir(&current_dir)?;
 
     println!();
     println!("{}", "✓ Initialization complete!".green().bold());
@@ -82,16 +77,15 @@ fn create_config_file(current_dir: &Path) -> miette::Result<(), InitError> {
     Ok(())
 }
 
-/// Create the design tokens directory and example tokens at the root of the current directory.
-/// If the directory already exists, it will be skipped.
+/// Create the design tokens directory .
 ///
 /// # Errors
 ///
-/// This function fails if there is an error while creating the directory or the example tokens.
-fn create_design_tokens_and_example_tokens(current_dir: &Path) -> miette::Result<(), InitError> {
+/// This function fails if there is an error while creating the directory.
+fn create_design_tokens_dir(current_dir: &Path) -> miette::Result<(), InitError> {
     let design_tokens_dir_path = current_dir.join(DESIGN_TOKENS_DIR_NAME);
 
-    // Skip the design tokens + example tokens creation if user has already a design tokens
+    // Skip the design tokens if user has already a design tokens
     // directory.
     if design_tokens_dir_path.exists() {
         println!(
@@ -108,39 +102,8 @@ fn create_design_tokens_and_example_tokens(current_dir: &Path) -> miette::Result
         DESIGN_TOKENS_DIR_NAME.green(),
         design_tokens_dir_path.display()
     );
-
-    let colors_content = include_str!("../templates/colors.json");
-    create_design_token_file(&design_tokens_dir_path, "colors", colors_content)?;
-    let spacings_content = include_str!("../templates/spacings.json");
-    create_design_token_file(&design_tokens_dir_path, "spacings", spacings_content)?;
-
-    Ok(())
-}
-
-/// Create a design token file at the design tokens directory.
-/// If the file already exists, it will be skipped.
-///
-/// # Errors
-///
-/// This function fails if there is an error while creating the file.
-fn create_design_token_file(
-    design_tokens_dir_path: &Path,
-    token_type: &str,
-    content: &str,
-) -> miette::Result<(), InitError> {
-    let json_file_name = format!("{token_type}.json");
-    let design_token_file_path = design_tokens_dir_path.join(&json_file_name);
-
-    if design_token_file_path.exists() {
-        return Ok(());
-    }
-
-    fs::write(&design_token_file_path, content).map_err(InitError::CreateDesignTokenFile)?;
-
     println!(
-        "  ✓ Created {} at {}",
-        json_file_name.green(),
-        design_token_file_path.display()
+        "Next step: add your first tokens with `nemcss new-token-file <name>` or `nemcss new-token-file --interactive`"
     );
 
     Ok(())
@@ -154,19 +117,5 @@ mod tests {
         let content = raw.replace("NEMCSS_SCHEMA_URL", "https://example.com/schema.json");
         serde_json::from_str::<config::NemCssConfig>(&content)
             .expect("Config template should be a valid NemCssConfig after substitution");
-    }
-
-    #[test]
-    fn test_colors_template_is_valid_json() {
-        let colors_content = include_str!("../templates/colors.json");
-        serde_json::from_str::<serde_json::Value>(colors_content)
-            .expect("Colors template should be valid JSON");
-    }
-
-    #[test]
-    fn test_spacings_template_is_valid_json() {
-        let spacings_content = include_str!("../templates/spacings.json");
-        serde_json::from_str::<serde_json::Value>(spacings_content)
-            .expect("Spacings template should be valid JSON");
     }
 }
