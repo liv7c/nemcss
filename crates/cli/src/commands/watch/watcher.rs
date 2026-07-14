@@ -44,24 +44,32 @@ pub enum FilterEventsError {
 }
 
 impl FileWatcher {
+    /// Creates a new FileWatcher.
+    ///
+    /// Returns the watcher along with any content directories from the configuration
+    /// that do not exist on disk yet and were therefore skipped.
     pub fn new(
         tx: std::sync::mpsc::Sender<DebounceEventResult>,
         watch_context: &WatchContext,
-    ) -> Result<Self, SetupWatcherError> {
-        Ok(Self {
-            watcher: Self::create_debounced_watcher(tx, watch_context)?,
-        })
+    ) -> Result<(Self, Vec<PathBuf>), SetupWatcherError> {
+        let (watcher, skipped_dirs) = Self::create_debounced_watcher(tx, watch_context)?;
+
+        Ok((Self { watcher }, skipped_dirs))
     }
 
     /// Resets the watcher by creating a new debounced watcher with the updated watch context.
     /// This is used when the configuration file changes and we need to update the watch paths.
+    ///
+    /// Returns any content directories from the configuration that
+    /// do not exist on disk yet and were therefore skipped.
     pub fn reset(
         &mut self,
         tx: std::sync::mpsc::Sender<DebounceEventResult>,
         watch_context: &WatchContext,
-    ) -> Result<(), SetupWatcherError> {
-        self.watcher = Self::create_debounced_watcher(tx, watch_context)?;
-        Ok(())
+    ) -> Result<Vec<PathBuf>, SetupWatcherError> {
+        let (watcher, skipped_dirs) = Self::create_debounced_watcher(tx, watch_context)?;
+        self.watcher = watcher;
+        Ok(skipped_dirs)
     }
 
     /// Filters out events based on the event kind and the glob set in the watch context.
@@ -96,7 +104,13 @@ impl FileWatcher {
     fn create_debounced_watcher(
         tx: std::sync::mpsc::Sender<DebounceEventResult>,
         watch_context: &WatchContext,
-    ) -> Result<Debouncer<RecommendedWatcher, RecommendedCache>, SetupWatcherError> {
+    ) -> Result<
+        (
+            Debouncer<RecommendedWatcher, RecommendedCache>,
+            Vec<PathBuf>,
+        ),
+        SetupWatcherError,
+    > {
         let mut watcher = new_debouncer_opt::<_, _, RecommendedCache>(
             Duration::from_millis(DEBOUNCE_TIME),
             None,
@@ -107,8 +121,14 @@ impl FileWatcher {
         .map_err(SetupWatcherError::CreateWatcherError)?;
 
         let watch_dirs = extract_watch_dirs(&watch_context.config.content);
+        let mut skipped_dirs = Vec::new();
 
         for (dir, mode) in watch_dirs {
+            if !dir.exists() {
+                skipped_dirs.push(dir);
+                continue;
+            }
+
             watcher
                 .watch(&dir, mode)
                 .map_err(|e| SetupWatcherError::WatchDirectoryError {
@@ -141,7 +161,7 @@ impl FileWatcher {
                 source: e,
             })?;
 
-        Ok(watcher)
+        Ok((watcher, skipped_dirs))
     }
 }
 

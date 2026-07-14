@@ -147,7 +147,19 @@ pub fn watch(input: impl AsRef<Path>, output: impl AsRef<Path>) -> Result<(), Wa
 
     let (tx, rx) = std::sync::mpsc::channel();
 
-    let mut watcher = FileWatcher::new(tx.clone(), &watch_context)?;
+    let (mut watcher, skipped_dirs) = FileWatcher::new(tx.clone(), &watch_context)?;
+
+    if !skipped_dirs.is_empty() {
+        eprintln!(
+            "{} the following content directories don't exist yet and won't be watched until they are created and the config is reloaded: {}",
+            "Warning".yellow().bold(),
+            skipped_dirs
+                .iter()
+                .map(|p| p.display().to_string())
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
+    }
 
     // Create shutdown flag for graceful shutdown
     let running = Arc::new(AtomicBool::new(true));
@@ -184,8 +196,26 @@ pub fn watch(input: impl AsRef<Path>, output: impl AsRef<Path>) -> Result<(), Wa
                         "Info:".blue().bold()
                     );
                     match watch_context.reload() {
-                        Ok(_) => {
-                            if let Err(err) = watcher.reset(tx.clone(), &watch_context) {
+                        Ok(_) => match watcher.reset(tx.clone(), &watch_context) {
+                            Ok(skipped_dirs) => {
+                                println!(
+                                    "{} Configuration reloaded successfully!",
+                                    "Success:".green().bold()
+                                );
+
+                                if !skipped_dirs.is_empty() {
+                                    eprintln!(
+                                        "{} the following content directories don't exist yet and won't be watched until they are created and the config is reloaded: {}",
+                                        "Warning".yellow().bold(),
+                                        skipped_dirs
+                                            .iter()
+                                            .map(|p| p.display().to_string())
+                                            .collect::<Vec<_>>()
+                                            .join(", ")
+                                    );
+                                }
+                            }
+                            Err(err) => {
                                 eprintln!(
                                     "{} Failed to reset the watcher after updating the configuration file",
                                     "Error:".red().bold()
@@ -197,12 +227,7 @@ pub fn watch(input: impl AsRef<Path>, output: impl AsRef<Path>) -> Result<(), Wa
 
                                 return Err(WatchError::ResetWatcherAfterReload(err));
                             }
-
-                            println!(
-                                "{} Configuration reloaded successfully!",
-                                "Success:".green().bold()
-                            );
-                        }
+                        },
                         Err(err) => {
                             eprintln!(
                                 "Failed to reload configuration file: {:?}",
