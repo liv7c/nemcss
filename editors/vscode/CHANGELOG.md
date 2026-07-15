@@ -1,5 +1,11 @@
 # Change Log
 
+## 0.6.0
+
+### Minor Changes
+
+- 3452fbc: Adds a jsonValidation for nemcss.config.json file for better autocomplete and documentation
+
 ## 0.5.3
 
 ### Patch Changes
