@@ -12,7 +12,7 @@
       ]
     },
     "content": {
-      "description": "List of glob patterns for the files NemCSS scans to find the classes\nit should generate the CSS for.",
+      "description": "Glob patterns for the files NemCSS should scan for class names.\ne.g. [\"src/**/*.html\"]",
       "type": "array",
       "items": {
         "type": "string"
