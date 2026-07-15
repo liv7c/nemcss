@@ -33,6 +33,12 @@
   ],
   "main": "./dist/extension.js",
   "contributes": {
+    "jsonValidation": [
+      {
+        "fileMatch": "nemcss.config.json",
+        "url": "./schemas/nemcss.config.schema.json"
+      }
+    ],
     "configuration": {
       "title": "NemCSS",
       "properties": {
