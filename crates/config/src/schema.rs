@@ -62,4 +62,31 @@ mod tests {
 
         assert_eq!(output1, output2);
     }
+
+    #[test]
+    fn checked_in_schema_copies_are_fresh() {
+        let expected = generate_schema().expect("failed to generate schema");
+
+        let copies = [
+            "../../editors/vscode/schemas/nemcss.config.schema.json",
+            "../../docs/public/schema/nemcss.config.schema.json",
+        ];
+
+        for rel in copies {
+            let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(rel);
+            let actual = std::fs::read_to_string(&path).unwrap_or_else(|_| {
+                panic!(
+                    "missing checked-in schema at {} - run ./scripts/update-schema.sh",
+                    path.display(),
+                )
+            });
+
+            assert_eq!(
+                actual.trim_end(),
+                expected,
+                "stale checked-in schema at {} - run ./scripts/update-schema.sh to update it",
+                path.display()
+            );
+        }
+    }
 }

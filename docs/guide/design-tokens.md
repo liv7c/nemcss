@@ -138,7 +138,9 @@ Given the same color tokens:
 }
 ```
 
-You can define a semantic group in your config:
+### Generating utility classes
+
+Set the `property` field to also generate a utility class per token:
 
 ```json
 {
@@ -171,5 +173,31 @@ This generates:
 ```
 
 Your primitive color custom properties remain available. The semantic group adds a second layer with explicit intent.
+
+### Generating only custom properties
+
+The `property` field is optional. Omit it to generate only the semantic custom properties, with no utility classes:
+
+```json
+{
+  "semantic": {
+    "text": {
+      "tokens": {
+        "primary": "{colors.primary}",
+        "muted": "{colors.muted}"
+      }
+    }
+  }
+}
+```
+
+This generates only the `:root` block, no `.text-primary` / `.text-muted` classes:
+
+```css
+:root {
+  --text-primary: var(--color-primary);
+  --text-muted: var(--color-muted);
+}
+```
 
 See [Configuration](/guide/configuration) for the full reference.

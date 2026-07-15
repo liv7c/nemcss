@@ -32,7 +32,10 @@ export default defineConfig({
         { text: "Astro", link: "/examples/astro" },
         { text: "React SPA (Vite)", link: "/examples/react-spa" },
       ],
-      "/editor/": [{ text: "Editor Support", link: "/editor/" }],
+      "/editor/": [
+        { text: "Editor Support", link: "/editor/" },
+        { text: "Config Autocomplete", link: "/editor/config-autocomplete" },
+      ],
     },
 
     socialLinks: [{ icon: "github", link: "https://github.com/liv7c/nemcss" }],

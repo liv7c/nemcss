@@ -1,0 +1,142 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "NemCssConfig",
+  "description": "Configuration for a NemCSS project, loaded from a nemcss.config.json.\nSays which files to scan for utility classes, where your design tokens live, and\nhow tokens map to CSS.",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "description": "Accepts a manually added \"$schema\" key without failing validation.\nMost editors detect the schema from the file name instead.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "content": {
+      "description": "Glob patterns for the files NemCSS should scan for class names.\ne.g. [\"src/**/*.html\"]",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "tokensDir": {
+      "description": "Path to directory containing the design tokens.",
+      "type": "string",
+      "default": "design-tokens"
+    },
+    "theme": {
+      "description": "Registers each design token file you want NemCSS to use: where it\nlives, what prefix its custom properties get, and any utility classes\nto generate from it.",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ThemeConfig"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "semantic": {
+      "description": "Named groups of tokens (e.g. \"text\", \"background\") that map to a CSS property,\nso you can style by intent instead of by raw token name.",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/SemanticConfig"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "content"
+  ],
+  "$defs": {
+    "ThemeConfig": {
+      "description": "A design token file registered under `theme`, keyed by its token type\n(e.g. \"colors\", \"spacings\").",
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/TokenConfig"
+      }
+    },
+    "TokenConfig": {
+      "description": "TokenConfig represents the configuration of a single design token.\nYou can override the default configuration by specifying the source, prefix, and utilities.\n\n# Examples\n\nIn your `nemcss.config.json`:\n\n```json\n{\n  \"theme\": {\n     \"colors\": {\n       \"source\": \"design-tokens/colors.json\",\n       \"prefix\": \"color\",\n       \"utilities\": [\n          {\n            \"prefix\": \"highlight\",\n            \"property\": \"background-color\"\n          }\n       ]\n     }\n\n  }\n}\n```\n\nWith a token variant \"primary\" in colors.json, this generates:\n- CSS custom property: `--color-primary`\n- Utility class: `.highlight-primary { background-color: var(--color-primary); }`",
+      "type": "object",
+      "properties": {
+        "source": {
+          "description": "Path to the tokens file.\nIt will make it possible to override the default configuration for a given token.",
+          "type": "string"
+        },
+        "prefix": {
+          "description": "The token prefix is used to generate the custom properties for the given token.\nIf prefix is set to \"color\", the token prefix will be \"color-\".\nThe generated custom properties will take the shape --<PREFIX>-<TOKEN_NAME>.",
+          "type": "string",
+          "minLength": 1
+        },
+        "utilities": {
+          "description": "Utilities are used to generate utility classes for the given token.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/$defs/TokenUtilityConfig"
+          }
+        }
+      },
+      "required": [
+        "source",
+        "prefix"
+      ]
+    },
+    "TokenUtilityConfig": {
+      "description": "Defines one utility class NemCSS generates from a token, e.g. `.bg-primary`.",
+      "type": "object",
+      "properties": {
+        "prefix": {
+          "description": "The prefix that will be used to generate the utility class.\nFor example, if the prefix is \"bg\", the utility class will be \"bg-[TOKEN VARIANT]\".",
+          "type": "string",
+          "minLength": 1
+        },
+        "property": {
+          "description": "The CSS property that will use the design token value.",
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "prefix",
+        "property"
+      ]
+    },
+    "SemanticConfig": {
+      "description": "The semantic config enables the creation of groups of semantic tokens (e.g. for \"text\",\n\"background\") with their own configuration (e.g. the CSS property they target and the tokens\nthey use)",
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/SemanticGroupConfig"
+      }
+    },
+    "SemanticGroupConfig": {
+      "description": "One semantic group: the CSS property it targets and the tokens it maps to.",
+      "type": "object",
+      "properties": {
+        "property": {
+          "description": "CSS property this group targets (e.g. \"color\", \"background-color\")\nThis is optional. Omit it when you generate only CSS custom properties for\nthe group.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1
+        },
+        "tokens": {
+          "description": "Mapping between a semantic name and an existing design token value\ne.g. \"primary\" -> \"{colors.blue-800}\"",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "tokens"
+      ]
+    }
+  }
+}
