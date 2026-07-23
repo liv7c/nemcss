@@ -22,6 +22,8 @@ updates:
         versions: [">=23.0.0"]
       - dependency-name: "@types/vscode"
         versions: [">=1.110.0"]
+      - dependency-name: "typescript"
+        versions: [">=7.0.0"]
     groups:
       production-dependencies:
         dependency-type: "production"
