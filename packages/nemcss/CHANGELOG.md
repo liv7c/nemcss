@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.2
+
+### Patch Changes
+
+- f7f9108: Remove empty dead `bin` field from platform CLI packages
+
 ## 0.9.1
 
 ### Patch Changes
