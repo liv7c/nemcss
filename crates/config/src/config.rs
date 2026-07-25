@@ -8,8 +8,9 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::tokens::{
-    ResolveTokensError, ResolvedToken, ScanTokensDirError, resolve_all_semantic_groups,
-    resolve_all_tokens, resolve_registered_tokens, unregistered_token_files,
+    ResolveModeError, ResolveTokensError, ResolvedMode, ResolvedToken, ScanTokensDirError,
+    resolve_all_modes, resolve_all_semantic_groups, resolve_all_tokens, resolve_registered_tokens,
+    unregistered_token_files,
 };
 use crate::{ResolveSemanticError, ResolvedSemanticGroup};
 
@@ -190,6 +191,15 @@ impl NemCssConfig {
         resolve_all_semantic_groups(self.semantic.as_ref(), primitive_tokens)
     }
 
+    /// Resolves modes
+    pub fn resolve_modes(
+        &self,
+        semantic_groups: &HashMap<String, ResolvedSemanticGroup>,
+        primitive_tokens: &HashMap<String, ResolvedToken>,
+    ) -> Result<Vec<ResolvedMode>, ResolveModeError> {
+        resolve_all_modes(self.modes.as_ref(), semantic_groups, primitive_tokens)
+    }
+
     /// Get absolute path to the tokens directory.
     pub fn tokens_dir(&self) -> PathBuf {
         self.base_dir.join(&self.tokens_dir)
@@ -311,15 +321,15 @@ pub struct ModeConfig {
     /// CSS selector for a mode.
     /// Defaults to `[data-mode="<name>"]`
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    selector: Option<String>,
+    pub selector: Option<String>,
     /// Optional media query for the given color mode.
     /// When set, the overrides get applied when the media query matches and no explicit `data-mode` is present.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    media: Option<String>,
+    pub media: Option<String>,
     /// Semantic token overrides for the given color mode.
     /// Every group and token must already exist in the `semantic` section.
     #[serde(default)]
-    overrides: HashMap<String, HashMap<String, String>>,
+    pub overrides: HashMap<String, HashMap<String, String>>,
 }
 
 #[cfg(test)]

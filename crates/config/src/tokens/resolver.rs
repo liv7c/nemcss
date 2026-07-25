@@ -6,7 +6,7 @@ use miette::{Diagnostic, Result};
 use thiserror::Error;
 
 use crate::tokens::token::{TokenFile, TokenValue};
-use crate::{NemCssConfig, SemanticConfig, TokenUtilityConfig};
+use crate::{ModeConfig, NemCssConfig, SemanticConfig, TokenUtilityConfig};
 
 /// Represents the error type when scanning the tokens directory.
 #[derive(Debug, Diagnostic, Error)]
@@ -281,6 +281,121 @@ pub fn resolve_all_semantic_groups(
     Ok(result)
 }
 
+/// Resolved mode, ready for CSS generation
+#[derive(Debug, PartialEq)]
+pub struct ResolvedMode {
+    /// Mode name from the config (e.g. "dark")
+    pub name: String,
+    /// Selector that activates the mode, defaulted to `[data-mode="<name>"]`
+    pub selector: String,
+    /// Optional media query
+    pub media: Option<String>,
+    /// Pairs of semantic tokens - primitive token sorted by property name
+    /// e.g. ("--text-default", "var(--color-gray-100)")
+    pub declarations: Vec<(String, String)>,
+}
+
+#[derive(Debug, Diagnostic, Error)]
+pub enum ResolveModeError {
+    #[error("mode '{mode}' overrides unknown semantic group '{group}'")]
+    #[diagnostic(
+        code(config::modes::unknown_group),
+        help("groups in a mode overrides must be declared in the \"semantic\" section")
+    )]
+    UnknownSemanticGroup { mode: String, group: String },
+
+    #[error("mode '{mode}' overrides unknown token '{token}' in semantic group '{group}'")]
+    #[diagnostic(
+        code(config::modes::unknown_token),
+        help("available tokens: {available}")
+    )]
+    UnknownSemanticToken {
+        mode: String,
+        group: String,
+        token: String,
+        available: String,
+    },
+
+    #[error("unresolvable reference '{reference}' in mode '{mode}', group '{group}'")]
+    #[diagnostic(code(config::modes::unresolvable_reference))]
+    UnresolvableReference {
+        mode: String,
+        group: String,
+        reference: String,
+    },
+}
+
+pub fn resolve_all_modes(
+    modes: Option<&HashMap<String, ModeConfig>>,
+    semantic_groups: &HashMap<String, ResolvedSemanticGroup>,
+    primitive_tokens: &HashMap<String, ResolvedToken>,
+) -> Result<Vec<ResolvedMode>, ResolveModeError> {
+    let Some(modes) = modes else {
+        return Ok(vec![]);
+    };
+
+    let mut mode_names: Vec<&String> = modes.keys().collect();
+    // sort modes by alphabetic order
+    mode_names.sort();
+
+    let mut resolved_modes = Vec::with_capacity(mode_names.len());
+
+    for name in mode_names {
+        let definition = &modes[name];
+        let mut declarations = Vec::new();
+
+        for (group_name, overrides) in &definition.overrides {
+            // make sure the group exists in the semantic groups first
+            let group = semantic_groups.get(group_name).ok_or_else(|| {
+                ResolveModeError::UnknownSemanticGroup {
+                    mode: name.clone(),
+                    group: group_name.clone(),
+                }
+            })?;
+
+            for (token_name, reference) in overrides {
+                if !group.tokens.iter().any(|(t, _)| t == token_name) {
+                    let mut available: Vec<&str> =
+                        group.tokens.iter().map(|(t, _)| t.as_str()).collect();
+                    available.sort();
+
+                    return Err(ResolveModeError::UnknownSemanticToken {
+                        mode: name.clone(),
+                        group: group_name.clone(),
+                        token: token_name.clone(),
+                        available: available.join(", "),
+                    });
+                }
+
+                let resolved =
+                    resolve_semantic_reference(reference, primitive_tokens).ok_or_else(|| {
+                        ResolveModeError::UnresolvableReference {
+                            mode: name.clone(),
+                            group: group_name.clone(),
+                            reference: reference.clone(),
+                        }
+                    })?;
+
+                declarations.push((format!("--{}-{}", group.prefix, token_name), resolved));
+            }
+        }
+
+        declarations.sort_by(|a, b| a.0.cmp(&b.0));
+
+        resolved_modes.push(ResolvedMode {
+            name: name.clone(),
+            selector: definition
+                .selector
+                .clone()
+                .unwrap_or_else(|| format!("[data-mode=\"{name}\"]")),
+            media: definition.media.clone(),
+            declarations,
+        })
+    }
+
+    Ok(resolved_modes)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -465,6 +580,167 @@ mod tests {
             let result = resolve_all_semantic_groups(None, &primitives).expect("expect resolve_all_semantic_groups not to return an error when semantic groups is none");
 
             assert!(result.is_empty());
+        }
+    }
+
+    mod mode_resolution {
+        use super::*;
+        use crate::config::ModeConfig;
+
+        fn primitives() -> HashMap<String, ResolvedToken> {
+            let mut map = HashMap::new();
+
+            map.insert(
+                "colors".to_string(),
+                ResolvedToken {
+                    tokens: vec![
+                        (
+                            "black".to_string(),
+                            TokenValue::Simple("hsl(0deg 0% 0%)".to_string()),
+                        ),
+                        (
+                            "gray-100".to_string(),
+                            TokenValue::Simple("hsl(0deg 0% 95%)".to_string()),
+                        ),
+                    ],
+                    utilities: vec![],
+                    prefix: "color".to_string(),
+                },
+            );
+
+            map
+        }
+
+        fn semantic_groups() -> HashMap<String, ResolvedSemanticGroup> {
+            let mut map = HashMap::new();
+
+            map.insert(
+                "text".to_string(),
+                ResolvedSemanticGroup {
+                    prefix: "text".to_string(),
+                    property: Some("color".to_string()),
+                    tokens: vec![
+                        ("default".to_string(), "var(--color-black)".to_string()),
+                        ("muted".to_string(), "var(--color-gray-100)".to_string()),
+                    ],
+                },
+            );
+
+            map
+        }
+
+        fn dark_mode(overrides: &[(&str, &[(&str, &str)])]) -> HashMap<String, ModeConfig> {
+            let mut map = HashMap::new();
+
+            map.insert(
+                "dark".to_string(),
+                ModeConfig {
+                    selector: None,
+                    media: None,
+                    overrides: overrides
+                        .iter()
+                        .map(|(group, tokens)| {
+                            (
+                                group.to_string(),
+                                tokens
+                                    .iter()
+                                    .map(|(k, v)| (k.to_string(), v.to_string()))
+                                    .collect(),
+                            )
+                        })
+                        .collect(),
+                },
+            );
+
+            map
+        }
+
+        #[test]
+        fn resolves_a_mode_with_defaulted_selector() {
+            let modes = dark_mode(&[("text", &[("default", "{colors.gray-100}")])]);
+
+            let resolved =
+                resolve_all_modes(Some(&modes), &semantic_groups(), &primitives()).unwrap();
+
+            assert_eq!(resolved.len(), 1);
+            let dark = &resolved[0];
+            assert_eq!(dark.name, "dark");
+            assert_eq!(dark.selector, r#"[data-mode="dark"]"#);
+            assert_eq!(dark.media, None);
+            assert_eq!(
+                dark.declarations,
+                vec![(
+                    "--text-default".to_string(),
+                    "var(--color-gray-100)".to_string()
+                )]
+            );
+        }
+
+        #[test]
+        fn custom_selector_and_media_pass_through() {
+            let mut modes = dark_mode(&[("text", &[("default", "{colors.gray-100}")])]);
+            let dark = modes.get_mut("dark").unwrap();
+            dark.selector = Some(".theme-dark".to_string());
+            dark.media = Some("(prefers-color-scheme: dark)".to_string());
+
+            let resolved =
+                resolve_all_modes(Some(&modes), &semantic_groups(), &primitives()).unwrap();
+
+            assert_eq!(resolved.len(), 1);
+            let dark = &resolved[0];
+            assert_eq!(dark.selector, ".theme-dark");
+            assert_eq!(dark.media.as_deref(), Some("(prefers-color-scheme: dark)"));
+        }
+
+        #[test]
+        fn no_modes_resolves_to_empty_vec() {
+            let resolved = resolve_all_modes(None, &semantic_groups(), &primitives()).unwrap();
+
+            assert!(resolved.is_empty());
+        }
+
+        #[test]
+        fn overriding_an_unknown_group_is_an_error() {
+            let modes = dark_mode(&[("surface", &[("page", "{colors.black}")])]);
+
+            let err =
+                resolve_all_modes(Some(&modes), &semantic_groups(), &primitives()).unwrap_err();
+
+            assert!(matches!(
+                err,
+                ResolveModeError::UnknownSemanticGroup{ ref mode, ref group, .. }
+                if mode == "dark" && group == "surface"
+            ))
+        }
+
+        #[test]
+        fn overriding_an_unknown_token_is_an_error() {
+            // type in 'default' token
+            let modes = dark_mode(&[("text", &[("deafult", "{colors.gray-100}")])]);
+
+            let err =
+                resolve_all_modes(Some(&modes), &semantic_groups(), &primitives()).unwrap_err();
+
+            assert!(matches!(
+                err,
+                ResolveModeError::UnknownSemanticToken { ref mode, ref group, ref token, .. }
+                if mode == "dark" && group == "text" && token == "deafult"
+            ))
+        }
+
+        #[test]
+        fn unresolvable_reference_is_an_error() {
+            // reference a color token that does not exist
+            let modes = dark_mode(&[("text", &[("default", "{colors.gray-99999}")])]);
+
+            let err =
+                resolve_all_modes(Some(&modes), &semantic_groups(), &primitives()).unwrap_err();
+
+            assert!(matches!(
+                err,
+                ResolveModeError::UnresolvableReference { ref mode, ref reference, ..}
+                if mode == "dark" && reference == "{colors.gray-99999}"
+            ))
         }
     }
 }
