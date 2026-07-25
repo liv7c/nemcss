@@ -22,8 +22,8 @@ mod schema;
 mod tokens;
 
 pub use config::{
-    CONFIG_FILE_NAME, NemCssConfig, NemCssConfigError, SemanticConfig, SemanticGroupConfig,
-    ThemeConfig, TokenConfig, TokenUtilityConfig,
+    CONFIG_FILE_NAME, ModeConfig, NemCssConfig, NemCssConfigError, SemanticConfig,
+    SemanticGroupConfig, ThemeConfig, TokenConfig, TokenUtilityConfig,
 };
 pub use schema::{GenerateSchemaError, generate_schema};
 pub use tokens::{

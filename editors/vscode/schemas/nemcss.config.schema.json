@@ -44,6 +44,16 @@
           "type": "null"
         }
       ]
+    },
+    "modes": {
+      "description": "Named color modes (e.g. dark mode) that override semantic tokens.\nIn the mode config, you can declare a custom selector (e.g. [data-theme=\"dark\"]), a media\nand overrides per semantic group.\n## Example\n```json\n\"modes\": {\n  \"dark\": {\n    \"selector\": \"[data-theme='dark']\",\n    \"media\": \"(prefers-color-scheme: dark)\",\n    \"overrides\": {\n        \"text\": {\n            \"default\": \"{colors.gray-100}\"\n       }\n    }\n}\n}\n```",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "$ref": "#/$defs/ModeConfig"
+      }
     }
   },
   "additionalProperties": false,
@@ -137,6 +147,38 @@
       "required": [
         "tokens"
       ]
+    },
+    "ModeConfig": {
+      "description": "The mode config enables the creation of multiple color modes. Define which\nsemantic tokens you want to override and how to activate the color mode (using a selector or a media query)",
+      "type": "object",
+      "properties": {
+        "selector": {
+          "description": "CSS selector for a mode.\nDefaults to `[data-mode=\"<name>\"]`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "media": {
+          "description": "Optional media query for the given color mode.\nWhen set, the overrides get applied when the media query matches and no explicit `data-mode` is present.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "overrides": {
+          "description": "Semantic token overrides for the given color mode.\nEvery group and token must already exist in the `semantic` section.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "default": {}
+        }
+      },
+      "additionalProperties": false
     }
   }
 }
