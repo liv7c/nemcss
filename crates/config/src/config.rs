@@ -84,14 +84,13 @@ pub struct NemCssConfig {
     pub semantic: Option<SemanticConfig>,
 
     /// Named color modes (e.g. dark mode) that override semantic tokens.
-    /// In the mode config, you can declare a custom selector (e.g. [data-theme="dark"]), a media
-    /// and overrides per semantic group.
+    /// Each mode declares how it is activated, by a `selector` you manage yourself
+    /// or by a `media` query, and the overrides it applies per semantic group.
     /// ## Example
     /// ```json
     /// "modes": {
     ///   "dark": {
     ///     "selector": "[data-theme='dark']",
-    ///     "media": "(prefers-color-scheme: dark)",
     ///     "overrides": {
     ///         "text": {
     ///             "default": "{colors.gray-100}"
@@ -103,7 +102,7 @@ pub struct NemCssConfig {
     #[schemars(extend("defaultSnippets" = serde_json::json!([
         {
             "label": "mode (dark mode)",
-            "description": "Scaffold a color mode. It is activated by a selector (manual toggle, e.g. a data-mode attribute) and/or a media query (system preference). Fill `overrides` with your own semantic groups and tokens. The editor completes them.",
+            "description": "Scaffold a color mode. It is activated either by a selector you manage yourself (a manual toggle, e.g. a data-mode attribute) or by a media query that follows a system preference, never both. Fill `overrides` with your own semantic groups and tokens. The editor completes them.",
             "body": {
                 "${1:dark}": {
                     "selector": "[data-mode=\"${1:dark}\"]",
@@ -326,16 +325,23 @@ pub struct SemanticGroupConfig {
 }
 
 /// The mode config enables the creation of multiple color modes. Define which
-/// semantic tokens you want to override and how to activate the color mode (using a selector or a media query)
+/// semantic tokens you want to override and how to activate the color mode
+/// (with a selector or a media query, exactly one of the two).
 #[derive(Debug, Default, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
+#[schemars(extend("oneOf" = serde_json::json!([
+    { "required": ["selector"] },
+    { "required": ["media"] }
+]), "errorMessage" = "A mode is activated by exactly one of \"selector\" or \"media\". Remove one of them."))]
 pub struct ModeConfig {
-    /// CSS selector for a mode.
-    /// Defaults to `[data-mode="<name>"]`
+    /// CSS selector that activates this mode, e.g. `[data-theme="dark"]` or `.dark`.
+    /// Your app decides when to put it on the page.
+    /// A mode needs exactly one of `selector` or `media`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub selector: Option<String>,
-    /// Optional media query for the given color mode.
-    /// When set, the overrides get applied when the media query matches and no explicit `data-mode` is present.
+    /// Media query that activates this mode, e.g. `(prefers-color-scheme: dark)`.
+    /// Use this for modes that follow the user's system settings and are not meant to be toggled.
+    /// A mode needs exactly one of `selector` or `media`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub media: Option<String>,
     /// Semantic token overrides for the given color mode.

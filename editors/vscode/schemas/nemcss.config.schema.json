@@ -46,7 +46,7 @@
       ]
     },
     "modes": {
-      "description": "Named color modes (e.g. dark mode) that override semantic tokens.\nIn the mode config, you can declare a custom selector (e.g. [data-theme=\"dark\"]), a media\nand overrides per semantic group.\n## Example\n```json\n\"modes\": {\n  \"dark\": {\n    \"selector\": \"[data-theme='dark']\",\n    \"media\": \"(prefers-color-scheme: dark)\",\n    \"overrides\": {\n        \"text\": {\n            \"default\": \"{colors.gray-100}\"\n       }\n    }\n}\n}\n```",
+      "description": "Named color modes (e.g. dark mode) that override semantic tokens.\nEach mode declares how it is activated, by a `selector` you manage yourself\nor by a `media` query, and the overrides it applies per semantic group.\n## Example\n```json\n\"modes\": {\n  \"dark\": {\n    \"selector\": \"[data-theme='dark']\",\n    \"overrides\": {\n        \"text\": {\n            \"default\": \"{colors.gray-100}\"\n       }\n    }\n}\n}\n```",
       "type": [
         "object",
         "null"
@@ -56,7 +56,7 @@
       },
       "defaultSnippets": [
         {
-          "description": "Scaffold a color mode. It is activated by a selector (manual toggle, e.g. a data-mode attribute) and/or a media query (system preference). Fill `overrides` with your own semantic groups and tokens. The editor completes them.",
+          "description": "Scaffold a color mode. It is activated either by a selector you manage yourself (a manual toggle, e.g. a data-mode attribute) or by a media query that follows a system preference, never both. Fill `overrides` with your own semantic groups and tokens. The editor completes them.",
           "label": "mode (dark mode)",
           "body": {
             "${1:dark}": {
@@ -161,18 +161,18 @@
       ]
     },
     "ModeConfig": {
-      "description": "The mode config enables the creation of multiple color modes. Define which\nsemantic tokens you want to override and how to activate the color mode (using a selector or a media query)",
+      "description": "The mode config enables the creation of multiple color modes. Define which\nsemantic tokens you want to override and how to activate the color mode\n(with a selector or a media query, exactly one of the two).",
       "type": "object",
       "properties": {
         "selector": {
-          "description": "CSS selector for a mode.\nDefaults to `[data-mode=\"<name>\"]`",
+          "description": "CSS selector that activates this mode, e.g. `[data-theme=\"dark\"]` or `.dark`.\nYour app decides when to put it on the page.\nA mode needs exactly one of `selector` or `media`.",
           "type": [
             "string",
             "null"
           ]
         },
         "media": {
-          "description": "Optional media query for the given color mode.\nWhen set, the overrides get applied when the media query matches and no explicit `data-mode` is present.",
+          "description": "Media query that activates this mode, e.g. `(prefers-color-scheme: dark)`.\nUse this for modes that follow the user's system settings and are not meant to be toggled.\nA mode needs exactly one of `selector` or `media`.",
           "type": [
             "string",
             "null"
@@ -190,7 +190,20 @@
           "default": {}
         }
       },
-      "additionalProperties": false
+      "additionalProperties": false,
+      "oneOf": [
+        {
+          "required": [
+            "selector"
+          ]
+        },
+        {
+          "required": [
+            "media"
+          ]
+        }
+      ],
+      "errorMessage": "A mode is activated by exactly one of \"selector\" or \"media\". Remove one of them."
     }
   }
 }
