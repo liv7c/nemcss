@@ -538,7 +538,7 @@ mod tests {
         }
 
         #[test]
-        fn parses_a_full_mode_definition() {
+        fn parses_a_selector_activated_mode() {
             let json = r#"{
                 "content": ["src/**/*html"],
                 "semantic": {
@@ -552,7 +552,6 @@ mod tests {
                 "modes": {
                     "dark": {
                         "selector": "[data-theme='dark']",
-                        "media": "(prefers-color-scheme: dark)",
                         "overrides": {
                             "text": { "default": "{colors.gray-100}" }
                         }
@@ -565,6 +564,39 @@ mod tests {
             let dark = modes.get("dark").expect("dark mode should exist");
 
             assert_eq!(dark.selector.as_deref(), Some("[data-theme='dark']"));
+            assert_eq!(dark.media, None);
+            assert_eq!(
+                dark.overrides.get("text").unwrap().get("default").unwrap(),
+                "{colors.gray-100}"
+            );
+        }
+
+        #[test]
+        fn parses_a_media_activated_mode() {
+            let json = r#"{
+                "content": ["src/**/*html"],
+                "semantic": {
+                    "text": {
+                        "property": "color",
+                        "tokens": {
+                            "default": "{colors.gray-800}"
+                        }
+                    }
+                },
+                "modes": {
+                    "dark": {
+                        "media": "(prefers-color-scheme: dark)",
+                        "overrides": {
+                            "text": { "default": "{colors.gray-100}" }
+                        }
+                    }
+                }
+            }"#;
+
+            let config = parse(json).expect("failed to parse config");
+            let modes = config.modes.expect("modes should be parsed");
+            let dark = modes.get("dark").expect("dark mode should exist");
+
             assert_eq!(dark.media.as_deref(), Some("(prefers-color-scheme: dark)"));
             assert_eq!(
                 dark.overrides.get("text").unwrap().get("default").unwrap(),

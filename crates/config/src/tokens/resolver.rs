@@ -297,6 +297,19 @@ pub struct ResolvedMode {
 
 #[derive(Debug, Diagnostic, Error)]
 pub enum ResolveModeError {
+    #[error("mode '{mode}' declares both \"selector\" and \"media\"")]
+    #[diagnostic(
+        code(config::modes::conflicting_activation),
+        help(
+            "a mode is activated either by a selector or by a media query, not both: remove one of \"{selector}\" or \"{media}\""
+        )
+    )]
+    ConflictingActivation {
+        mode: String,
+        selector: String,
+        media: String,
+    },
+
     #[error("mode '{mode}' overrides unknown semantic group '{group}'")]
     #[diagnostic(
         code(config::modes::unknown_group),
@@ -342,6 +355,15 @@ pub fn resolve_all_modes(
 
     for name in mode_names {
         let definition = &modes[name];
+
+        if let (Some(selector), Some(media)) = (&definition.selector, &definition.media) {
+            return Err(ResolveModeError::ConflictingActivation {
+                mode: name.clone(),
+                selector: selector.clone(),
+                media: media.clone(),
+            });
+        }
+
         let mut declarations = Vec::new();
 
         for (group_name, overrides) in &definition.overrides {
@@ -677,22 +699,6 @@ mod tests {
         }
 
         #[test]
-        fn custom_selector_and_media_pass_through() {
-            let mut modes = dark_mode(&[("text", &[("default", "{colors.gray-100}")])]);
-            let dark = modes.get_mut("dark").unwrap();
-            dark.selector = Some(".theme-dark".to_string());
-            dark.media = Some("(prefers-color-scheme: dark)".to_string());
-
-            let resolved =
-                resolve_all_modes(Some(&modes), &semantic_groups(), &primitives()).unwrap();
-
-            assert_eq!(resolved.len(), 1);
-            let dark = &resolved[0];
-            assert_eq!(dark.selector, ".theme-dark");
-            assert_eq!(dark.media.as_deref(), Some("(prefers-color-scheme: dark)"));
-        }
-
-        #[test]
         fn no_modes_resolves_to_empty_vec() {
             let resolved = resolve_all_modes(None, &semantic_groups(), &primitives()).unwrap();
 
@@ -741,6 +747,30 @@ mod tests {
                 ResolveModeError::UnresolvableReference { ref mode, ref reference, ..}
                 if mode == "dark" && reference == "{colors.gray-99999}"
             ))
+        }
+
+        #[test]
+        fn selector_and_media_together_is_an_error() {
+            let mut modes = HashMap::new();
+            modes.insert(
+                "dark".to_string(),
+                ModeConfig {
+                    selector: Some("[data-theme='dark']".to_string()),
+                    media: Some("(prefers-color-scheme: dark)".to_string()),
+                    overrides: HashMap::from([(
+                        "text".to_string(),
+                        HashMap::from([("default".to_string(), "{colors.gray-100}".to_string())]),
+                    )]),
+                },
+            );
+
+            let result =
+                resolve_all_modes(Some(&modes), &semantic_groups(), &primitives()).unwrap_err();
+
+            assert!(matches!(
+                result,
+                ResolveModeError::ConflictingActivation { .. }
+            ));
         }
     }
 }
