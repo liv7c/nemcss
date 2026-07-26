@@ -38,11 +38,11 @@ pub fn generate_mode_blocks(modes: &[ResolvedMode]) -> Vec<String> {
             let _ = writeln!(block, "  {MEDIA_FALLBACK_GUARD} {{");
 
             for (property, value) in &mode.declarations {
-                let _ = writeln!(block, "  {property}: {value};");
+                let _ = writeln!(block, "    {property}: {value};");
             }
 
-            let _ = writeln!(block, "}}");
-            let _ = writeln!(block, "}}");
+            let _ = writeln!(block, "  }}");
+            let _ = write!(block, "}}");
             blocks.push(block);
         }
 
@@ -105,7 +105,7 @@ mod tests {
 
         assert_eq!(
             blocks[0],
-            "@media (prefers-color-scheme: dark) {\n  :root:not([data-mode]) {\n  --text-default: var(--color-gray-100);\n  --text-muted: var(--color-gray-400);\n}\n}\n"
+            "@media (prefers-color-scheme: dark) {\n  :root:not([data-mode]) {\n    --text-default: var(--color-gray-100);\n    --text-muted: var(--color-gray-400);\n  }\n}"
         );
         assert!(blocks[1].starts_with("[data-mode=\"dark\"]"));
     }
