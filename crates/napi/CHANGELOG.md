@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.0
+
+### Minor Changes
+
+- 1c7a7be: Add support for mode. A user can now add overrides for different color modes to their nemcss.config.json.
+
 ## 0.5.0
 
 ### Minor Changes
