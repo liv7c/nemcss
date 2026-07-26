@@ -141,8 +141,8 @@ impl TestCmdHelper {
         Ok(self)
     }
 
-    /// Add a dark mode
-    fn with_dark_mode(self) -> Result<Self, Box<dyn std::error::Error>> {
+    /// Add a dark mode via a selector
+    fn with_dark_mode_via_selector(self) -> Result<Self, Box<dyn std::error::Error>> {
         self.temp_dir.child("nemcss.config.json").write_str(
             r#"
         {
@@ -173,6 +173,99 @@ impl TestCmdHelper {
             "modes": {
                 "dark": {
                     "selector": "[data-mode='dark']",
+                    "overrides": {
+                        "text": {
+                            "default": "{colors.secondary}"
+                        }
+                    }
+                }
+            }
+        }
+        "#,
+        )?;
+
+        Ok(self)
+    }
+
+    /// Add a dark mode via a media query
+    fn with_dark_mode_via_media(self) -> Result<Self, Box<dyn std::error::Error>> {
+        self.temp_dir.child("nemcss.config.json").write_str(
+            r#"
+        {
+            "content": ["src/**/*.html"],
+            "theme": {
+                "colors": {
+                    "prefix": "color",
+                    "source": "design-tokens/colors.json",
+                    "utilities": []
+                },
+                "spacings": {
+                    "prefix": "spacing",
+                    "source": "design-tokens/spacings.json",
+                    "utilities": [
+                        { "prefix": "p", "property": "padding" },
+                        { "prefix": "m", "property": "margin" }
+                    ]
+                }
+            },
+            "semantic": {
+                "text": {
+                    "property": "color",
+                    "tokens": {
+                        "default": "{colors.primary}"
+                    }
+                }
+            },
+            "modes": {
+                "dark": {
+                    "media": "(prefers-color-scheme: dark)",
+                    "overrides": {
+                        "text": {
+                            "default": "{colors.secondary}"
+                        }
+                    }
+                }
+            }
+        }
+        "#,
+        )?;
+
+        Ok(self)
+    }
+
+    /// Add a dark mode via a media query
+    fn with_conflicting_mode_activation(self) -> Result<Self, Box<dyn std::error::Error>> {
+        self.temp_dir.child("nemcss.config.json").write_str(
+            r#"
+        {
+            "content": ["src/**/*.html"],
+            "theme": {
+                "colors": {
+                    "prefix": "color",
+                    "source": "design-tokens/colors.json",
+                    "utilities": []
+                },
+                "spacings": {
+                    "prefix": "spacing",
+                    "source": "design-tokens/spacings.json",
+                    "utilities": [
+                        { "prefix": "p", "property": "padding" },
+                        { "prefix": "m", "property": "margin" }
+                    ]
+                }
+            },
+            "semantic": {
+                "text": {
+                    "property": "color",
+                    "tokens": {
+                        "default": "{colors.primary}"
+                    }
+                }
+            },
+            "modes": {
+                "dark": {
+                    "media": "(prefers-color-scheme: dark)",
+                    "selector": ".dark",
                     "overrides": {
                         "text": {
                             "default": "{colors.secondary}"
@@ -418,12 +511,89 @@ fn test_build_generates_css_with_semantic_classes() {
 }
 
 #[test]
-fn test_build_generates_css_with_dark_mode() {
+fn test_build_generates_css_with_dark_mode_activated_via_a_selector() {
     let mut test_setup = TestCmdHelper::new()
         .unwrap()
         .with_standard_design_tokens()
         .unwrap()
-        .with_dark_mode()
+        .with_dark_mode_via_selector()
+        .unwrap()
+        .with_content_file(
+            "src/index.html",
+            r#"
+            <div class="text-primary">primary</div>
+            <div class="p-sm">margin</div>
+            "#,
+        )
+        .unwrap()
+        .with_input_css_file(
+            r#"
+        @nemcss base;
+        @nemcss utilities;
+
+        .custom-class {
+            color: red;
+        }
+
+        "#,
+        )
+        .unwrap();
+
+    test_setup.run_build_command().success();
+
+    let css_content = test_setup.output_css();
+
+    assert!(css_content.contains("--text-default: var(--color-primary)"));
+    assert!(
+        css_content.contains("[data-mode='dark'] {\n  --text-default: var(--color-secondary);\n}"),
+        "missing dark mode block, got {css_content}"
+    );
+}
+
+#[test]
+fn test_build_generates_css_fails_when_dark_mode_activated_with_selector_and_media_query() {
+    let mut test_setup = TestCmdHelper::new()
+        .unwrap()
+        .with_standard_design_tokens()
+        .unwrap()
+        .with_conflicting_mode_activation()
+        .unwrap()
+        .with_content_file(
+            "src/index.html",
+            r#"
+            <div class="text-primary">Primary</div>
+            <div class="p-sm">Margin</div>
+            "#,
+        )
+        .unwrap()
+        .with_input_css_file(
+            r#"
+        @nemcss base;
+        @nemcss utilities;
+
+        .custom-class {
+            color: red;
+        }
+
+        "#,
+        )
+        .unwrap();
+
+    test_setup
+        .run_build_command()
+        .failure()
+        .stderr(predicate::str::contains(
+            "declares both \"selector\" and \"media\"",
+        ));
+}
+
+#[test]
+fn test_build_generates_css_with_dark_mode_activated_via_a_media_query() {
+    let mut test_setup = TestCmdHelper::new()
+        .unwrap()
+        .with_standard_design_tokens()
+        .unwrap()
+        .with_dark_mode_via_media()
         .unwrap()
         .with_content_file(
             "src/index.html",
@@ -452,7 +622,9 @@ fn test_build_generates_css_with_dark_mode() {
 
     assert!(css_content.contains("--text-default: var(--color-primary)"));
     assert!(
-        css_content.contains("[data-mode='dark'] {\n  --text-default: var(--color-secondary);\n}"),
+        css_content.contains(
+            "@media (prefers-color-scheme: dark) {\n  :root {\n    --text-default: var(--color-secondary);\n  }\n}"
+        ),
         "missing dark mode block, got {css_content}"
     );
 }

@@ -46,7 +46,7 @@
       ]
     },
     "modes": {
-      "description": "Named color modes (e.g. dark mode) that override semantic tokens.\nEach mode declares how it is activated, by a `selector` you manage yourself\nor by a `media` query, and the overrides it applies per semantic group.\n## Example\n```json\n\"modes\": {\n  \"dark\": {\n    \"selector\": \"[data-theme='dark']\",\n    \"overrides\": {\n        \"text\": {\n            \"default\": \"{colors.gray-100}\"\n       }\n    }\n}\n}\n```",
+      "description": "Named color modes (e.g. dark mode) that override semantic tokens.\nEach mode declares how it is activated, by a `selector` you manage yourself\nor by a `media` query, and the overrides it applies per semantic group.\n## Example\n```json\n\"modes\": {\n  \"dark\": {\n    \"selector\": \"[data-theme='dark']\",\n    \"overrides\": {\n      \"text\": { \"default\": \"{colors.gray-100}\" }\n    }\n  }\n}\n```",
       "type": [
         "object",
         "null"
@@ -202,8 +202,7 @@
             "media"
           ]
         }
-      ],
-      "errorMessage": "A mode is activated by exactly one of \"selector\" or \"media\". Remove one of them."
+      ]
     }
   }
 }

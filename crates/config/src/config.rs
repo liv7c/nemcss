@@ -92,11 +92,9 @@ pub struct NemCssConfig {
     ///   "dark": {
     ///     "selector": "[data-theme='dark']",
     ///     "overrides": {
-    ///         "text": {
-    ///             "default": "{colors.gray-100}"
-    ///        }
+    ///       "text": { "default": "{colors.gray-100}" }
     ///     }
-    /// }
+    ///   }
     /// }
     /// ```
     #[schemars(extend("defaultSnippets" = serde_json::json!([
@@ -332,7 +330,7 @@ pub struct SemanticGroupConfig {
 #[schemars(extend("oneOf" = serde_json::json!([
     { "required": ["selector"] },
     { "required": ["media"] }
-]), "errorMessage" = "A mode is activated by exactly one of \"selector\" or \"media\". Remove one of them."))]
+])))]
 pub struct ModeConfig {
     /// CSS selector that activates this mode, e.g. `[data-theme="dark"]` or `.dark`.
     /// Your app decides when to put it on the page.

@@ -65,7 +65,7 @@ pub enum BuildError {
     #[diagnostic(code(nemcss::build::resolve_semantic))]
     ResolveSemantic(#[from] config::ResolveSemanticError),
 
-    #[error("failed to resolve modes")]
+    #[error("failed to resolve modes: {0}")]
     #[diagnostic(code(nemcss::build::resolve_modes))]
     ResolveModes(#[from] config::ResolveModeError),
 }
