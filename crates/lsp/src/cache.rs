@@ -155,8 +155,10 @@ impl NemCache {
         let generated_css = engine::generate_css(
             primitive_tokens.values(),
             resolved_semantic_groups.values(),
-            viewports,
-            None,
+            engine::GenerateCssOptions {
+                viewports,
+                ..Default::default()
+            },
         );
         let responsive_utilities =
             engine::generate_all_responsive_utilities(&generated_css.utilities, viewports)?;

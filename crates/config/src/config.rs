@@ -8,8 +8,9 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::tokens::{
-    ResolveTokensError, ResolvedToken, ScanTokensDirError, resolve_all_semantic_groups,
-    resolve_all_tokens, resolve_registered_tokens, unregistered_token_files,
+    ResolveModeError, ResolveTokensError, ResolvedMode, ResolvedToken, ScanTokensDirError,
+    resolve_all_modes, resolve_all_semantic_groups, resolve_all_tokens, resolve_registered_tokens,
+    unregistered_token_files,
 };
 use crate::{ResolveSemanticError, ResolvedSemanticGroup};
 
@@ -81,6 +82,34 @@ pub struct NemCssConfig {
     /// Named groups of tokens (e.g. "text", "background") that map to a CSS property,
     /// so you can style by intent instead of by raw token name.
     pub semantic: Option<SemanticConfig>,
+
+    /// Named color modes (e.g. dark mode) that override semantic tokens.
+    /// Each mode declares how it is activated, by a `selector` you manage yourself
+    /// or by a `media` query, and the overrides it applies per semantic group.
+    /// ## Example
+    /// ```json
+    /// "modes": {
+    ///   "dark": {
+    ///     "selector": "[data-theme='dark']",
+    ///     "overrides": {
+    ///       "text": { "default": "{colors.gray-100}" }
+    ///     }
+    ///   }
+    /// }
+    /// ```
+    #[schemars(extend("defaultSnippets" = serde_json::json!([
+        {
+            "label": "mode (dark mode)",
+            "description": "Scaffold a color mode. It is activated either by a selector you manage yourself (a manual toggle, e.g. a data-mode attribute) or by a media query that follows a system preference, never both. Fill `overrides` with your own semantic groups and tokens. The editor completes them.",
+            "body": {
+                "${1:dark}": {
+                    "selector": "[data-mode=\"${1:dark}\"]",
+                    "overrides": {}
+                }
+            }
+        }
+    ])))]
+    pub modes: Option<HashMap<String, ModeConfig>>,
 
     /// The base directory of the NemCSS project.
     #[serde(skip)]
@@ -169,6 +198,15 @@ impl NemCssConfig {
         primitive_tokens: &HashMap<String, ResolvedToken>,
     ) -> Result<HashMap<String, ResolvedSemanticGroup>, ResolveSemanticError> {
         resolve_all_semantic_groups(self.semantic.as_ref(), primitive_tokens)
+    }
+
+    /// Resolves modes
+    pub fn resolve_modes(
+        &self,
+        semantic_groups: &HashMap<String, ResolvedSemanticGroup>,
+        primitive_tokens: &HashMap<String, ResolvedToken>,
+    ) -> Result<Vec<ResolvedMode>, ResolveModeError> {
+        resolve_all_modes(self.modes.as_ref(), semantic_groups, primitive_tokens)
     }
 
     /// Get absolute path to the tokens directory.
@@ -282,6 +320,32 @@ pub struct SemanticGroupConfig {
     /// Mapping between a semantic name and an existing design token value
     /// e.g. "primary" -> "{colors.blue-800}"
     pub tokens: HashMap<String, String>,
+}
+
+/// The mode config enables the creation of multiple color modes. Define which
+/// semantic tokens you want to override and how to activate the color mode
+/// (with a selector or a media query, exactly one of the two).
+#[derive(Debug, Default, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+#[schemars(extend("oneOf" = serde_json::json!([
+    { "required": ["selector"] },
+    { "required": ["media"] }
+])))]
+pub struct ModeConfig {
+    /// CSS selector that activates this mode, e.g. `[data-theme="dark"]` or `.dark`.
+    /// Your app decides when to put it on the page.
+    /// A mode needs exactly one of `selector` or `media`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub selector: Option<String>,
+    /// Media query that activates this mode, e.g. `(prefers-color-scheme: dark)`.
+    /// Use this for modes that follow the user's system settings and are not meant to be toggled.
+    /// A mode needs exactly one of `selector` or `media`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub media: Option<String>,
+    /// Semantic token overrides for the given color mode.
+    /// Every group and token must already exist in the `semantic` section.
+    #[serde(default)]
+    pub overrides: HashMap<String, HashMap<String, String>>,
 }
 
 #[cfg(test)]
@@ -467,6 +531,148 @@ mod tests {
             let json = r#"{ "content": [] }"#;
             let config: NemCssConfig = serde_json::from_str(json).unwrap();
             assert!(config.semantic.is_none());
+        }
+    }
+
+    mod modes_config {
+        use super::*;
+
+        fn parse(json: &str) -> Result<NemCssConfig, serde_json::Error> {
+            serde_json::from_str(json)
+        }
+
+        #[test]
+        fn parses_a_selector_activated_mode() {
+            let json = r#"{
+                "content": ["src/**/*html"],
+                "semantic": {
+                    "text": {
+                        "property": "color",
+                        "tokens": {
+                            "default": "{colors.gray-800}"
+                        }
+                    }
+                },
+                "modes": {
+                    "dark": {
+                        "selector": "[data-theme='dark']",
+                        "overrides": {
+                            "text": { "default": "{colors.gray-100}" }
+                        }
+                    }
+                }
+            }"#;
+
+            let config = parse(json).expect("failed to parse config");
+            let modes = config.modes.expect("modes should be parsed");
+            let dark = modes.get("dark").expect("dark mode should exist");
+
+            assert_eq!(dark.selector.as_deref(), Some("[data-theme='dark']"));
+            assert_eq!(dark.media, None);
+            assert_eq!(
+                dark.overrides.get("text").unwrap().get("default").unwrap(),
+                "{colors.gray-100}"
+            );
+        }
+
+        #[test]
+        fn parses_a_media_activated_mode() {
+            let json = r#"{
+                "content": ["src/**/*html"],
+                "semantic": {
+                    "text": {
+                        "property": "color",
+                        "tokens": {
+                            "default": "{colors.gray-800}"
+                        }
+                    }
+                },
+                "modes": {
+                    "dark": {
+                        "media": "(prefers-color-scheme: dark)",
+                        "overrides": {
+                            "text": { "default": "{colors.gray-100}" }
+                        }
+                    }
+                }
+            }"#;
+
+            let config = parse(json).expect("failed to parse config");
+            let modes = config.modes.expect("modes should be parsed");
+            let dark = modes.get("dark").expect("dark mode should exist");
+
+            assert_eq!(dark.media.as_deref(), Some("(prefers-color-scheme: dark)"));
+            assert_eq!(
+                dark.overrides.get("text").unwrap().get("default").unwrap(),
+                "{colors.gray-100}"
+            );
+        }
+
+        #[test]
+        fn mode_fields_are_optional_at_parse_time() {
+            let config = parse(
+                r#"{
+                "content": ["src/**/*html"],
+                "semantic": {
+                    "text": {
+                        "property": "color",
+                        "tokens": {
+                            "default": "{colors.gray-800}"
+                        }
+                    }
+                },
+                "modes": {
+                    "dark": {}
+                }
+            }"#,
+            )
+            .expect("failed to parse the config");
+
+            let modes = config.modes.unwrap();
+            let dark = modes.get("dark").unwrap();
+
+            assert_eq!(dark.selector, None);
+            assert_eq!(dark.media, None);
+            assert!(dark.overrides.is_empty());
+        }
+
+        #[test]
+        fn config_without_modes_still_parses() {
+            let config = parse(
+                r#"{
+                    "content": ["src/**/*html"]
+                }"#,
+            )
+            .expect("failed to parse the config");
+
+            assert!(config.modes.is_none());
+        }
+
+        #[test]
+        fn unknown_field_inside_mode_is_an_error() {
+            let json = r#"{
+                "content": ["src/**/*html"],
+                "semantic": {
+                    "text": {
+                        "property": "color",
+                        "tokens": {
+                            "default": "{colors.gray-800}"
+                        }
+                    }
+                },
+                "modes": {
+                    "dark": {
+                        "selector": "[data-theme='dark']",
+                        "media": "(prefers-color-scheme: dark)",
+                        "overides": {
+                            "text": { "default": "{colors.gray-100}" }
+                        }
+                    }
+                }
+            }"#;
+
+            let config = parse(json);
+            assert!(config.is_err());
         }
     }
 }

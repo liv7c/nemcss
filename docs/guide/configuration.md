@@ -10,6 +10,7 @@ NemCSS is configured via a `nemcss.config.json` file at the root of your project
 | `tokensDir` | `string`   | `"design-tokens"` | Path to the directory containing your token JSON files.                                                                               |
 | `theme`     | `object`   | (none)            | Token category configuration. Each key is a category name (e.g. `colors`).                                                            |
 | `semantic`  | `object`   | (none)            | Semantic token groups. Optional. See [the semantic block](#the-semantic-block).                                                       |
+| `modes`     | `object`   | (none)            | Named modes that override semantic tokens. Optional. See [the modes block](#the-modes-block).                                          |
 
 ## The `theme` block
 
@@ -169,3 +170,62 @@ This generates only the `:root` block:
   --text-muted: var(--color-slate-400);
 }
 ```
+
+## The `modes` block
+
+The `modes` block is optional. Each key is a mode name, and each mode overrides semantic tokens under a media query or a selector. See [Modes](/guide/modes) for the guide.
+
+| Field       | Type     | Required | Description                                                                                            |
+| ----------- | -------- | -------- | ------------------------------------------------------------------------------------------------------ |
+| `selector`  | `string` | no       | A CSS selector that activates the mode, e.g. `[data-theme="dark"]`. Cannot be combined with `media`.    |
+| `media`     | `string` | no       | A media query that activates the mode, e.g. `(prefers-color-scheme: dark)`. Cannot be combined with `selector`. |
+| `overrides` | `object` | no       | A map of semantic group name to a map of token name to primitive token reference.                       |
+
+Every mode needs exactly one of `selector` or `media`. Declaring both is an error, and so is declaring neither.
+
+### Example
+
+```json
+{
+  "semantic": {
+    "text": {
+      "property": "color",
+      "tokens": { "default": "{colors.slate-900}" }
+    }
+  },
+  "modes": {
+    "dark": {
+      "media": "(prefers-color-scheme: dark)",
+      "overrides": {
+        "text": { "default": "{colors.slate-100}" }
+      }
+    }
+  }
+}
+```
+
+This generates:
+
+```css
+:root {
+  --text-default: var(--color-slate-900);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --text-default: var(--color-slate-100);
+  }
+}
+```
+
+With `selector` instead of `media`, the same overrides are written under that selector:
+
+```css
+[data-theme='dark'] {
+  --text-default: var(--color-slate-100);
+}
+```
+
+### Overrides
+
+Every group and token in `overrides` has to exist in your `semantic` block already, and every value has to be a `{category.tokenName}` reference. Raw CSS values are not accepted. Tokens you leave out keep their `:root` value.

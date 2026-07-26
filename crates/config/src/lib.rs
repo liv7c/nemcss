@@ -22,11 +22,12 @@ mod schema;
 mod tokens;
 
 pub use config::{
-    CONFIG_FILE_NAME, NemCssConfig, NemCssConfigError, SemanticConfig, SemanticGroupConfig,
-    ThemeConfig, TokenConfig, TokenUtilityConfig,
+    CONFIG_FILE_NAME, ModeConfig, NemCssConfig, NemCssConfigError, SemanticConfig,
+    SemanticGroupConfig, ThemeConfig, TokenConfig, TokenUtilityConfig,
 };
 pub use schema::{GenerateSchemaError, generate_schema};
 pub use tokens::{
-    ResolveSemanticError, ResolveTokensError, ResolvedSemanticGroup, ResolvedToken, TokenFile,
-    TokenItem, TokenValue, resolve_registered_tokens,
+    ModeActivation, ResolveModeError, ResolveSemanticError, ResolveTokensError, ResolvedMode,
+    ResolvedSemanticGroup, ResolvedToken, TokenFile, TokenItem, TokenValue,
+    resolve_registered_tokens,
 };

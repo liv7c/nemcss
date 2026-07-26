@@ -9,7 +9,7 @@
 //! ```no_run
 //! use std::collections::HashMap;
 //! use config::TokenValue;
-//! use engine::{generate_css};
+//! use engine::{generate_css, GenerateCssOptions};
 //!
 //! let mut resolved_tokens = HashMap::new();
 //! resolved_tokens.insert(
@@ -34,7 +34,7 @@
 //!         prefix: "color".to_string(),
 //!     },
 //! );
-//! let generated_css = generate_css(resolved_tokens.values(), std::iter::empty(), resolved_tokens.get("viewports"), None);
+//! let generated_css = generate_css(resolved_tokens.values(), std::iter::empty(), GenerateCssOptions { viewports: resolved_tokens.get("viewports"), ..Default::default() });
 //! let base_css = generated_css.base_to_css();
 //! let utilities_css = generated_css.utilities_to_css();
 //! # assert!(base_css.contains("--color-primary: yellow;"));
@@ -45,6 +45,6 @@
 mod generation;
 
 pub use generation::{
-    GenerateResponsiveUtilitiesError, GeneratedCss, ResponsiveUtility, Utility,
+    GenerateCssOptions, GenerateResponsiveUtilitiesError, GeneratedCss, ResponsiveUtility, Utility,
     VIEWPORT_TOKEN_PREFIX, generate_all_responsive_utilities, generate_css,
 };

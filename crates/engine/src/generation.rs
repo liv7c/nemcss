@@ -1,6 +1,7 @@
 //! The `generation` module is responsible for generating CSS custom properties and utility classes based on resolved design tokens.
 mod custom_properties;
 mod filters;
+mod modes;
 mod responsive;
 mod semantic;
 mod utilities;
@@ -10,7 +11,7 @@ pub use responsive::{
 };
 pub use utilities::{Utility, VIEWPORT_TOKEN_PREFIX};
 
-use config::{ResolvedSemanticGroup, ResolvedToken};
+use config::{ResolvedMode, ResolvedSemanticGroup, ResolvedToken};
 use std::collections::HashSet;
 
 /// A struct that contains generated CSS output for utilities and custom properties.
@@ -48,6 +49,10 @@ pub struct GeneratedCss {
     /// A list of media queries and their corresponding utility classes.
     /// Each media query is a string containing the media query and the utility classes.
     pub responsive_utilities: Vec<String>,
+
+    /// A list of mode blocks. A mode block contains all CSS for the semantic overrides of a given
+    /// mode as defined in the config.
+    pub mode_blocks: Vec<String>,
 }
 
 const INDENT_AND_NEWLINE_PER_PROPERTY: usize = 3;
@@ -58,11 +63,13 @@ impl GeneratedCss {
         custom_properties: Vec<String>,
         utilities: Vec<Utility>,
         responsive_utilities: Vec<String>,
+        mode_blocks: Vec<String>,
     ) -> Self {
         GeneratedCss {
             custom_properties,
             utilities,
             responsive_utilities,
+            mode_blocks,
         }
     }
 
@@ -86,6 +93,11 @@ impl GeneratedCss {
             css.push('\n');
         }
         css.push_str("}\n\n");
+
+        for mode_block in &self.mode_blocks {
+            css.push_str(mode_block);
+            css.push_str("\n\n");
+        }
 
         css
     }
@@ -121,6 +133,19 @@ impl GeneratedCss {
     }
 }
 
+/// Contains all options for CSS generation (e.g. used classes when a user has defined some
+/// utility classes, modes when a user has defined a dark mode).
+#[derive(Default)]
+pub struct GenerateCssOptions<'a> {
+    /// Resolved modes (e.g. dark mode) whose blocks are emitted after `:root`
+    pub modes: &'a [ResolvedMode],
+    /// Viewport token, if responsive utilities should be generated
+    pub viewports: Option<&'a ResolvedToken>,
+    /// Contains a hash set of all used classes across the content files.
+    /// Used for tree-shaking.
+    pub used_classes: Option<&'a HashSet<String>>,
+}
+
 /// Generates CSS custom properties and utilities from resolved design tokens.
 ///
 /// # Arguments
@@ -133,12 +158,18 @@ impl GeneratedCss {
 pub fn generate_css<'a>(
     resolved_tokens: impl IntoIterator<Item = &'a ResolvedToken>,
     resolved_semantic_groups: impl IntoIterator<Item = &'a ResolvedSemanticGroup>,
-    viewports: Option<&ResolvedToken>,
-    used_classes: Option<&HashSet<String>>,
+    options: GenerateCssOptions<'a>,
 ) -> GeneratedCss {
+    let GenerateCssOptions {
+        modes,
+        viewports,
+        used_classes,
+    } = options;
+
     let tokens: Vec<_> = resolved_tokens.into_iter().collect();
     let semantic_groups: Vec<_> = resolved_semantic_groups.into_iter().collect();
     let mut custom_properties = custom_properties::generate_custom_properties(&tokens);
+    let mode_blocks = modes::generate_mode_blocks(modes);
 
     custom_properties.extend(semantic::generate_semantic_custom_properties(
         &semantic_groups,
@@ -147,7 +178,7 @@ pub fn generate_css<'a>(
     match used_classes {
         Some(used_classes) => {
             if used_classes.is_empty() {
-                return GeneratedCss::new(custom_properties, vec![], vec![]);
+                return GeneratedCss::new(custom_properties, vec![], vec![], mode_blocks);
             }
 
             let (used_utility_classes, used_responsive_utilities) =
@@ -178,14 +209,24 @@ pub fn generate_css<'a>(
                 viewports,
             );
 
-            GeneratedCss::new(custom_properties, utilities, responsive_utilities)
+            GeneratedCss::new(
+                custom_properties,
+                utilities,
+                responsive_utilities,
+                mode_blocks,
+            )
         }
         None => {
             let mut utilities = utilities::generate_utilities(&tokens);
             utilities.extend(semantic::generate_semantic_utilities(&semantic_groups));
             let responsive_utilities =
                 responsive::generate_responsive_utilities(&utilities, viewports);
-            GeneratedCss::new(custom_properties, utilities, responsive_utilities)
+            GeneratedCss::new(
+                custom_properties,
+                utilities,
+                responsive_utilities,
+                mode_blocks,
+            )
         }
     }
 }
@@ -221,8 +262,13 @@ mod tests {
             },
         );
 
-        let css_to_generate =
-            generate_css(resolved_tokens.values(), std::iter::empty(), None, None);
+        let css_to_generate = generate_css(
+            resolved_tokens.values(),
+            std::iter::empty(),
+            GenerateCssOptions {
+                ..Default::default()
+            },
+        );
 
         let base = css_to_generate.base_to_css();
         let expected_root_css =
@@ -269,7 +315,13 @@ mod tests {
             ],
         }];
 
-        let css_to_generate = generate_css(resolved_tokens.values(), &semantic_groups, None, None);
+        let css_to_generate = generate_css(
+            resolved_tokens.values(),
+            &semantic_groups,
+            GenerateCssOptions {
+                ..Default::default()
+            },
+        );
 
         let base = css_to_generate.base_to_css();
         let expected_root_css = ":root {\n  --color-blue-400: blue;\n  --color-error-600: red;\n  --text-primary: var(--color-blue-400);\n  --text-error: var(--color-error-600);\n}\n\n";
@@ -326,8 +378,10 @@ mod tests {
         let css_to_generate = generate_css(
             resolved_tokens.values(),
             std::iter::empty(),
-            resolved_tokens.get("viewports"),
-            None,
+            GenerateCssOptions {
+                viewports: resolved_tokens.get("viewports"),
+                ..Default::default()
+            },
         );
 
         let base = css_to_generate.base_to_css();
@@ -377,7 +431,13 @@ mod tests {
             },
         );
 
-        let generated = generate_css(resolved_tokens.values(), std::iter::empty(), None, None);
+        let generated = generate_css(
+            resolved_tokens.values(),
+            std::iter::empty(),
+            GenerateCssOptions {
+                ..Default::default()
+            },
+        );
         let css = generated.base_to_css();
 
         assert!(css.contains(":root {"), "should open root block");
@@ -397,6 +457,60 @@ mod tests {
         assert!(
             !css.contains(".text-secondary"),
             "should not contain utility classes"
+        );
+    }
+
+    #[test]
+    fn base_to_css_includes_mode_blocks_after_root() {
+        let mut resolved_tokens = HashMap::new();
+        resolved_tokens.insert(
+            "colors".to_string(),
+            ResolvedToken {
+                tokens: vec![
+                    (
+                        "black".to_string(),
+                        TokenValue::Simple("hsl(0deg 0% 0%)".to_string()),
+                    ),
+                    (
+                        "gray-100".to_string(),
+                        TokenValue::Simple("hsl(0deg 0% 95%".to_string()),
+                    ),
+                ],
+                utilities: vec![],
+                prefix: "color".to_string(),
+            },
+        );
+
+        let semantic_groups = [ResolvedSemanticGroup {
+            prefix: "text".to_string(),
+            property: Some("color".to_string()),
+            tokens: vec![("default".to_string(), "var(--color-black)".to_string())],
+        }];
+
+        let modes = [ResolvedMode {
+            name: "dark".to_string(),
+            activation: config::ModeActivation::Selector(r#"[data-mode="dark"]"#.to_string()),
+            declarations: vec![(
+                "--text-default".to_string(),
+                "var(--color-gray-100)".to_string(),
+            )],
+        }];
+
+        let generated = generate_css(
+            resolved_tokens.values(),
+            &semantic_groups,
+            GenerateCssOptions {
+                modes: &modes,
+                ..Default::default()
+            },
+        );
+
+        let base = generated.base_to_css();
+        assert!(base.contains("--text-default: var(--color-black);"));
+        assert!(
+            base.ends_with(
+                "[data-mode=\"dark\"] {\n  --text-default: var(--color-gray-100);\n}\n\n"
+            )
         );
     }
 
@@ -424,7 +538,13 @@ mod tests {
             },
         );
 
-        let generated = generate_css(resolved_tokens.values(), std::iter::empty(), None, None);
+        let generated = generate_css(
+            resolved_tokens.values(),
+            std::iter::empty(),
+            GenerateCssOptions {
+                ..Default::default()
+            },
+        );
         let css = generated.utilities_to_css();
 
         assert!(

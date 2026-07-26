@@ -19,6 +19,7 @@ export default defineConfig({
         { text: "Introduction", link: "/guide/introduction" },
         { text: "Getting Started", link: "/guide/getting-started" },
         { text: "Design Tokens", link: "/guide/design-tokens" },
+        { text: "Modes", link: "/guide/modes" },
         { text: "NemCSS Configuration", link: "/guide/configuration" },
         { text: "Framework Support", link: "/guide/framework-support" },
       ],
