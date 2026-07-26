@@ -24,10 +24,10 @@ const MEDIA_FALLBACK_GUARD: &str = ":root:not([data-mode])";
 ///   }
 /// }
 /// ```
-pub fn generate_mode_blocks(resolved_modes: &[ResolvedMode]) -> Vec<String> {
+pub fn generate_mode_blocks(modes: &[ResolvedMode]) -> Vec<String> {
     let mut blocks = Vec::new();
 
-    for mode in resolved_modes {
+    for mode in modes {
         if mode.declarations.is_empty() {
             continue;
         }

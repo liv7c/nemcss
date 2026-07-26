@@ -84,11 +84,19 @@ pub fn generate_css(
     let semantic_tokens = config
         .resolve_semantic_groups(&resolved)
         .map_err(|e| Error::from_reason(format!("{e}")))?;
+
+    let resolved_modes = config
+        .resolve_modes(&semantic_tokens, &resolved)
+        .map_err(|e| Error::from_reason(format!("{e}")))?;
+
     let generated = engine::generate_css(
         resolved.values(),
         semantic_tokens.values(),
-        viewports,
-        used_set.as_ref(),
+        engine::GenerateCssOptions {
+            modes: &resolved_modes,
+            viewports,
+            used_classes: used_set.as_ref(),
+        },
     );
 
     Ok(GeneratedCss {

@@ -1,3 +1,4 @@
+use engine::GenerateCssOptions;
 use owo_colors::OwoColorize;
 use rayon::prelude::*;
 use std::fs;
@@ -63,6 +64,10 @@ pub enum BuildError {
     #[error("failed to resolve the semantic groups: {0}")]
     #[diagnostic(code(nemcss::build::resolve_semantic))]
     ResolveSemantic(#[from] config::ResolveSemanticError),
+
+    #[error("failed to resolve modes")]
+    #[diagnostic(code(nemcss::build::resolve_modes))]
+    ResolveModes(#[from] config::ResolveModeError),
 }
 
 /// Builds the CSS output file from design tokens and content files.
@@ -168,11 +173,17 @@ pub fn build(
     let resolved_semantic_groups = config
         .resolve_semantic_groups(&resolved_tokens)
         .map_err(BuildError::ResolveSemantic)?;
+
+    let resolved_modes = config.resolve_modes(&resolved_semantic_groups, &resolved_tokens)?;
+
     let generated_css = engine::generate_css(
         resolved_tokens.values(),
         resolved_semantic_groups.values(),
-        viewports,
-        Some(&used_classes),
+        GenerateCssOptions {
+            modes: &resolved_modes,
+            viewports,
+            used_classes: Some(&used_classes),
+        },
     );
 
     let output_css = input_content

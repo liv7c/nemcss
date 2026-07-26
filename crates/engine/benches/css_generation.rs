@@ -1,5 +1,5 @@
 use divan::AllocProfiler;
-use engine::VIEWPORT_TOKEN_PREFIX;
+use engine::{GenerateCssOptions, VIEWPORT_TOKEN_PREFIX};
 use std::collections::{HashMap, HashSet};
 
 use config::{ResolvedSemanticGroup, ResolvedToken, TokenUtilityConfig, TokenValue};
@@ -93,8 +93,10 @@ fn realistic_project(bencher: divan::Bencher) {
         let css = engine::generate_css(
             divan::black_box(tokens.values()),
             std::iter::empty(),
-            divan::black_box(Some(&viewports)),
-            None,
+            GenerateCssOptions {
+                viewports: divan::black_box(Some(&viewports)),
+                ..Default::default()
+            },
         );
         divan::black_box(css.base_to_css());
         divan::black_box(css.utilities_to_css());
@@ -117,8 +119,10 @@ fn small_dataset(bencher: divan::Bencher) {
         let css = engine::generate_css(
             divan::black_box(tokens.values()),
             std::iter::empty(),
-            divan::black_box(Some(&viewport_value)),
-            None,
+            GenerateCssOptions {
+                viewports: divan::black_box(Some(&viewport_value)),
+                ..Default::default()
+            },
         );
         divan::black_box(css.base_to_css());
         divan::black_box(css.utilities_to_css());
@@ -147,8 +151,10 @@ fn large_design_system(bencher: divan::Bencher) {
         let css = engine::generate_css(
             divan::black_box(tokens.values()),
             std::iter::empty(),
-            divan::black_box(Some(&viewport_value)),
-            None,
+            GenerateCssOptions {
+                viewports: divan::black_box(Some(&viewport_value)),
+                ..Default::default()
+            },
         );
         divan::black_box(css.base_to_css());
         divan::black_box(css.utilities_to_css());
@@ -222,8 +228,10 @@ fn by_category_count(bencher: divan::Bencher, num_categories: usize) {
         let css = engine::generate_css(
             divan::black_box(tokens.values()),
             std::iter::empty(),
-            divan::black_box(Some(&viewport_value)),
-            None,
+            GenerateCssOptions {
+                viewports: divan::black_box(Some(&viewport_value)),
+                ..Default::default()
+            },
         );
         divan::black_box(css.base_to_css());
         divan::black_box(css.utilities_to_css());
@@ -242,8 +250,11 @@ fn realistic_project_filtered(bencher: divan::Bencher) {
         let css = engine::generate_css(
             divan::black_box(tokens.values()),
             std::iter::empty(),
-            divan::black_box(Some(&viewports)),
-            divan::black_box(Some(&half)),
+            GenerateCssOptions {
+                viewports: divan::black_box(Some(&viewports)),
+                used_classes: divan::black_box(Some(&half)),
+                ..Default::default()
+            },
         );
         divan::black_box(css.base_to_css());
         divan::black_box(css.utilities_to_css());
@@ -269,8 +280,11 @@ fn large_design_system_filtered(bencher: divan::Bencher) {
         let css = engine::generate_css(
             divan::black_box(tokens.values()),
             std::iter::empty(),
-            divan::black_box(Some(&viewport_value)),
-            divan::black_box(Some(&half)),
+            GenerateCssOptions {
+                viewports: divan::black_box(Some(&viewport_value)),
+                used_classes: divan::black_box(Some(&half)),
+                ..Default::default()
+            },
         );
         divan::black_box(css.base_to_css());
         divan::black_box(css.utilities_to_css());
@@ -292,8 +306,10 @@ fn realistic_project_with_semantic(bencher: divan::Bencher) {
         let css = engine::generate_css(
             divan::black_box(tokens.values()),
             divan::black_box(semantic_groups.iter()),
-            divan::black_box(Some(&viewports)),
-            None,
+            GenerateCssOptions {
+                viewports: divan::black_box(Some(&viewports)),
+                ..Default::default()
+            },
         );
         divan::black_box(css.base_to_css());
         divan::black_box(css.utilities_to_css());
@@ -320,8 +336,10 @@ fn large_design_system_with_semantic(bencher: divan::Bencher) {
         let css = engine::generate_css(
             divan::black_box(tokens.values()),
             divan::black_box(semantic_groups.iter()),
-            divan::black_box(Some(&viewport_value)),
-            None,
+            GenerateCssOptions {
+                viewports: divan::black_box(Some(&viewport_value)),
+                ..Default::default()
+            },
         );
         divan::black_box(css.base_to_css());
         divan::black_box(css.utilities_to_css());
@@ -346,8 +364,11 @@ fn by_category_count_filtered(bencher: divan::Bencher, num_categories: usize) {
         let css = engine::generate_css(
             divan::black_box(tokens.values()),
             std::iter::empty(),
-            divan::black_box(Some(&viewport_value)),
-            divan::black_box(Some(&half)),
+            GenerateCssOptions {
+                viewports: divan::black_box(Some(&viewport_value)),
+                used_classes: divan::black_box(Some(&half)),
+                ..Default::default()
+            },
         );
         divan::black_box(css.base_to_css());
         divan::black_box(css.utilities_to_css());
