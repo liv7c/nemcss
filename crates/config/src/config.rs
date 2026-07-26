@@ -100,6 +100,18 @@ pub struct NemCssConfig {
     /// }
     /// }
     /// ```
+    #[schemars(extend("defaultSnippets" = serde_json::json!([
+        {
+            "label": "mode (dark mode)",
+            "description": "Scaffold a color mode. It is activated by a selector (manual toggle, e.g. a data-mode attribute) and/or a media query (system preference). Fill `overrides` with your own semantic groups and tokens. The editor completes them.",
+            "body": {
+                "${1:dark}": {
+                    "selector": "[data-mode=\"${1:dark}\"]",
+                    "overrides": {}
+                }
+            }
+        }
+    ])))]
     pub modes: Option<HashMap<String, ModeConfig>>,
 
     /// The base directory of the NemCSS project.

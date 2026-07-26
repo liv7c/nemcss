@@ -53,7 +53,19 @@
       ],
       "additionalProperties": {
         "$ref": "#/$defs/ModeConfig"
-      }
+      },
+      "defaultSnippets": [
+        {
+          "description": "Scaffold a color mode. It is activated by a selector (manual toggle, e.g. a data-mode attribute) and/or a media query (system preference). Fill `overrides` with your own semantic groups and tokens. The editor completes them.",
+          "label": "mode (dark mode)",
+          "body": {
+            "${1:dark}": {
+              "selector": "[data-mode=\"${1:dark}\"]",
+              "overrides": {}
+            }
+          }
+        }
+      ]
     }
   },
   "additionalProperties": false,
