@@ -1,5 +1,11 @@
 # @nemcss/cli-linux-x64
 
+## 0.10.0
+
+### Minor Changes
+
+- 1c7a7be: Add support for mode. A user can now add overrides for different color modes to their nemcss.config.json.
+
 ## 0.9.2
 
 ### Patch Changes
