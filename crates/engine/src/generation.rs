@@ -489,8 +489,7 @@ mod tests {
 
         let modes = [ResolvedMode {
             name: "dark".to_string(),
-            selector: r#"[data-mode="dark"]"#.to_string(),
-            media: None,
+            activation: config::ModeActivation::Selector(r#"[data-mode="dark"]"#.to_string()),
             declarations: vec![(
                 "--text-default".to_string(),
                 "var(--color-gray-100)".to_string(),

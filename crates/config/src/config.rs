@@ -605,7 +605,7 @@ mod tests {
         }
 
         #[test]
-        fn selector_media_and_overrides_are_all_optional() {
+        fn mode_fields_are_optional_at_parse_time() {
             let config = parse(
                 r#"{
                 "content": ["src/**/*html"],

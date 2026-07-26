@@ -281,15 +281,20 @@ pub fn resolve_all_semantic_groups(
     Ok(result)
 }
 
+/// Represents the different ways to activate a mode.
+#[derive(Debug, PartialEq)]
+pub enum ModeActivation {
+    Selector(String),
+    Media(String),
+}
+
 /// Resolved mode, ready for CSS generation
 #[derive(Debug, PartialEq)]
 pub struct ResolvedMode {
     /// Mode name from the config (e.g. "dark")
     pub name: String,
-    /// Selector that activates the mode, defaulted to `[data-mode="<name>"]`
-    pub selector: String,
-    /// Optional media query
-    pub media: Option<String>,
+    /// Way to active a mode (either with a selector or a media query)
+    pub activation: ModeActivation,
     /// Pairs of semantic tokens - primitive token sorted by property name
     /// e.g. ("--text-default", "var(--color-gray-100)")
     pub declarations: Vec<(String, String)>,
@@ -309,6 +314,15 @@ pub enum ResolveModeError {
         selector: String,
         media: String,
     },
+
+    #[error("mode '{mode}' does not declare how it is activated")]
+    #[diagnostic(
+        code(config::modes::missing_activation),
+        help(
+            "give the mode either a \"selector\" such as [data-theme=\"dark\"], or a \"media\" query such as (prefers-color-scheme: dark)"
+        )
+    )]
+    MissingActivation { mode: String },
 
     #[error("mode '{mode}' overrides unknown semantic group '{group}'")]
     #[diagnostic(
@@ -356,13 +370,18 @@ pub fn resolve_all_modes(
     for name in mode_names {
         let definition = &modes[name];
 
-        if let (Some(selector), Some(media)) = (&definition.selector, &definition.media) {
-            return Err(ResolveModeError::ConflictingActivation {
-                mode: name.clone(),
-                selector: selector.clone(),
-                media: media.clone(),
-            });
-        }
+        let activation = match (&definition.selector, &definition.media) {
+            (Some(selector), Some(media)) => {
+                return Err(ResolveModeError::ConflictingActivation {
+                    mode: name.clone(),
+                    selector: selector.clone(),
+                    media: media.clone(),
+                });
+            }
+            (Some(selector), None) => ModeActivation::Selector(selector.clone()),
+            (None, Some(media)) => ModeActivation::Media(media.clone()),
+            (None, None) => return Err(ResolveModeError::MissingActivation { mode: name.clone() }),
+        };
 
         let mut declarations = Vec::new();
 
@@ -406,11 +425,7 @@ pub fn resolve_all_modes(
 
         resolved_modes.push(ResolvedMode {
             name: name.clone(),
-            selector: definition
-                .selector
-                .clone()
-                .unwrap_or_else(|| format!("[data-mode=\"{name}\"]")),
-            media: definition.media.clone(),
+            activation,
             declarations,
         })
     }
@@ -657,7 +672,7 @@ mod tests {
             map.insert(
                 "dark".to_string(),
                 ModeConfig {
-                    selector: None,
+                    selector: Some(r#"[data-mode="dark"]"#.to_string()),
                     media: None,
                     overrides: overrides
                         .iter()
@@ -678,24 +693,24 @@ mod tests {
         }
 
         #[test]
-        fn resolves_a_mode_with_defaulted_selector() {
-            let modes = dark_mode(&[("text", &[("default", "{colors.gray-100}")])]);
-
-            let resolved =
-                resolve_all_modes(Some(&modes), &semantic_groups(), &primitives()).unwrap();
-
-            assert_eq!(resolved.len(), 1);
-            let dark = &resolved[0];
-            assert_eq!(dark.name, "dark");
-            assert_eq!(dark.selector, r#"[data-mode="dark"]"#);
-            assert_eq!(dark.media, None);
-            assert_eq!(
-                dark.declarations,
-                vec![(
-                    "--text-default".to_string(),
-                    "var(--color-gray-100)".to_string()
-                )]
+        fn mode_without_an_activation_is_an_error() {
+            let mut modes = HashMap::new();
+            modes.insert(
+                "dark".to_string(),
+                ModeConfig {
+                    selector: None,
+                    media: None,
+                    overrides: HashMap::from([(
+                        "text".to_string(),
+                        HashMap::from([("default".to_string(), "{colors.gray-100}".to_string())]),
+                    )]),
+                },
             );
+
+            let result =
+                resolve_all_modes(Some(&modes), &semantic_groups(), &primitives()).unwrap_err();
+
+            assert!(matches!(result, ResolveModeError::MissingActivation { .. }));
         }
 
         #[test]

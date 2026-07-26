@@ -1,26 +1,22 @@
-use config::ResolvedMode;
+use config::{ModeActivation, ResolvedMode};
 use std::fmt::Write;
 
-/// Applied to media-query blocks so an explicit `data-mode` attribute always beats the system preference.
-/// It is kind of an edge case. Ideally, users would choose either the selector or the media as a way to switch between themes.
-const MEDIA_FALLBACK_GUARD: &str = ":root:not([data-mode])";
-
-/// Generates CSS blocks for all resolved modes.
+/// Generates one CSS block per resolved mode.
 ///
-/// For a mode "dark" with declaration ("--text-default", "var(--color-gray-100"), this generates:
+/// A mode activated by a selector, here `[data-mode="dark"]`, generates:
 ///
 /// ```css
 /// [data-mode="dark"] {
-/// --text-default: var(--color-gray-100);
+///   --text-default: var(--color-gray-100);
 /// }
 /// ```
 ///
-/// and when the mode declares a media query, addiotionally:
+/// A mode activated by a media query generates:
 ///
 /// ```css
 /// @media (prefers-color-scheme: dark) {
-///  :root:not([data-mode]) {
-///    --text-default: var(--color-gray-100);
+///   :root {
+///     --text-default: var(--color-gray-100);
 ///   }
 /// }
 /// ```
@@ -32,27 +28,31 @@ pub fn generate_mode_blocks(modes: &[ResolvedMode]) -> Vec<String> {
             continue;
         }
 
-        if let Some(media) = &mode.media {
-            let mut block = String::new();
-            let _ = writeln!(block, "@media {media} {{");
-            let _ = writeln!(block, "  {MEDIA_FALLBACK_GUARD} {{");
-
-            for (property, value) in &mode.declarations {
-                let _ = writeln!(block, "    {property}: {value};");
-            }
-
-            let _ = writeln!(block, "  }}");
-            let _ = write!(block, "}}");
-            blocks.push(block);
-        }
-
         let mut block = String::new();
-        let _ = writeln!(block, "{} {{", mode.selector);
-        for (property, value) in &mode.declarations {
-            let _ = writeln!(block, "  {property}: {value};");
+
+        match &mode.activation {
+            ModeActivation::Selector(selector) => {
+                let _ = writeln!(block, "{selector} {{");
+
+                for (property, value) in &mode.declarations {
+                    let _ = writeln!(block, "  {property}: {value};");
+                }
+
+                let _ = write!(block, "}}");
+            }
+            ModeActivation::Media(query) => {
+                let _ = writeln!(block, "@media {query} {{");
+                let _ = writeln!(block, "  :root {{");
+
+                for (property, value) in &mode.declarations {
+                    let _ = writeln!(block, "    {property}: {value};");
+                }
+
+                let _ = writeln!(block, "  }}");
+                let _ = write!(block, "}}");
+            }
         }
 
-        let _ = write!(block, "}}");
         blocks.push(block);
     }
 
@@ -67,8 +67,7 @@ mod tests {
     fn dark() -> ResolvedMode {
         ResolvedMode {
             name: "dark".to_string(),
-            selector: "[data-mode=\"dark\"]".to_string(),
-            media: None,
+            activation: ModeActivation::Selector("[data-mode=\"dark\"]".to_string()),
             declarations: vec![
                 (
                     "--text-default".to_string(),
@@ -95,26 +94,25 @@ mod tests {
     }
 
     #[test]
-    fn media_mode_generates_guarded_media_block_before_selector_block() {
+    fn media_mode_generates_only_an_unguarded_media_block() {
         let mut mode = dark();
-        mode.media = Some("(prefers-color-scheme: dark)".to_string());
+        mode.activation = ModeActivation::Media("(prefers-color-scheme: dark)".to_string());
 
         let blocks = generate_mode_blocks(&[mode]);
 
-        assert_eq!(blocks.len(), 2);
+        assert_eq!(blocks.len(), 1);
 
         assert_eq!(
             blocks[0],
-            "@media (prefers-color-scheme: dark) {\n  :root:not([data-mode]) {\n    --text-default: var(--color-gray-100);\n    --text-muted: var(--color-gray-400);\n  }\n}"
+            "@media (prefers-color-scheme: dark) {\n  :root {\n    --text-default: var(--color-gray-100);\n    --text-muted: var(--color-gray-400);\n  }\n}"
         );
-        assert!(blocks[1].starts_with("[data-mode=\"dark\"]"));
     }
 
     #[test]
     fn mode_without_declarations_generates_nothing() {
         let mut mode = dark();
         mode.declarations.clear();
-        mode.media = Some("(prefers-color-scheme: dark)".to_string());
+        mode.activation = ModeActivation::Media("(prefers-color-scheme: dark)".to_string());
 
         let blocks = generate_mode_blocks(&[mode]);
         assert!(blocks.is_empty());
@@ -123,7 +121,7 @@ mod tests {
     #[test]
     fn supports_multiple_modes() {
         let mut contrast = dark();
-        contrast.selector = "[data-mode=\"contrast\"]".to_string();
+        contrast.activation = ModeActivation::Selector("[data-mode=\"contrast\"]".to_string());
 
         let blocks = generate_mode_blocks(&[contrast, dark()]);
 
