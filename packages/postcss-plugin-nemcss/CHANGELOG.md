@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.6
+
+### Patch Changes
+
+- 9acca2b: Add a CommonJS build output and default export to support plugin loaders loading plugins by name
+
 ## 0.3.5
 
 ### Patch Changes
