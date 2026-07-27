@@ -11,11 +11,20 @@ npm install -D @nemcss/postcss
 This plugin reads your `nemcss.config.json`. Run `npx nemcss init` to scaffold one, or see the [nemcss package](https://www.npmjs.com/package/nemcss) for configuration details. PostCSS does not include HMR; use [`@nemcss/vite`](https://www.npmjs.com/package/@nemcss/vite) if you need hot module replacement.
 
 ```js
-// postcss.config.js
-import { nemcss } from "@nemcss/postcss";
-
+// postcss.config.mjs
 export default {
-  plugins: [nemcss()],
+  plugins: {
+    "@nemcss/postcss": {},
+  },
+};
+```
+
+```js
+// postcss.config.cjs
+module.exports = {
+  plugins: {
+    "@nemcss/postcss": {},
+  },
 };
 ```
 

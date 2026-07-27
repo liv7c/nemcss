@@ -44,16 +44,27 @@ yarn dlx nemcss init
 
 :::
 
-Then add the plugin to your PostCSS config:
+Then add the plugin to your PostCSS config, referencing it by name:
 
-```js
-// postcss.config.js
-import { nemcss } from "@nemcss/postcss";
+::: code-group
 
+```js [postcss.config.mjs]
 export default {
-  plugins: [nemcss()],
+  plugins: {
+    "@nemcss/postcss": {},
+  },
 };
 ```
+
+```js [postcss.config.cjs]
+module.exports = {
+  plugins: {
+    "@nemcss/postcss": {},
+  },
+};
+```
+
+:::
 
 ## Directives
 
@@ -91,10 +102,14 @@ The `@nemcss utilities` directive is optional. The plugin exits with an error if
 | `ignore` | `string[]` | `[]` | Additional glob patterns to exclude from content scanning. `node_modules` and `dist` are always excluded. |
 
 ```js
-nemcss({
-  configPath: 'config/nemcss.config.json',
-  ignore: ['legacy/**'],
-})
+{
+  plugins: {
+    "@nemcss/postcss": {
+      configPath: "config/nemcss.config.json",
+      ignore: ["legacy/**"],
+    },
+  },
+}
 ```
 
 See the full [configuration reference](/guide/configuration).
