@@ -86,4 +86,5 @@ export const nemcss: PluginCreator<NemcssPluginOptions> = function (
 
 nemcss.postcss = true;
 
+export default nemcss;
 export type { NemcssPluginOptions } from "./types.js";
