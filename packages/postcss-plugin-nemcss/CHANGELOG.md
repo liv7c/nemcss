@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.5
+
+### Patch Changes
+
+- 6976e2b: Fix a regression introduced by the upgrade to pnpm v11. With the new version, we need to specify a `files` property in the package json to include the dist files.
+
 ## 0.3.4
 
 ### Patch Changes
