@@ -33,6 +33,14 @@ export const nemcss: PluginCreator<NemcssPluginOptions> = function (
 
       if (!baseDirective && !utilitiesDirective) return;
 
+      // attach a message to result to signify to runners they should rebuild css when config file changes
+      result.messages.push({
+        type: "dependency",
+        plugin: "postcss-plugin-nemcss",
+        file: configPath,
+        parent: result.opts.from,
+      });
+
       let config;
       try {
         config = JSON.parse(readFileSync(configPath, "utf8"));
@@ -41,7 +49,30 @@ export const nemcss: PluginCreator<NemcssPluginOptions> = function (
         return;
       }
 
+      for (const category of Object.values(config.theme ?? {}) as Array<{
+        source?: string;
+      }>) {
+        if (!category.source) continue;
+        // attach a message to result to signify to runners they should rebuild css when a token file gets modified
+        result.messages.push({
+          type: "dependency",
+          plugin: "postcss-plugin-nemcss",
+          file: resolve(process.cwd(), category.source),
+          parent: result.opts.from,
+        });
+      }
+
       const contentGlobs: string[] = config.content ?? [];
+      for (const glob of contentGlobs) {
+        result.messages.push({
+          type: "dir-dependency",
+          plugin: "postcss-plugin-nemcss",
+          dir: process.cwd(),
+          glob,
+          parent: result.opts.from,
+        });
+      }
+
       const files = await fg(contentGlobs, {
         cwd: process.cwd(),
         absolute: true,
