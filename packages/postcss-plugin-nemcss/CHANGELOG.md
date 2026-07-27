@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.7
+
+### Patch Changes
+
+- 498dda5: Attach messages to plugin to trigger CSS rebuild on key file changes (such as config file or token files)
+
 ## 0.3.6
 
 ### Patch Changes
