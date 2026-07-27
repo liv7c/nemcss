@@ -9,6 +9,9 @@
     }
   },
   "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
   "description": "Plugin to support nemcss",
   "keywords": [
     "postcss-plugin"
