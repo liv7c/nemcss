@@ -19,7 +19,7 @@ jobs:
         with:
           token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
 
-      - uses: pnpm/action-setup@v6.0.9
+      - uses: pnpm/action-setup@v6.0.10
 
       - uses: actions/setup-node@v7
         with:
@@ -28,9 +28,12 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - uses: changesets/action@v1
+      - uses: changesets/action@v2
         with:
-          version: pnpm run version
-          publish: pnpm release
+          version-script: pnpm run version
+          publish-script: pnpm release
+          commit-message: "chore: release"
+          pr-title: "chore: release"
+          github-token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
         env:
           GITHUB_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
