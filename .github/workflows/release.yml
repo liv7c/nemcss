@@ -30,7 +30,10 @@ jobs:
 
       - uses: changesets/action@v2
         with:
-          version: pnpm run version
-          publish: pnpm release
+          version-script: pnpm run version
+          publish-script: pnpm release
+          commit-message: "chore: release"
+          pr-title: "chore: release"
+          github-token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
         env:
           GITHUB_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
