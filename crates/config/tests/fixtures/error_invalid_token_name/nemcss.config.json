@@ -1,0 +1,6 @@
+{
+  "content": ["src/**/*.html"],
+  "theme": {
+    "spacing": { "source": "design-tokens/spacing.json", "prefix": "space" }
+  }
+}

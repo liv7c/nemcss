@@ -1,0 +1,7 @@
+{
+  "title": "Spacing Tokens",
+  "items": [
+    { "name": "1", "value": "1rem" },
+    { "name": "0.5", "value": "0.5rem" }
+  ]
+}
