@@ -3,8 +3,18 @@ use config::{TokenItem, TokenValue};
 use crate::commands::new_token_file::error::NewTokenFileError;
 
 /// Format a number into a string
-pub fn format_number(value: f64) -> String {
+fn format_number(value: f64) -> String {
     value.to_string()
+}
+
+/// Generates a scale token name based on its numeric value.
+/// If a user provides scales with decimals, a CSS property name
+/// cannot contain a `.` in its name. This function replaces the decimal
+/// point with an underscore.
+fn generate_scale_name(value: f64) -> String {
+    let formatted_number_string = format_number(value);
+
+    formatted_number_string.replace('.', "_")
 }
 
 /// Split a `--values` string on top-level commas only.
@@ -80,7 +90,7 @@ pub fn build_items(
         None => values
             .iter()
             .map(|value| match value.parse::<f64>() {
-                Ok(num) => Ok(format_number(num)),
+                Ok(num) => Ok(generate_scale_name(num)),
                 Err(_) => Err(NewTokenFileError::NameRequiredForValue {
                     value: value.clone(),
                 }),
@@ -134,6 +144,20 @@ mod tests {
     }
 
     #[test]
+    fn scale_name_replaces_decimal_point_with_underscore() {
+        assert_eq!(generate_scale_name(0.5), "0_5");
+        assert_eq!(generate_scale_name(5.5), "5_5");
+        assert_eq!(generate_scale_name(0.125), "0_125");
+    }
+
+    #[test]
+    fn scale_name_does_not_modify_whole_numbers() {
+        assert_eq!(generate_scale_name(1.0), "1");
+        assert_eq!(generate_scale_name(16.0), "16");
+        assert_eq!(generate_scale_name(0.0), "0");
+    }
+
+    #[test]
     fn split_values_splits_on_commas() {
         assert_eq!(split_values("8,16,24"), vec!["8", "16", "24"]);
     }
@@ -167,6 +191,20 @@ mod tests {
     }
 
     #[test]
+    fn explicit_numeric_values_get_valid_names_when_values_contain_decimals() {
+        let source = explicit(&["0.5", "1", "1.5"]);
+        let items = build_items(&source, None, "rem").unwrap();
+
+        assert_eq!(items.len(), 3);
+        assert_eq!(items[0].name, "0_5");
+        assert_eq!(items[0].value, TokenValue::Simple("0.5rem".to_string()));
+        assert_eq!(items[1].name, "1");
+        assert_eq!(items[1].value, TokenValue::Simple("1rem".to_string()));
+        assert_eq!(items[2].name, "1_5");
+        assert_eq!(items[2].value, TokenValue::Simple("1.5rem".to_string()));
+    }
+
+    #[test]
     fn numeric_values_are_normalized_through_format_number() {
         let items = build_items(&explicit(&["8.0"]), None, "px").unwrap();
 
@@ -184,7 +222,7 @@ mod tests {
         let items = build_items(&source, None, "rem").unwrap();
 
         let names: Vec<&str> = items.iter().map(|i| i.name.as_str()).collect();
-        assert_eq!(names, vec!["0.5", "1", "1.5", "2"]);
+        assert_eq!(names, vec!["0_5", "1", "1_5", "2"]);
 
         assert_eq!(items[1].value, TokenValue::Simple("1rem".to_string()));
     }
