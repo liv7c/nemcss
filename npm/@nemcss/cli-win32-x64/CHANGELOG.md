@@ -1,5 +1,11 @@
 # @nemcss/cli-win32-x64
 
+## 0.10.1
+
+### Patch Changes
+
+- 36a8496: Fix `new-token-file` generating invalid CSS for fractional scale values. Names like `0.5` are now written as `0_5` so the custom property (e.g. `--spacing-0_5`) and utility class (`p-0_5`) are valid identifiers. Token files with token names that would produce invalid CSS now fail the build too.
+
 ## 0.10.0
 
 ### Minor Changes
