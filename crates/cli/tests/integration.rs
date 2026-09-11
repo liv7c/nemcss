@@ -228,6 +228,37 @@ fn test_new_token_file_creates_token_file() {
 }
 
 #[test]
+fn test_new_token_file_generated_scale_writes_css_safe_names() {
+    let (mut cmd, temp_dir) = setup_cmd().unwrap();
+
+    cmd.current_dir(&temp_dir).arg("init").assert().success();
+
+    let (mut cmd, _) = setup_cmd().unwrap();
+
+    cmd.current_dir(&temp_dir)
+        .args([
+            "new-token-file",
+            "spacing",
+            "--unit",
+            "rem",
+            "--step",
+            "0.5",
+            "--count",
+            "3",
+        ])
+        .assert()
+        .success();
+
+    temp_dir
+        .child("design-tokens")
+        .child("spacing.json")
+        .assert(predicate::path::is_file())
+        .assert(predicate::str::contains(r#""name": "0_5""#))
+        .assert(predicate::str::contains(r#""name": "1""#))
+        .assert(predicate::str::contains(r#""name": "1_5""#));
+}
+
+#[test]
 fn test_new_token_file_accepts_css_function_values() {
     let (mut cmd, temp_dir) = setup_cmd().unwrap();
 
