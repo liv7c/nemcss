@@ -22,4 +22,4 @@ pub use resolver::{
     resolve_all_semantic_groups, resolve_all_tokens, resolve_registered_tokens,
     unregistered_token_files,
 };
-pub use token::{TokenFile, TokenItem, TokenValue};
+pub use token::{TokenFile, TokenItem, TokenValue, is_valid_token_name};

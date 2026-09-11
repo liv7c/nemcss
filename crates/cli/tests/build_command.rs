@@ -551,6 +551,39 @@ fn test_build_generates_css_with_dark_mode_activated_via_a_selector() {
 }
 
 #[test]
+fn test_build_fails_on_invalid_token_name() {
+    let mut test_setup = TestCmdHelper::new()
+        .unwrap()
+        .with_standard_design_tokens()
+        .unwrap()
+        .with_content_file("src/index.html", r#"<div class="p-sm">x</div>"#)
+        .unwrap()
+        .with_input_css_file("@nemcss base;")
+        .unwrap();
+
+    test_setup
+        .temp_dir
+        .child("design-tokens")
+        .child("spacings.json")
+        .write_str(
+            r#"{
+    "title": "spacings",
+    "items": [
+        {"name": "sm", "value": "0.5rem"},
+        {"name": "0.5", "value": "0.5rem"}
+    ]
+}"#,
+        )
+        .unwrap();
+
+    test_setup
+        .run_build_command()
+        .failure()
+        .stderr(predicate::str::contains("invalid token name"))
+        .stderr(predicate::str::contains("0.5"));
+}
+
+#[test]
 fn test_build_generates_css_fails_when_dark_mode_activated_with_selector_and_media_query() {
     let mut test_setup = TestCmdHelper::new()
         .unwrap()

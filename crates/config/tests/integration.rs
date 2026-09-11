@@ -140,6 +140,18 @@ fn test_returns_error_when_source_file_is_missing() {
 }
 
 #[test]
+fn test_returns_error_for_invalid_token_name() {
+    let config_path = get_config_fixture_path("error_invalid_token_name");
+    let config = NemCssConfig::from_path(&config_path).unwrap();
+
+    let error = config.resolve_all_tokens().unwrap_err();
+
+    let msg = error.to_string();
+    assert!(msg.contains("0.5"));
+    assert!(msg.contains("spacing.json"));
+}
+
+#[test]
 fn test_generates_utilities_for_explicitly_configured_tokens() {
     let config_path = get_config_fixture_path("explicit_tokens_with_custom_utils");
     let config = NemCssConfig::from_path(&config_path).unwrap();

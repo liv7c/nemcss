@@ -94,7 +94,7 @@ Run it with explicit values with names:
 nemcss new-token-file spacing --unit px --values "8,16,24,32" --names "sm,md,lg,xl"
 ```
 
-You can also generate uniform scales (0.5, 1, 1.5):
+You can also generate uniform scales (0.5, 1, 1.5). Fractional values are named with an underscore, so `0.5rem` becomes the token `0_5`.
 
 ```sh
 nemcss new-token-file spacing --unit rem --step 0.5 --count 12

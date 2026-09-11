@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 use miette::{Diagnostic, Result};
 use thiserror::Error;
 
+use crate::tokens::is_valid_token_name;
 use crate::tokens::token::{TokenFile, TokenValue};
 use crate::{ModeConfig, NemCssConfig, SemanticConfig, TokenUtilityConfig};
 
@@ -54,6 +55,15 @@ pub enum LoadTokensFromFileError {
     #[error("failed to parse token file: {0}")]
     #[diagnostic(code(config::tokens::load_tokens_from_file::parse_error))]
     ParseError(serde_json::Error),
+    /// Error when tokens file contains an invalid token name.
+    #[error("invalid token name \"{name}\" in {}", path.display())]
+    #[diagnostic(
+        code(config::tokens::load_tokens_from_file::invalid_token_name),
+        help(
+            "token names may only contain letters, digits, `-` and `_` so that they can be used in CSS custom properties and class names. For fractional scales, replace `.` with `_` (e.g. `0_5` instead of `0.5`)"
+        )
+    )]
+    InvalidTokenName { name: String, path: PathBuf },
 }
 
 /// Load tokens from the given token file.
@@ -63,6 +73,17 @@ fn load_tokens_from_file(
     let file = fs::read_to_string(path).map_err(LoadTokensFromFileError::ReadFileError)?;
     let token_file: TokenFile =
         serde_json::from_str(&file).map_err(LoadTokensFromFileError::ParseError)?;
+
+    if let Some(item) = token_file
+        .items
+        .iter()
+        .find(|item| !is_valid_token_name(&item.name))
+    {
+        return Err(LoadTokensFromFileError::InvalidTokenName {
+            name: item.name.clone(),
+            path: path.to_path_buf(),
+        });
+    }
     Ok(token_file.into_tokens())
 }
 
