@@ -100,6 +100,16 @@ impl Display for TokenValue {
     }
 }
 
+/// Validate the token name. A token name will be used to
+/// generate CSS custom properties. Thus, it can only contain
+/// alphanumeric characters (and no `.`).
+pub fn is_valid_token_name(name: &str) -> bool {
+    !name.is_empty()
+        && name
+            .chars()
+            .all(|c| c.is_alphanumeric() || c == '_' || c == '-')
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -127,5 +137,21 @@ mod tests {
         let deserialized_val: TokenValue = serde_json::from_str(&json).unwrap();
 
         assert_eq!(deserialized_val, original);
+    }
+
+    #[test]
+    fn token_name_accepts_letters_digits_dash_and_underscores() {
+        assert!(is_valid_token_name("primary"));
+        assert!(is_valid_token_name("blue-500"));
+        assert!(is_valid_token_name("0_5"));
+        assert!(is_valid_token_name("16"));
+    }
+
+    #[test]
+    fn token_name_rejects_characters_that_break_css_identifiers() {
+        assert!(!is_valid_token_name("spacing-0.5"));
+        assert!(!is_valid_token_name("with space"));
+        assert!(!is_valid_token_name("blue/500"));
+        assert!(!is_valid_token_name(""));
     }
 }
