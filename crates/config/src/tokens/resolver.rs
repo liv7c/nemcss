@@ -60,7 +60,7 @@ pub enum LoadTokensFromFileError {
     #[diagnostic(
         code(config::tokens::load_tokens_from_file::invalid_token_name),
         help(
-            "token names may only contain letters, digits, `-` and `_` so that they can be used in CSS custom properties and class names. For fractional scales, replace `.` with `_` (e.g. `0_5` instead of `0.5`"
+            "token names may only contain letters, digits, `-` and `_` so that they can be used in CSS custom properties and class names. For fractional scales, replace `.` with `_` (e.g. `0_5` instead of `0.5`)"
         )
     )]
     InvalidTokenName { name: String, path: PathBuf },

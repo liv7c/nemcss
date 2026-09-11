@@ -102,7 +102,7 @@ impl Display for TokenValue {
 
 /// Validate the token name. A token name will be used to
 /// generate CSS custom properties. Thus, it can only contain
-/// alphanumeric characters (and no `.`).
+/// alphanumeric characters, `-` or `_` (and no `.`).
 pub fn is_valid_token_name(name: &str) -> bool {
     !name.is_empty()
         && name
