@@ -23,6 +23,8 @@ Each token file is a JSON file with a `title`, an optional `description`, and an
 | `description` | no       | Optional description of what these tokens represent.      |
 | `items`       | yes      | Array of token entries, each with a `name` and a `value`. |
 
+Token names become part of a CSS custom property and, if configured, a utility class name, so they can only contain letters, digits, `-` and `_`. A name like `0.5` fails the build; write `0_5` instead.
+
 Place these files in your `tokensDir` (defaults to `design-tokens/`) and register each one under `theme` in `nemcss.config.json`. The theme key is the category name.
 
 ## Token value types
