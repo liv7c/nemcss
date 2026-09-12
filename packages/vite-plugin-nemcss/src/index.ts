@@ -175,7 +175,10 @@ export function nemcss(options: NemcssPluginOptions = {}): Plugin {
       return cssModules;
     },
     transform(this: void, code: string, id: string) {
-      if (!id.endsWith(".css")) return;
+      // Check the extension on the bare path ignoring any query string Vite might add in dev when
+      // loading a stylesheet via a link tag.
+      const cleanId = id.replace(/[?#].*$/, "");
+      if (!cleanId.endsWith(".css")) return;
 
       const hasBaseDirective = code.includes("@nemcss base;");
       const hasUtilitiesDirective = code.includes("@nemcss utilities;");
