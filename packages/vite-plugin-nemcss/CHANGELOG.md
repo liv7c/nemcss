@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.8
+
+### Patch Changes
+
+- f726402: Apply @nemcss directive to stylesheets loaded through a link tag in development.
+
 ## 0.3.7
 
 ### Patch Changes
