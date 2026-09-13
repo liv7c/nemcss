@@ -90,10 +90,12 @@ fn load_tokens_from_file(
 /// Represents the error type when resolving tokens.
 #[derive(Debug, Diagnostic, Error)]
 pub enum ResolveTokensError {
-    #[error("failed to scan tokens directory: {0}")]
+    #[error(transparent)]
+    #[diagnostic(transparent)]
     ScanTokensDirError(#[from] ScanTokensDirError),
 
-    #[error("failed to load tokens from file: {0}")]
+    #[error(transparent)]
+    #[diagnostic(transparent)]
     LoadTokensFromFileError(#[from] LoadTokensFromFileError),
 
     #[error("token file not found for theme entry `{token_name}`: {}", source_path.display())]
@@ -807,6 +809,32 @@ mod tests {
                 result,
                 ResolveModeError::ConflictingActivation { .. }
             ));
+        }
+    }
+
+    mod error_forwarding {
+        use super::*;
+        use miette::Diagnostic;
+
+        #[test]
+        fn resolve_tokens_error_forwards_help_from_the_load_error() {
+            let inner = LoadTokensFromFileError::InvalidTokenName {
+                name: "0.5".into(),
+                path: PathBuf::from("design-tokens/spacings.json"),
+            };
+            let err = ResolveTokensError::from(inner);
+
+            let help = err.help().map(|h| h.to_string());
+            assert!(
+                help.as_ref()
+                    .is_some_and(|h| h.contains("replace `.` with `_`")),
+                "the wrapper should expose the inner help, got {help:?}"
+            );
+            assert_eq!(
+                err.to_string().matches("invalid token name").count(),
+                1,
+                "the message should not be repeated by the wrapper"
+            );
         }
     }
 }

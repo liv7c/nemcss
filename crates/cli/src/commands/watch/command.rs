@@ -267,7 +267,8 @@ pub fn watch(input: impl AsRef<Path>, output: impl AsRef<Path>) -> Result<(), Wa
 
 #[derive(Debug, Diagnostic, Error)]
 pub enum RebuildError {
-    #[error("error building: {0}")]
+    #[error(transparent)]
+    #[diagnostic(transparent)]
     Build(#[from] BuildError),
     #[error("error creating output directory: {0}")]
     CreateOutputDir(std::io::Error),
