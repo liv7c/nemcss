@@ -155,6 +155,56 @@ pub struct ResolvedToken {
     pub prefix: String,
 }
 
+/// Represents the output of loading the theme entries one by one:
+/// tokens show the loaded entries while errors contains the errors encountered
+/// when resolving the token files.
+#[derive(Debug, Default)]
+pub struct PartialResolvedTokens {
+    pub tokens: HashMap<String, ResolvedToken>,
+    pub errors: Vec<ResolveTokensError>,
+}
+
+/// Resolve registered tokens in a lenient way. If it encounters any error (missing token file, malformed one),
+/// it keeps parsing the tokens any way. This function is mainly for use for the LSP.
+pub fn resolve_registered_tokens_lenient(config: &NemCssConfig) -> PartialResolvedTokens {
+    let mut result = PartialResolvedTokens::default();
+    let Some(theme) = config.theme.as_ref() else {
+        return result;
+    };
+
+    let mut entries: Vec<_> = theme.tokens.iter().collect();
+    entries.sort_by_key(|(name, _)| *name);
+
+    for (name, token_config) in entries {
+        let path = config.base_dir.join(&token_config.source);
+        if !path.is_file() {
+            result.errors.push(ResolveTokensError::SourceFileNotFound {
+                token_name: name.clone(),
+                source_path: token_config.source.clone(),
+            });
+            continue;
+        }
+
+        match load_tokens_from_file(&path) {
+            Ok(tokens) => {
+                let utilities = token_config.utilities.clone().unwrap_or_default();
+
+                result.tokens.insert(
+                    name.clone(),
+                    ResolvedToken {
+                        tokens,
+                        utilities,
+                        prefix: token_config.prefix.clone(),
+                    },
+                );
+            }
+            Err(err) => result.errors.push(err.into()),
+        }
+    }
+
+    result
+}
+
 /// Resolve all tokens registered in the theme configuration.
 /// For each entry under `theme` in `nemcss.config.json`, loads and parses its `source` file.
 ///
@@ -171,33 +221,12 @@ pub struct ResolvedToken {
 pub fn resolve_registered_tokens(
     config: &NemCssConfig,
 ) -> Result<HashMap<String, ResolvedToken>, ResolveTokensError> {
-    let mut resolved_tokens = HashMap::new();
+    let PartialResolvedTokens { tokens, errors } = resolve_registered_tokens_lenient(config);
 
-    if let Some(theme) = config.theme.as_ref() {
-        for (name, token_config) in &theme.tokens {
-            let path = config.base_dir.join(&token_config.source);
-            if !path.is_file() {
-                return Err(ResolveTokensError::SourceFileNotFound {
-                    token_name: name.clone(),
-                    source_path: token_config.source.clone(),
-                });
-            }
-
-            let tokens = load_tokens_from_file(&path)?;
-            let utilities = token_config.utilities.clone().unwrap_or_default();
-
-            resolved_tokens.insert(
-                name.clone(),
-                ResolvedToken {
-                    tokens,
-                    utilities,
-                    prefix: token_config.prefix.clone(),
-                },
-            );
-        }
+    match errors.into_iter().next() {
+        Some(err) => Err(err),
+        None => Ok(tokens),
     }
-
-    Ok(resolved_tokens)
 }
 
 /// Checks for unregistered token files by comparing the token files registered in the config file with the
@@ -859,6 +888,80 @@ mod tests {
                 1,
                 "the message should not be repeated by the wrapper"
             );
+        }
+    }
+
+    mod lenient_resolution {
+        use super::*;
+
+        fn project(spacings_json: &str, colors_json: &str) -> (tempfile::TempDir, NemCssConfig) {
+            let dir = tempdir().unwrap();
+            fs::create_dir_all(dir.path().join("design-tokens")).unwrap();
+            fs::write(
+                dir.path().join("design-tokens/spacings.json"),
+                spacings_json,
+            )
+            .unwrap();
+            fs::write(dir.path().join("design-tokens/colors.json"), colors_json).unwrap();
+            fs::write(
+                dir.path().join("nemcss.config.json"),
+                r#"{
+                    "content": ["src/**/*.html"],
+                    "theme": {
+                        "colors":   { "prefix": "color", "source": "design-tokens/colors.json" },
+                        "spacings": { "prefix": "space", "source": "design-tokens/spacings.json" }
+                    }
+                }"#,
+            )
+            .unwrap();
+            let config = NemCssConfig::from_path(dir.path().join("nemcss.config.json")).unwrap();
+            (dir, config)
+        }
+
+        const GOOD_SPACINGS: &str =
+            r#"{ "title": "spacings", "items": [{ "name": "sm", "value": "0.5rem" }] }"#;
+        const GOOD_COLORS: &str =
+            r##"{ "title": "colors", "items": [{ "name": "black", "value": "#000" }] }"##;
+        const BAD_COLORS: &str =
+            r##"{ "title": "colors", "items": [{ "name": "0.5", "value": "#000" }] }"##;
+
+        #[test]
+        fn lenient_keeps_the_entries_that_loaded_and_collects_the_errors() {
+            let (_dir, config) = project(GOOD_SPACINGS, BAD_COLORS);
+
+            let PartialResolvedTokens { tokens, errors } =
+                resolve_registered_tokens_lenient(&config);
+
+            assert!(
+                tokens.contains_key("spacings"),
+                "the correct token file should load"
+            );
+            assert!(
+                !tokens.contains_key("colors"),
+                "the incorrect token file should be skipped"
+            );
+
+            assert_eq!(errors.len(), 1);
+            assert!(
+                matches!(&errors[0], ResolveTokensError::LoadTokensFromFileError(LoadTokensFromFileError::InvalidTokenName { name, .. }) if name == "0.5"),
+                "got: {:?}",
+                errors[0]
+            );
+        }
+
+        #[test]
+        fn lenient_reports_a_missing_source_file_and_carries_on() {
+            let (dir, config) = project(GOOD_SPACINGS, GOOD_COLORS);
+            fs::remove_file(dir.path().join("design-tokens").join("colors.json")).unwrap();
+
+            let PartialResolvedTokens { tokens, errors } =
+                resolve_registered_tokens_lenient(&config);
+
+            assert!(tokens.contains_key("spacings"));
+            assert!(matches!(
+                &errors[0],
+                ResolveTokensError::SourceFileNotFound { token_name, .. } if token_name == "colors"
+            ));
         }
     }
 }

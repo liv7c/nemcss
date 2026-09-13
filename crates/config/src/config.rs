@@ -8,9 +8,9 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::tokens::{
-    ResolveModeError, ResolveTokensError, ResolvedMode, ResolvedToken, ScanTokensDirError,
-    resolve_all_modes, resolve_all_semantic_groups, resolve_all_tokens, resolve_registered_tokens,
-    unregistered_token_files,
+    PartialResolvedTokens, ResolveModeError, ResolveTokensError, ResolvedMode, ResolvedToken,
+    ScanTokensDirError, resolve_all_modes, resolve_all_semantic_groups, resolve_all_tokens,
+    resolve_registered_tokens, resolve_registered_tokens_lenient, unregistered_token_files,
 };
 use crate::{ResolveSemanticError, ResolvedSemanticGroup};
 
@@ -186,6 +186,12 @@ impl NemCssConfig {
         &self,
     ) -> Result<HashMap<String, ResolvedToken>, ResolveTokensError> {
         resolve_registered_tokens(self)
+    }
+
+    /// Resolves every token without stopping if it encounters one or more errors parsing the token
+    /// files.
+    pub fn resolve_registered_tokens_lenient(&self) -> PartialResolvedTokens {
+        resolve_registered_tokens_lenient(self)
     }
 
     /// Token files in the tokens directory that no theme entry points at

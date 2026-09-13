@@ -17,9 +17,9 @@ mod resolver;
 mod token;
 
 pub use resolver::{
-    LoadTokensFromFileError, ModeActivation, ResolveModeError, ResolveSemanticError,
-    ResolveTokensError, ResolvedMode, ResolvedSemanticGroup, ResolvedToken, ScanTokensDirError,
-    resolve_all_modes, resolve_all_semantic_groups, resolve_all_tokens, resolve_registered_tokens,
-    unregistered_token_files,
+    LoadTokensFromFileError, ModeActivation, PartialResolvedTokens, ResolveModeError,
+    ResolveSemanticError, ResolveTokensError, ResolvedMode, ResolvedSemanticGroup, ResolvedToken,
+    ScanTokensDirError, resolve_all_modes, resolve_all_semantic_groups, resolve_all_tokens,
+    resolve_registered_tokens, resolve_registered_tokens_lenient, unregistered_token_files,
 };
 pub use token::{TokenFile, TokenItem, TokenValue, is_valid_token_name};
