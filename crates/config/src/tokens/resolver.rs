@@ -48,13 +48,19 @@ fn scan_tokens_dir(path: &Path) -> Result<Vec<PathBuf>, ScanTokensDirError> {
 #[derive(Debug, Diagnostic, Error)]
 pub enum LoadTokensFromFileError {
     /// Represents an error when reading the token file.
-    #[error("failed to read token file: {0}")]
+    #[error("failed to read token file: {}", path.display())]
     #[diagnostic(code(config::tokens::load_tokens_from_file::read_file_error))]
-    ReadFileError(std::io::Error),
+    ReadFileError {
+        path: PathBuf,
+        source: std::io::Error,
+    },
     /// Represents an error when parsing the token file.
-    #[error("failed to parse token file: {0}")]
+    #[error("failed to parse token file: {}", path.display())]
     #[diagnostic(code(config::tokens::load_tokens_from_file::parse_error))]
-    ParseError(serde_json::Error),
+    ParseError {
+        path: PathBuf,
+        source: serde_json::Error,
+    },
     /// Error when tokens file contains an invalid token name.
     #[error("invalid token name \"{name}\" in {}", path.display())]
     #[diagnostic(
@@ -66,13 +72,31 @@ pub enum LoadTokensFromFileError {
     InvalidTokenName { name: String, path: PathBuf },
 }
 
+impl LoadTokensFromFileError {
+    /// Token file this error is about
+    pub fn path(&self) -> &Path {
+        match self {
+            LoadTokensFromFileError::ReadFileError { path, .. } => path,
+            LoadTokensFromFileError::ParseError { path, .. } => path,
+            LoadTokensFromFileError::InvalidTokenName { path, .. } => path,
+        }
+    }
+}
+
 /// Load tokens from the given token file.
 fn load_tokens_from_file(
     path: &Path,
 ) -> Result<Vec<(String, TokenValue)>, LoadTokensFromFileError> {
-    let file = fs::read_to_string(path).map_err(LoadTokensFromFileError::ReadFileError)?;
+    let file =
+        fs::read_to_string(path).map_err(|source| LoadTokensFromFileError::ReadFileError {
+            path: path.to_path_buf(),
+            source,
+        })?;
     let token_file: TokenFile =
-        serde_json::from_str(&file).map_err(LoadTokensFromFileError::ParseError)?;
+        serde_json::from_str(&file).map_err(|source| LoadTokensFromFileError::ParseError {
+            path: path.to_path_buf(),
+            source,
+        })?;
 
     if let Some(item) = token_file
         .items
