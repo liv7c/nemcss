@@ -1,6 +1,9 @@
 use std::{collections::HashMap, path::Path};
 
-use config::{CONFIG_FILE_NAME, NemCssConfig, NemCssConfigError, ResolveTokensError};
+use config::{
+    CONFIG_FILE_NAME, NemCssConfig, NemCssConfigError, PartialResolvedTokens, ResolveTokensError,
+    display_error_chain,
+};
 use engine::{ResponsiveUtility, Utility};
 use globset::GlobSet;
 use miette::Diagnostic;
@@ -120,7 +123,15 @@ impl NemCache {
         let config_path = workspace_root.join(CONFIG_FILE_NAME);
         let config = NemCssConfig::from_path(&config_path)?;
 
-        let primitive_tokens = config.resolve_registered_tokens()?;
+        let PartialResolvedTokens {
+            tokens: primitive_tokens,
+            errors: token_errors,
+        } = config.resolve_registered_tokens_lenient();
+
+        let token_warnings: Vec<String> = token_errors
+            .iter()
+            .map(|e| display_error_chain(e))
+            .collect();
 
         let unregistered_warnings: Vec<String> = config
             .unregistered_token_files()
@@ -183,8 +194,9 @@ impl NemCache {
                 content_globs,
                 token_references,
             },
-            warnings: semantic_warnings
+            warnings: token_warnings
                 .into_iter()
+                .chain(semantic_warnings)
                 .chain(unregistered_warnings)
                 .collect(),
         })
@@ -591,6 +603,38 @@ mod tests {
             assert!(utility_names.contains(&"bg-secondary"));
             assert!(utility_names.contains(&"p-sm"));
             assert!(utility_names.contains(&"p-md"));
+        }
+
+        #[test]
+        fn test_build_cache_keeps_good_tokens_when_one_file_is_broken() {
+            let temp_dir = create_test_project().expect("failed to create test project");
+
+            temp_dir
+                .child("design-tokens/colors.json")
+                .write_str("{ \"title\": \"colors\", \"items\": [, ] }")
+                .expect("failed to break colors.json");
+
+            let BuildResult { cache, warnings } = NemCache::build(temp_dir.path())
+                .expect("a broken token file must not fail the build");
+
+            assert!(
+                cache
+                    .custom_properties
+                    .iter()
+                    .any(|p| p.name.starts_with("--spacing-")),
+                "spacings should still be loaded"
+            );
+            assert!(
+                !cache
+                    .custom_properties
+                    .iter()
+                    .any(|p| p.name.starts_with("--color-")),
+                "broken colors file should not contribute to the values stored in cache"
+            );
+            assert!(
+                warnings.iter().any(|w| w.contains("colors.json")),
+                "the broken file should be reported, got: {warnings:?}"
+            );
         }
 
         #[test]

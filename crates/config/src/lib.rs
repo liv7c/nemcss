@@ -29,7 +29,7 @@ pub use config::{
 pub use error::display_error_chain;
 pub use schema::{GenerateSchemaError, generate_schema};
 pub use tokens::{
-    LoadTokensFromFileError, ModeActivation, ResolveModeError, ResolveSemanticError,
-    ResolveTokensError, ResolvedMode, ResolvedSemanticGroup, ResolvedToken, TokenFile, TokenItem,
-    TokenValue, resolve_registered_tokens,
+    LoadTokensFromFileError, ModeActivation, PartialResolvedTokens, ResolveModeError,
+    ResolveSemanticError, ResolveTokensError, ResolvedMode, ResolvedSemanticGroup, ResolvedToken,
+    TokenFile, TokenItem, TokenValue, resolve_registered_tokens,
 };
