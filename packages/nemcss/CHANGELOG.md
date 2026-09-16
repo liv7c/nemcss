@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.10.2
+
+### Patch Changes
+
+- 289bada: Fix error messages losing their help text and being printed multiple times through wrapper errors.
+
 ## 0.10.1
 
 ### Patch Changes
