@@ -7,7 +7,9 @@ mod context;
 mod doc_context;
 mod file;
 mod position;
+mod problems;
 
+use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 
 use config::{CONFIG_FILE_NAME, NemCssConfig};
@@ -18,13 +20,17 @@ use thiserror::Error;
 use tokio::sync::RwLock;
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::*;
-use tower_lsp::{Client, LanguageServer};
+use tower_lsp::{
+    Client, LanguageServer,
+    lsp_types::{Diagnostic as LspDiagnostic, InitializeParams, PositionEncodingKind, Url},
+};
 
 use crate::cache::{BuildResult, NemCache};
 use crate::context::extract_token_ref_partial;
 use crate::doc_context::DocLangBoundary;
 use crate::file::is_dedicated_css_file;
 use crate::position::lsp_col_to_byte;
+use crate::problems::Problem;
 
 #[derive(Debug)]
 pub struct Backend {
@@ -42,6 +48,8 @@ pub struct Backend {
     /// Encoding used to calculate the character positions.
     /// It could be utf8 or utf16 (both should be supported)
     position_encoding: RwLock<PositionEncodingKind>,
+    /// Files we currently have diagostics on
+    published_uris: RwLock<HashSet<Url>>,
 }
 
 #[tower_lsp::async_trait]
@@ -468,6 +476,7 @@ impl Backend {
             documents: DashMap::new(),
             document_boundaries: DashMap::new(),
             position_encoding: RwLock::new(PositionEncodingKind::UTF16),
+            published_uris: RwLock::new(HashSet::new()),
         }
     }
 
@@ -500,14 +509,47 @@ impl Backend {
             .cloned()
             .or_else(|| std::env::current_dir().ok())
             .ok_or(RebuildCacheError::WorkspaceRoot)?;
-        let BuildResult { cache, warnings } = NemCache::build(&workspace_root)?;
 
-        for warning in warnings {
-            self.client.log_message(MessageType::WARNING, warning).await;
+        match NemCache::build(&workspace_root) {
+            Ok(BuildResult { cache, problems }) => {
+                self.cache.write().await.replace(cache);
+                self.publish_problems(problems).await;
+            }
+            Err(cache::BuildCacheError::NemCssConfig(err)) => {
+                let config_path = workspace_root.join(CONFIG_FILE_NAME);
+                self.publish_problems(vec![Problem::from_config_error(&err, &config_path)])
+                    .await;
+            }
+            Err(err) => return Err(err.into()),
         }
-        self.cache.write().await.replace(cache);
 
         Ok(())
+    }
+
+    async fn publish_problems(&self, problems: Vec<Problem>) {
+        let mut by_uri: HashMap<Url, Vec<LspDiagnostic>> = HashMap::new();
+
+        for problem in &problems {
+            if let Ok(uri) = Url::from_file_path(&problem.path) {
+                by_uri.entry(uri).or_default().push(problem.to_diagnostic());
+            }
+        }
+
+        let mut published = self.published_uris.write().await;
+        for uri in published.drain() {
+            // if uri is in by_uri, this is a no-op. If it is not, we empty it so that
+            // LSP consumers will clear the warnings/errors shown in the editor.
+            by_uri.entry(uri).or_default();
+        }
+
+        for (uri, diagnostics) in by_uri {
+            if !diagnostics.is_empty() {
+                published.insert(uri.clone());
+            }
+            self.client
+                .publish_diagnostics(uri, diagnostics, None)
+                .await
+        }
     }
 
     async fn do_setup_file_watchers(

@@ -8,9 +8,7 @@ import fg from "fast-glob";
 import { extractClasses, generateCss, GeneratedCss } from "@nemcss/napi";
 
 const BASE_DIRECTIVE_RE = /@nemcss base;/g;
-const BASE_DIRECTIVE = "@nemcss base;";
 const UTILITIES_DIRECTIVE_RE = /@nemcss utilities;/g;
-const UTILITIES_DIRECTIVE = "@nemcss utilities;";
 
 /**
  * Extracts the non-glob prefix directory from a glob pattern so we can
@@ -44,6 +42,7 @@ export function nemcss(options: NemcssPluginOptions = {}): Plugin {
   let contentGlobs: string[] = [];
   let tokensDirAbs: string = "";
   let generatedCss: GeneratedCss = { baseCss: "", utilitiesCss: "" };
+  let lastError: Error | undefined;
   let isContentFile: (id: string) => boolean = () => false;
   let server: ViteDevServer | undefined;
 
@@ -106,8 +105,12 @@ export function nemcss(options: NemcssPluginOptions = {}): Plugin {
 
     try {
       generatedCss = generateCss(configPath, [...allClasses]);
+      lastError = undefined;
     } catch (e) {
-      viteConfig.logger.error(`Error generating CSS: ${e}`);
+      lastError = e instanceof Error ? e : new Error(String(e));
+      viteConfig.logger.error(`nemcss: ${lastError.message}`, {
+        error: lastError,
+      });
     }
   }
 
@@ -174,7 +177,7 @@ export function nemcss(options: NemcssPluginOptions = {}): Plugin {
 
       return cssModules;
     },
-    transform(this: void, code: string, id: string) {
+    transform(this, code: string, id: string) {
       // Check the extension on the bare path ignoring any query string Vite might add in dev when
       // loading a stylesheet via a link tag.
       const cleanId = id.replace(/[?#].*$/, "");
@@ -188,6 +191,9 @@ export function nemcss(options: NemcssPluginOptions = {}): Plugin {
       }
 
       nemcssStylesheets.add(id);
+      if (lastError) {
+        this.error({ message: `nemcss: ${lastError.message}` });
+      }
 
       let result = code;
       if (hasBaseDirective) {

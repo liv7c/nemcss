@@ -48,13 +48,19 @@ fn scan_tokens_dir(path: &Path) -> Result<Vec<PathBuf>, ScanTokensDirError> {
 #[derive(Debug, Diagnostic, Error)]
 pub enum LoadTokensFromFileError {
     /// Represents an error when reading the token file.
-    #[error("failed to read token file: {0}")]
+    #[error("failed to read token file: {}", path.display())]
     #[diagnostic(code(config::tokens::load_tokens_from_file::read_file_error))]
-    ReadFileError(std::io::Error),
+    ReadFileError {
+        path: PathBuf,
+        source: std::io::Error,
+    },
     /// Represents an error when parsing the token file.
-    #[error("failed to parse token file: {0}")]
+    #[error("failed to parse token file: {}", path.display())]
     #[diagnostic(code(config::tokens::load_tokens_from_file::parse_error))]
-    ParseError(serde_json::Error),
+    ParseError {
+        path: PathBuf,
+        source: serde_json::Error,
+    },
     /// Error when tokens file contains an invalid token name.
     #[error("invalid token name \"{name}\" in {}", path.display())]
     #[diagnostic(
@@ -66,13 +72,31 @@ pub enum LoadTokensFromFileError {
     InvalidTokenName { name: String, path: PathBuf },
 }
 
+impl LoadTokensFromFileError {
+    /// Token file this error is about
+    pub fn path(&self) -> &Path {
+        match self {
+            LoadTokensFromFileError::ReadFileError { path, .. } => path,
+            LoadTokensFromFileError::ParseError { path, .. } => path,
+            LoadTokensFromFileError::InvalidTokenName { path, .. } => path,
+        }
+    }
+}
+
 /// Load tokens from the given token file.
 fn load_tokens_from_file(
     path: &Path,
 ) -> Result<Vec<(String, TokenValue)>, LoadTokensFromFileError> {
-    let file = fs::read_to_string(path).map_err(LoadTokensFromFileError::ReadFileError)?;
+    let file =
+        fs::read_to_string(path).map_err(|source| LoadTokensFromFileError::ReadFileError {
+            path: path.to_path_buf(),
+            source,
+        })?;
     let token_file: TokenFile =
-        serde_json::from_str(&file).map_err(LoadTokensFromFileError::ParseError)?;
+        serde_json::from_str(&file).map_err(|source| LoadTokensFromFileError::ParseError {
+            path: path.to_path_buf(),
+            source,
+        })?;
 
     if let Some(item) = token_file
         .items
@@ -90,10 +114,12 @@ fn load_tokens_from_file(
 /// Represents the error type when resolving tokens.
 #[derive(Debug, Diagnostic, Error)]
 pub enum ResolveTokensError {
-    #[error("failed to scan tokens directory: {0}")]
+    #[error(transparent)]
+    #[diagnostic(transparent)]
     ScanTokensDirError(#[from] ScanTokensDirError),
 
-    #[error("failed to load tokens from file: {0}")]
+    #[error(transparent)]
+    #[diagnostic(transparent)]
     LoadTokensFromFileError(#[from] LoadTokensFromFileError),
 
     #[error("token file not found for theme entry `{token_name}`: {}", source_path.display())]
@@ -129,6 +155,56 @@ pub struct ResolvedToken {
     pub prefix: String,
 }
 
+/// Represents the output of loading the theme entries one by one:
+/// tokens show the loaded entries while errors contains the errors encountered
+/// when resolving the token files.
+#[derive(Debug, Default)]
+pub struct PartialResolvedTokens {
+    pub tokens: HashMap<String, ResolvedToken>,
+    pub errors: Vec<ResolveTokensError>,
+}
+
+/// Resolve registered tokens in a lenient way. If it encounters any error (missing token file, malformed one),
+/// it keeps parsing the tokens any way. This function is mainly for use for the LSP.
+pub fn resolve_registered_tokens_lenient(config: &NemCssConfig) -> PartialResolvedTokens {
+    let mut result = PartialResolvedTokens::default();
+    let Some(theme) = config.theme.as_ref() else {
+        return result;
+    };
+
+    let mut entries: Vec<_> = theme.tokens.iter().collect();
+    entries.sort_by_key(|(name, _)| *name);
+
+    for (name, token_config) in entries {
+        let path = config.base_dir.join(&token_config.source);
+        if !path.is_file() {
+            result.errors.push(ResolveTokensError::SourceFileNotFound {
+                token_name: name.clone(),
+                source_path: token_config.source.clone(),
+            });
+            continue;
+        }
+
+        match load_tokens_from_file(&path) {
+            Ok(tokens) => {
+                let utilities = token_config.utilities.clone().unwrap_or_default();
+
+                result.tokens.insert(
+                    name.clone(),
+                    ResolvedToken {
+                        tokens,
+                        utilities,
+                        prefix: token_config.prefix.clone(),
+                    },
+                );
+            }
+            Err(err) => result.errors.push(err.into()),
+        }
+    }
+
+    result
+}
+
 /// Resolve all tokens registered in the theme configuration.
 /// For each entry under `theme` in `nemcss.config.json`, loads and parses its `source` file.
 ///
@@ -145,33 +221,12 @@ pub struct ResolvedToken {
 pub fn resolve_registered_tokens(
     config: &NemCssConfig,
 ) -> Result<HashMap<String, ResolvedToken>, ResolveTokensError> {
-    let mut resolved_tokens = HashMap::new();
+    let PartialResolvedTokens { tokens, errors } = resolve_registered_tokens_lenient(config);
 
-    if let Some(theme) = config.theme.as_ref() {
-        for (name, token_config) in &theme.tokens {
-            let path = config.base_dir.join(&token_config.source);
-            if !path.is_file() {
-                return Err(ResolveTokensError::SourceFileNotFound {
-                    token_name: name.clone(),
-                    source_path: token_config.source.clone(),
-                });
-            }
-
-            let tokens = load_tokens_from_file(&path)?;
-            let utilities = token_config.utilities.clone().unwrap_or_default();
-
-            resolved_tokens.insert(
-                name.clone(),
-                ResolvedToken {
-                    tokens,
-                    utilities,
-                    prefix: token_config.prefix.clone(),
-                },
-            );
-        }
+    match errors.into_iter().next() {
+        Some(err) => Err(err),
+        None => Ok(tokens),
     }
-
-    Ok(resolved_tokens)
 }
 
 /// Checks for unregistered token files by comparing the token files registered in the config file with the
@@ -806,6 +861,106 @@ mod tests {
             assert!(matches!(
                 result,
                 ResolveModeError::ConflictingActivation { .. }
+            ));
+        }
+    }
+
+    mod error_forwarding {
+        use super::*;
+        use miette::Diagnostic;
+
+        #[test]
+        fn resolve_tokens_error_forwards_help_from_the_load_error() {
+            let inner = LoadTokensFromFileError::InvalidTokenName {
+                name: "0.5".into(),
+                path: PathBuf::from("design-tokens/spacings.json"),
+            };
+            let err = ResolveTokensError::from(inner);
+
+            let help = err.help().map(|h| h.to_string());
+            assert!(
+                help.as_ref()
+                    .is_some_and(|h| h.contains("replace `.` with `_`")),
+                "the wrapper should expose the inner help, got {help:?}"
+            );
+            assert_eq!(
+                err.to_string().matches("invalid token name").count(),
+                1,
+                "the message should not be repeated by the wrapper"
+            );
+        }
+    }
+
+    mod lenient_resolution {
+        use super::*;
+
+        fn project(spacings_json: &str, colors_json: &str) -> (tempfile::TempDir, NemCssConfig) {
+            let dir = tempdir().unwrap();
+            fs::create_dir_all(dir.path().join("design-tokens")).unwrap();
+            fs::write(
+                dir.path().join("design-tokens/spacings.json"),
+                spacings_json,
+            )
+            .unwrap();
+            fs::write(dir.path().join("design-tokens/colors.json"), colors_json).unwrap();
+            fs::write(
+                dir.path().join("nemcss.config.json"),
+                r#"{
+                    "content": ["src/**/*.html"],
+                    "theme": {
+                        "colors":   { "prefix": "color", "source": "design-tokens/colors.json" },
+                        "spacings": { "prefix": "space", "source": "design-tokens/spacings.json" }
+                    }
+                }"#,
+            )
+            .unwrap();
+            let config = NemCssConfig::from_path(dir.path().join("nemcss.config.json")).unwrap();
+            (dir, config)
+        }
+
+        const GOOD_SPACINGS: &str =
+            r#"{ "title": "spacings", "items": [{ "name": "sm", "value": "0.5rem" }] }"#;
+        const GOOD_COLORS: &str =
+            r##"{ "title": "colors", "items": [{ "name": "black", "value": "#000" }] }"##;
+        const BAD_COLORS: &str =
+            r##"{ "title": "colors", "items": [{ "name": "0.5", "value": "#000" }] }"##;
+
+        #[test]
+        fn lenient_keeps_the_entries_that_loaded_and_collects_the_errors() {
+            let (_dir, config) = project(GOOD_SPACINGS, BAD_COLORS);
+
+            let PartialResolvedTokens { tokens, errors } =
+                resolve_registered_tokens_lenient(&config);
+
+            assert!(
+                tokens.contains_key("spacings"),
+                "the correct token file should load"
+            );
+            assert!(
+                !tokens.contains_key("colors"),
+                "the incorrect token file should be skipped"
+            );
+
+            assert_eq!(errors.len(), 1);
+            assert!(
+                matches!(&errors[0], ResolveTokensError::LoadTokensFromFileError(LoadTokensFromFileError::InvalidTokenName { name, .. }) if name == "0.5"),
+                "got: {:?}",
+                errors[0]
+            );
+        }
+
+        #[test]
+        fn lenient_reports_a_missing_source_file_and_carries_on() {
+            let (dir, config) = project(GOOD_SPACINGS, GOOD_COLORS);
+            fs::remove_file(dir.path().join("design-tokens").join("colors.json")).unwrap();
+
+            let PartialResolvedTokens { tokens, errors } =
+                resolve_registered_tokens_lenient(&config);
+
+            assert!(tokens.contains_key("spacings"));
+            assert!(matches!(
+                &errors[0],
+                ResolveTokensError::SourceFileNotFound { token_name, .. } if token_name == "colors"
             ));
         }
     }

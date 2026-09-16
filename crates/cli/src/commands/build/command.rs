@@ -25,12 +25,12 @@ pub enum BuildError {
     #[diagnostic(code(nemcss::build::current_dir))]
     RetrieveCurrentDir(std::io::Error),
 
-    #[error("failed to load the NemCSS configuration: {0}")]
-    #[diagnostic(code(nemcss::build::load_config))]
+    #[error("failed to load the NemCSS configuration")]
+    #[diagnostic(forward(0))]
     LoadConfig(#[from] config::NemCssConfigError),
 
-    #[error("failed to resolve the design tokens: {0}")]
-    #[diagnostic(code(nemcss::build::resolve_tokens))]
+    #[error("failed to resolve the design tokens")]
+    #[diagnostic(forward(0))]
     ResolveTokens(#[from] config::ResolveTokensError),
 
     #[error("missing `@nemcss base;` directive in input css file: {0}")]

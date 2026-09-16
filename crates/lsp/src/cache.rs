@@ -1,6 +1,8 @@
 use std::{collections::HashMap, path::Path};
 
-use config::{CONFIG_FILE_NAME, NemCssConfig, NemCssConfigError, ResolveTokensError};
+use config::{
+    CONFIG_FILE_NAME, NemCssConfig, NemCssConfigError, PartialResolvedTokens, ResolveTokensError,
+};
 use engine::{ResponsiveUtility, Utility};
 use globset::GlobSet;
 use miette::Diagnostic;
@@ -10,7 +12,7 @@ use tower_lsp::lsp_types::{
     MarkupKind, Url,
 };
 
-use crate::file::CSS_EXTENSIONS;
+use crate::{file::CSS_EXTENSIONS, problems::Problem};
 
 /// Cache for the LSP server.
 /// This cache is used to store the generated utilities, viewports, custom properties, and content globs.
@@ -112,7 +114,7 @@ pub enum BuildCacheError {
 
 pub struct BuildResult {
     pub cache: NemCache,
-    pub warnings: Vec<String>,
+    pub problems: Vec<Problem>,
 }
 
 impl NemCache {
@@ -120,18 +122,21 @@ impl NemCache {
         let config_path = workspace_root.join(CONFIG_FILE_NAME);
         let config = NemCssConfig::from_path(&config_path)?;
 
-        let primitive_tokens = config.resolve_registered_tokens()?;
+        let PartialResolvedTokens {
+            tokens: primitive_tokens,
+            errors: token_errors,
+        } = config.resolve_registered_tokens_lenient();
 
-        let unregistered_warnings: Vec<String> = config
+        let token_problems: Vec<Problem> = token_errors
+            .iter()
+            .map(|e| Problem::from_token_error(e, &config_path))
+            .collect();
+
+        let unregistered_problems: Vec<Problem> = config
             .unregistered_token_files()
             .unwrap_or_default()
             .iter()
-            .map(|path| {
-                format!(
-                    "token file {} is not registered in nemcss.config.json; ignoring it",
-                    path.display()
-                )
-            })
+            .map(|path| Problem::unregistered_token_file(path))
             .collect();
 
         let token_references: Vec<String> = primitive_tokens
@@ -145,12 +150,17 @@ impl NemCache {
             .collect();
 
         let viewports = primitive_tokens.get("viewports");
-        let (resolved_semantic_groups, semantic_warnings) = config
+        let (resolved_semantic_groups, semantic_problem) = config
             .resolve_semantic_groups(&primitive_tokens)
             .map(|groups| (groups, None))
             // Permissive: if semantic groups cannot be resolved, fall back to empty rather
             // than breaking the entire cache (the user might be editing a semantic config file)
-            .unwrap_or_else(|e| (Default::default(), Some(e.to_string())));
+            .unwrap_or_else(|e| {
+                let problem = token_problems
+                    .is_empty()
+                    .then(|| Problem::from_semantic_error(&e, &config_path));
+                (Default::default(), problem)
+            });
 
         let generated_css = engine::generate_css(
             primitive_tokens.values(),
@@ -183,9 +193,10 @@ impl NemCache {
                 content_globs,
                 token_references,
             },
-            warnings: semantic_warnings
+            problems: token_problems
                 .into_iter()
-                .chain(unregistered_warnings)
+                .chain(semantic_problem)
+                .chain(unregistered_problems)
                 .collect(),
         })
     }
@@ -594,6 +605,38 @@ mod tests {
         }
 
         #[test]
+        fn test_build_cache_keeps_good_tokens_when_one_file_is_broken() {
+            let temp_dir = create_test_project().expect("failed to create test project");
+
+            temp_dir
+                .child("design-tokens/colors.json")
+                .write_str("{ \"title\": \"colors\", \"items\": [, ] }")
+                .expect("failed to break colors.json");
+
+            let BuildResult { cache, problems } = NemCache::build(temp_dir.path())
+                .expect("a broken token file must not fail the build");
+
+            assert!(
+                cache
+                    .custom_properties
+                    .iter()
+                    .any(|p| p.name.starts_with("--spacing-")),
+                "spacings should still be loaded"
+            );
+            assert!(
+                !cache
+                    .custom_properties
+                    .iter()
+                    .any(|p| p.name.starts_with("--color-")),
+                "broken colors file should not contribute to the values stored in cache"
+            );
+            assert!(
+                problems.iter().any(|p| p.path.ends_with("colors.json")),
+                "the broken file should be reported, got: {problems:?}"
+            );
+        }
+
+        #[test]
         fn test_build_cache_warns_but_succeeds_with_unregistered_tokens() {
             let temp_dir = create_test_project().expect("failed to create test project");
 
@@ -602,7 +645,7 @@ mod tests {
                 .write_str(r##"{ "title": "radii", "items": [{ "name": "sm", "value": "4px" }] }"##)
                 .unwrap();
 
-            let BuildResult { cache, warnings } =
+            let BuildResult { cache, problems } =
                 NemCache::build(temp_dir.path()).expect("cache should build despite stray file");
 
             assert!(
@@ -610,7 +653,7 @@ mod tests {
                 "unregistered tokens should still resolve"
             );
             assert!(
-                warnings.iter().any(|w| w.contains("radii.json")),
+                problems.iter().any(|p| p.path.ends_with("radii.json")),
                 "the stray file should surface as a warning"
             );
         }
@@ -666,13 +709,13 @@ mod tests {
                 )
                 .expect("failed to write config");
 
-            let BuildResult { cache, warnings } =
+            let BuildResult { cache, problems } =
                 NemCache::build(temp_dir.path()).expect("empty project should build a cache");
             assert!(
                 cache.utilities.is_empty(),
                 "no registered tokens, no utilities"
             );
-            assert!(warnings.is_empty(), "no stray token files, no warnings")
+            assert!(problems.is_empty(), "no stray token files, no problems")
         }
 
         #[test]
@@ -729,18 +772,37 @@ mod tests {
                 )
                 .expect("failed to write config");
 
-            let BuildResult { cache, warnings } = NemCache::build(temp_dir.path())
+            let BuildResult { cache, problems } = NemCache::build(temp_dir.path())
                 .expect("build should succeed despite bad semantic ref");
-            assert!(!warnings.is_empty(), "should have warnings");
+            assert!(!problems.is_empty(), "should have warnings");
             assert!(
-                warnings[0].contains("does-not-exist"),
-                "warning should mention the bad reference, got: {}",
-                warnings[0]
+                problems[0].message.contains("does-not-exist"),
+                "warning should mention the bad reference, got: {:?}",
+                problems
             );
 
             assert!(
                 !cache.utilities.is_empty(),
                 "should have generated utilities"
+            );
+        }
+
+        #[test]
+        fn test_build_cache_does_not_report_semantic_tokens_problems_when_a_token_file_is_broken() {
+            let temp_dir = create_semantic_test_project().expect("failed to create test project");
+            temp_dir
+                .child("design-tokens/colors.json")
+                .write_str("not json")
+                .expect("failed to break colors.json");
+
+            let BuildResult { problems, .. } =
+                NemCache::build(temp_dir.path()).expect("failed to build cache");
+
+            assert!(
+                problems
+                    .iter()
+                    .all(|p| !p.message.contains("unresolvable reference")),
+                "semantic errors caused by a broken file should no longer be reported"
             );
         }
     }

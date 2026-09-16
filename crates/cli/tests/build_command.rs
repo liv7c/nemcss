@@ -580,7 +580,12 @@ fn test_build_fails_on_invalid_token_name() {
         .run_build_command()
         .failure()
         .stderr(predicate::str::contains("invalid token name"))
-        .stderr(predicate::str::contains("0.5"));
+        .stderr(predicate::str::contains("0.5"))
+        .stderr(predicate::str::contains("help:"))
+        .stderr(predicate::str::contains("replace `.` with `_`"))
+        .stderr(predicate::function(|stderr: &str| {
+            stderr.matches("invalid token name").count() == 1
+        }));
 }
 
 #[test]
