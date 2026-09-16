@@ -2,6 +2,7 @@ use std::path::{Path, PathBuf};
 
 use config::{NemCssConfigError, ResolveSemanticError, ResolveTokensError};
 use miette::Diagnostic;
+use tower_lsp::lsp_types::{Diagnostic as LspDiagnostic, DiagnosticSeverity};
 use tower_lsp::lsp_types::{Position, Range};
 
 /// Represents the severity of the problem.
@@ -120,6 +121,25 @@ impl Problem {
             message: config::display_error_chain(err),
             help: err.help().map(|h| h.to_string()),
             range,
+        }
+    }
+
+    /// Converts a custom Problem into a LSP diagnostic.
+    pub fn to_diagnostic(&self) -> LspDiagnostic {
+        let message = match &self.help {
+            Some(help) => format!("{}\n\nhelp: {help}", self.message),
+            None => self.message.clone(),
+        };
+
+        LspDiagnostic {
+            range: self.range,
+            severity: Some(match self.severity {
+                Severity::Warning => DiagnosticSeverity::WARNING,
+                Severity::Error => DiagnosticSeverity::ERROR,
+            }),
+            source: Some("nemcss".into()),
+            message,
+            ..Default::default()
         }
     }
 }
