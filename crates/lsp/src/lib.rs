@@ -7,6 +7,7 @@ mod context;
 mod doc_context;
 mod file;
 mod position;
+mod problems;
 
 use std::path::PathBuf;
 
