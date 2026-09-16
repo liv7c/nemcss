@@ -9,6 +9,7 @@ import { extractClasses, generateCss, GeneratedCss } from "@nemcss/napi";
 const NEMCSS_CONFIG_FILE = `nemcss.config.json`;
 const DEFAULT_IGNORE = ["**/node_modules/**", "**/dist/**"];
 
+const NEMCSS_PLUGIN_NAME = "postcss-plugin-nemcss";
 export const nemcss: PluginCreator<NemcssPluginOptions> = function (
   options: NemcssPluginOptions = {},
 ): Plugin {
@@ -33,10 +34,20 @@ export const nemcss: PluginCreator<NemcssPluginOptions> = function (
 
       if (!baseDirective && !utilitiesDirective) return;
 
+      const directive = baseDirective ?? utilitiesDirective;
+
+      const fail = (message: string): never => {
+        throw directive?.error(`nemcss: ${message}`, {
+          plugin: NEMCSS_PLUGIN_NAME,
+        });
+      };
+      const messageOf = (err: unknown) =>
+        err instanceof Error ? err.message : String(err);
+
       // attach a message to result to signify to runners they should rebuild css when config file changes
       result.messages.push({
         type: "dependency",
-        plugin: "postcss-plugin-nemcss",
+        plugin: NEMCSS_PLUGIN_NAME,
         file: configPath,
         parent: result.opts.from,
       });
@@ -45,8 +56,9 @@ export const nemcss: PluginCreator<NemcssPluginOptions> = function (
       try {
         config = JSON.parse(readFileSync(configPath, "utf8"));
       } catch (err) {
-        result.warn(`nemcss: could not read config at ${configPath}: ${err}`);
-        return;
+        return fail(
+          `could not read config at ${configPath}: ${messageOf(err)}`,
+        );
       }
 
       for (const category of Object.values(config.theme ?? {}) as Array<{
@@ -56,7 +68,7 @@ export const nemcss: PluginCreator<NemcssPluginOptions> = function (
         // attach a message to result to signify to runners they should rebuild css when a token file gets modified
         result.messages.push({
           type: "dependency",
-          plugin: "postcss-plugin-nemcss",
+          plugin: NEMCSS_PLUGIN_NAME,
           file: resolve(process.cwd(), category.source),
           parent: result.opts.from,
         });
@@ -66,7 +78,7 @@ export const nemcss: PluginCreator<NemcssPluginOptions> = function (
       for (const glob of contentGlobs) {
         result.messages.push({
           type: "dir-dependency",
-          plugin: "postcss-plugin-nemcss",
+          plugin: NEMCSS_PLUGIN_NAME,
           dir: process.cwd(),
           glob,
           parent: result.opts.from,
@@ -94,8 +106,7 @@ export const nemcss: PluginCreator<NemcssPluginOptions> = function (
       try {
         css = generateCss(configPath, [...allClasses]);
       } catch (err) {
-        result.warn(`nemcss: CSS generation failed: ${err}`);
-        return;
+        return fail(messageOf(err));
       }
 
       if (baseDirective) {
