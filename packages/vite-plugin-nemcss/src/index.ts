@@ -8,9 +8,7 @@ import fg from "fast-glob";
 import { extractClasses, generateCss, GeneratedCss } from "@nemcss/napi";
 
 const BASE_DIRECTIVE_RE = /@nemcss base;/g;
-const BASE_DIRECTIVE = "@nemcss base;";
 const UTILITIES_DIRECTIVE_RE = /@nemcss utilities;/g;
-const UTILITIES_DIRECTIVE = "@nemcss utilities;";
 
 /**
  * Extracts the non-glob prefix directory from a glob pattern so we can
