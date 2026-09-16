@@ -2,7 +2,6 @@ use std::{collections::HashMap, path::Path};
 
 use config::{
     CONFIG_FILE_NAME, NemCssConfig, NemCssConfigError, PartialResolvedTokens, ResolveTokensError,
-    display_error_chain,
 };
 use engine::{ResponsiveUtility, Utility};
 use globset::GlobSet;
@@ -13,7 +12,7 @@ use tower_lsp::lsp_types::{
     MarkupKind, Url,
 };
 
-use crate::file::CSS_EXTENSIONS;
+use crate::{file::CSS_EXTENSIONS, problems::Problem};
 
 /// Cache for the LSP server.
 /// This cache is used to store the generated utilities, viewports, custom properties, and content globs.
@@ -115,7 +114,7 @@ pub enum BuildCacheError {
 
 pub struct BuildResult {
     pub cache: NemCache,
-    pub warnings: Vec<String>,
+    pub problems: Vec<Problem>,
 }
 
 impl NemCache {
@@ -128,21 +127,16 @@ impl NemCache {
             errors: token_errors,
         } = config.resolve_registered_tokens_lenient();
 
-        let token_warnings: Vec<String> = token_errors
+        let token_problems: Vec<Problem> = token_errors
             .iter()
-            .map(|e| display_error_chain(e))
+            .map(|e| Problem::from_token_error(e, &config_path))
             .collect();
 
-        let unregistered_warnings: Vec<String> = config
+        let unregistered_problems: Vec<Problem> = config
             .unregistered_token_files()
             .unwrap_or_default()
             .iter()
-            .map(|path| {
-                format!(
-                    "token file {} is not registered in nemcss.config.json; ignoring it",
-                    path.display()
-                )
-            })
+            .map(|path| Problem::unregistered_token_file(path))
             .collect();
 
         let token_references: Vec<String> = primitive_tokens
@@ -156,12 +150,17 @@ impl NemCache {
             .collect();
 
         let viewports = primitive_tokens.get("viewports");
-        let (resolved_semantic_groups, semantic_warnings) = config
+        let (resolved_semantic_groups, semantic_problem) = config
             .resolve_semantic_groups(&primitive_tokens)
             .map(|groups| (groups, None))
             // Permissive: if semantic groups cannot be resolved, fall back to empty rather
             // than breaking the entire cache (the user might be editing a semantic config file)
-            .unwrap_or_else(|e| (Default::default(), Some(e.to_string())));
+            .unwrap_or_else(|e| {
+                let problem = token_problems
+                    .is_empty()
+                    .then(|| Problem::from_semantic_error(&e, &config_path));
+                (Default::default(), problem)
+            });
 
         let generated_css = engine::generate_css(
             primitive_tokens.values(),
@@ -194,10 +193,10 @@ impl NemCache {
                 content_globs,
                 token_references,
             },
-            warnings: token_warnings
+            problems: token_problems
                 .into_iter()
-                .chain(semantic_warnings)
-                .chain(unregistered_warnings)
+                .chain(semantic_problem)
+                .chain(unregistered_problems)
                 .collect(),
         })
     }

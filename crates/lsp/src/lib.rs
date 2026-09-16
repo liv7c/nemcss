@@ -501,10 +501,14 @@ impl Backend {
             .cloned()
             .or_else(|| std::env::current_dir().ok())
             .ok_or(RebuildCacheError::WorkspaceRoot)?;
-        let BuildResult { cache, warnings } = NemCache::build(&workspace_root)?;
+        let BuildResult { cache, problems } = NemCache::build(&workspace_root)?;
 
-        for warning in warnings {
-            self.client.log_message(MessageType::WARNING, warning).await;
+        for problem in problems {
+            let level = match problem.severity {
+                problems::Severity::Warning => MessageType::WARNING,
+                problems::Severity::Error => MessageType::ERROR,
+            };
+            self.client.log_message(level, problem.message).await;
         }
         self.cache.write().await.replace(cache);
 
