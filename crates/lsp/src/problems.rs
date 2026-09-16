@@ -192,3 +192,74 @@ fn range_from_json_error(err: &serde_json::Error) -> Range {
 
     Range::new(position, position)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn range_of_quoted_finds_line_and_column_of_the_quoted_needle() {
+        let text = r#"{
+    "items": [
+        { "name": "0.5" }
+    ]
+}"#;
+        let range = range_of_quoted(text, "0.5");
+        assert_eq!(range.start, Position::new(2, 18));
+        assert_eq!(
+            range.end,
+            Position::new(2, 23),
+            "end covers the closing quote"
+        );
+    }
+
+    #[test]
+    fn range_of_quoted_falls_back_to_the_top_of_the_file() {
+        assert_eq!(range_of_quoted("{}", "missing"), Range::default());
+    }
+
+    #[test]
+    fn range_of_field_finds_the_value_under_the_given_key() {
+        let text = r#"{
+    "items": [
+        { "name": "0.5" }
+    ]
+}"#;
+        let range = range_of_field(text, "name", "0.5");
+
+        assert_eq!(range.start, Position::new(2, 18));
+        assert_eq!(
+            range.end,
+            Position::new(2, 23),
+            "end covers the closing quote"
+        );
+    }
+
+    #[test]
+    fn range_of_field_ignores_the_same_value_under_a_different_key() {
+        let text = r#"{
+    "items": [
+        { "name": "spacing", "value": "0.5" },
+        { "name": "0.5" }
+    ]
+}"#;
+        let range = range_of_field(text, "name", "0.5");
+
+        assert_eq!(
+            range.start,
+            Position::new(3, 18),
+            "should point at line 4's \"name\", not line 3's \"value\""
+        );
+        assert_eq!(range.end, Position::new(3, 23));
+    }
+
+    #[test]
+    fn range_from_json_error_is_zero_based() {
+        let err = serde_json::from_str::<serde_json::Value>("{\n  \"a\": 1,\n}").unwrap_err();
+
+        let range = range_from_json_error(&err);
+
+        assert_eq!(range.start, Position::new(2, 0));
+        assert_eq!(range.start, range.end, "should be a zero-width range");
+    }
+}
