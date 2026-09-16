@@ -1240,6 +1240,7 @@ dependencies = [
  "config",
  "engine",
  "extractor",
+ "miette",
  "napi",
  "napi-build",
  "napi-derive",

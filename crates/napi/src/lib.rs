@@ -1,6 +1,18 @@
+use miette::Diagnostic;
 use napi::bindgen_prelude::*;
 use napi_derive::napi;
 use std::collections::HashSet;
+
+/// Renders a Rust diagnostic the way the CLI would (message, causes, help) so
+/// the Vite overlay and PostCSS show the same hint.
+fn to_js_error(err: impl Diagnostic) -> Error {
+    let mut message = config::display_error_chain(&err);
+    if let Some(help) = err.help() {
+        message.push_str(&format!("\n\nhelp: {help}"));
+    }
+
+    Error::from_reason(message)
+}
 
 /// JsTokenUtility is the configuration of a utility class for a given token.
 ///
@@ -70,12 +82,9 @@ pub fn generate_css(
     config_path: String,
     used_classes: Option<Vec<String>>,
 ) -> Result<GeneratedCss> {
-    let config = config::NemCssConfig::from_path(&config_path)
-        .map_err(|e| Error::from_reason(format!("{e}")))?;
+    let config = config::NemCssConfig::from_path(&config_path).map_err(to_js_error)?;
 
-    let resolved = config
-        .resolve_all_tokens()
-        .map_err(|e| Error::from_reason(format!("{e}")))?;
+    let resolved = config.resolve_all_tokens().map_err(to_js_error)?;
 
     let used_set: Option<HashSet<String>> = used_classes.map(|v| v.into_iter().collect());
     let viewports = resolved
@@ -83,11 +92,11 @@ pub fn generate_css(
         .or_else(|| resolved.get("viewport"));
     let semantic_tokens = config
         .resolve_semantic_groups(&resolved)
-        .map_err(|e| Error::from_reason(format!("{e}")))?;
+        .map_err(to_js_error)?;
 
     let resolved_modes = config
         .resolve_modes(&semantic_tokens, &resolved)
-        .map_err(|e| Error::from_reason(format!("{e}")))?;
+        .map_err(to_js_error)?;
 
     let generated = engine::generate_css(
         resolved.values(),

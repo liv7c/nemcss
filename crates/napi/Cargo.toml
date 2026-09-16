@@ -13,6 +13,7 @@ crate-type = ["cdylib"]
 [dependencies]
 napi = "3.8.5"
 napi-derive = "3.5.4"
+miette = { workspace = true }
 config = { path = "../config" }
 extractor = { path = "../extractor" }
 engine = { path = "../engine" }
